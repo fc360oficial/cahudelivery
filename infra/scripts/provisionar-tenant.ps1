@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Provisiona um novo tenant (distribuidora) do Fluxo Commerce.
 .DESCRIPTION
@@ -26,8 +26,8 @@ $raizSql = Join-Path $PSScriptRoot '..\..\..\11 - SQL'
 $bancoTenant = "fluxo_t_$Slug"
 $conexao = @('-h', $PgHost, '-p', $PgPorta, '-U', $PgUsuario, '-v', 'ON_ERROR_STOP=1', '-q')
 
-function Invoke-Psql([string]$Banco, [string[]]$Args) {
-  & $psql @conexao -d $Banco @Args
+function Invoke-Psql([string]$Banco, [string[]]$ArgLista) {
+  & $psql @conexao -d $Banco @ArgLista
   if ($LASTEXITCODE -ne 0) { throw "psql falhou (banco: $Banco)" }
 }
 

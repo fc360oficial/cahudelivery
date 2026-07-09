@@ -1,10 +1,20 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
+import { CatalogModule } from './catalog/catalog.module';
+import { DatabaseModule } from './database/database.module';
+import { IntegrationModule } from './integration/integration.module';
+import { OrdersModule } from './orders/orders.module';
+import { TenancyMiddleware } from './tenancy/tenant-context';
 
 @Module({
-  imports: [],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TenancyMiddleware).forRoutes('*');
+  }
+}

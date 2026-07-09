@@ -1,0 +1,21 @@
+{
+  "name": "fluxo-commerce",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma white label de vendas B2B para distribuidoras",
+  "workspaces": [
+    "apps/api",
+    "apps/admin",
+    "packages/*"
+  ],
+  "scripts": {
+    "api": "npm run start:dev --workspace apps/api",
+    "admin": "npm run dev --workspace apps/admin",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

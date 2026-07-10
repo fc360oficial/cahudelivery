@@ -2,25 +2,29 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { tenantCtx } from '../tenancy/tenant-context';
 import { CatalogService } from '../catalog/catalog.service';
 
+export type DonoCarrinho = { clienteId?: string; deviceId?: string };
+
 @Injectable()
 export class OrdersService {
   constructor(private readonly catalog: CatalogService) {}
 
-  private async carrinhoId(clienteId: string): Promise<string> {
+  private async carrinhoId(dono: DonoCarrinho): Promise<string> {
     const { pool } = tenantCtx();
+    // coluna vem de whitelist fixa — sem risco de injeção
+    const [col, val] = dono.clienteId ? ['cliente_id', dono.clienteId] : ['device_id', dono.deviceId];
     const { rows } = await pool.query(
-      `insert into carrinhos (cliente_id) values ($1)
-       on conflict (cliente_id) do update set atualizado_em = now()
+      `insert into carrinhos (${col}) values ($1)
+       on conflict (${col}) where ${col} is not null do update set atualizado_em = now()
        returning id`,
-      [clienteId],
+      [val],
     );
     return rows[0].id;
   }
 
-  async carrinho(clienteId: string) {
+  async carrinho(dono: DonoCarrinho) {
     const { pool } = tenantCtx();
-    const id = await this.carrinhoId(clienteId);
-    const tabela = await this.catalog.tabelaPrecoDe(clienteId);
+    const id = await this.carrinhoId(dono);
+    const tabela = await this.catalog.tabelaPrecoDe(dono.clienteId);
     const { rows } = await pool.query(
       `select ci.produto_id, ci.quantidade, p.nome, p.unidade_venda, p.qtd_minima,
               coalesce(e.quantidade,0) as estoque,
@@ -41,13 +45,13 @@ export class OrdersService {
     return { itens: rows, subtotal: Number(subtotal.toFixed(2)) };
   }
 
-  async upsertItem(clienteId: string, produtoId: string, quantidade: number) {
+  async upsertItem(dono: DonoCarrinho, produtoId: string, quantidade: number) {
     const { pool } = tenantCtx();
-    const id = await this.carrinhoId(clienteId);
+    const id = await this.carrinhoId(dono);
     if (quantidade <= 0) {
       await pool.query(`delete from carrinho_itens where carrinho_id = $1 and produto_id = $2`, [id, produtoId]);
     } else {
-      const tabela = await this.catalog.tabelaPrecoDe(clienteId);
+      const tabela = await this.catalog.tabelaPrecoDe(dono.clienteId);
       const preco = await pool.query(
         `select preco from precos where produto_id = $1 and tabela_preco_id = $2`,
         [produtoId, tabela],
@@ -59,11 +63,11 @@ export class OrdersService {
         [id, produtoId, quantidade, preco.rows[0]?.preco ?? 0],
       );
     }
-    return this.carrinho(clienteId);
+    return this.carrinho(dono);
   }
 
-  async removerItem(clienteId: string, produtoId: string) {
-    return this.upsertItem(clienteId, produtoId, 0);
+  async removerItem(dono: DonoCarrinho, produtoId: string) {
+    return this.upsertItem(dono, produtoId, 0);
   }
 
   async criarPedido(
@@ -71,7 +75,7 @@ export class OrdersService {
     dto: { enderecoId: string; formaPagamento: 'boleto' | 'pix'; observacoes?: string },
   ) {
     const { pool } = tenantCtx();
-    const { itens, subtotal } = await this.carrinho(clienteId);
+    const { itens, subtotal } = await this.carrinho({ clienteId });
     if (!itens.length) throw new BadRequestException('Carrinho vazio');
     for (const i of itens) {
       if (Number(i.estoque) < Number(i.quantidade))
@@ -152,7 +156,7 @@ export class OrdersService {
 
   async repetir(clienteId: string, pedidoId: string) {
     const { pool } = tenantCtx();
-    const carrinhoId = await this.carrinhoId(clienteId);
+    const carrinhoId = await this.carrinhoId({ clienteId });
     await pool.query(
       `insert into carrinho_itens (carrinho_id, produto_id, quantidade, preco_unit_snapshot)
        select $1, i.produto_id, i.quantidade, i.preco_unit
@@ -163,6 +167,6 @@ export class OrdersService {
        on conflict (carrinho_id, produto_id) do update set quantidade = excluded.quantidade`,
       [carrinhoId, clienteId, pedidoId],
     );
-    return this.carrinho(clienteId);
+    return this.carrinho({ clienteId });
   }
 }

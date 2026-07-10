@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/api_client.dart';
 import '../../core/tenant_theme.dart';
 import '../auth/login_screen.dart';
+import '../shell/home_shell.dart';
 
 /// Splash: carrega o tema remoto do tenant e decide a rota inicial.
 class SplashScreen extends StatefulWidget {
@@ -22,9 +24,11 @@ class _SplashScreenState extends State<SplashScreen> {
     await TenantTheme.instance.carregar();
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
-    // Fase 2 (telas): se logado -> HomeShell; senão -> Login
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      MaterialPageRoute(
+        builder: (_) =>
+            ApiClient.instance.logado ? const HomeShell() : const LoginScreen(),
+      ),
     );
   }
 

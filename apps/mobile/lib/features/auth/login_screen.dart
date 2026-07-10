@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
 import '../../core/tenant_theme.dart';
+import '../shell/home_shell.dart';
+import 'cadastro_screen.dart';
 
 /// Login do cliente da distribuidora (e-mail ou CNPJ/CPF + senha).
 class LoginScreen extends StatefulWidget {
@@ -29,9 +31,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }) as Map<String, dynamic>;
       await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
       if (!mounted) return;
-      // Fase 2 (telas): navegar para HomeShell
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Bem-vindo! (status: ${r['status']})')),
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeShell()),
       );
     } on ApiException catch (e) {
       setState(() => _erro = e.message);
@@ -92,11 +93,26 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 14),
                   TextButton(
-                    onPressed: () {}, // Fase 2: tela de cadastro
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CadastroScreen()),
+                    ),
                     child: const Text('Criar minha conta'),
                   ),
                   TextButton(
-                    onPressed: () {}, // Fase 2: recuperar senha
+                    // Recuperação por e-mail entra quando a API tiver o fluxo
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Esqueci minha senha'),
+                        content: const Text(
+                            'Fale com a distribuidora para redefinir sua senha de acesso.'),
+                        actions: [
+                          FilledButton(
+                              onPressed: () => Navigator.of(ctx).pop(),
+                              child: const Text('Entendi')),
+                        ],
+                      ),
+                    ),
                     child: const Text('Esqueci minha senha'),
                   ),
                 ],

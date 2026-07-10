@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
 import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 
@@ -26,14 +26,14 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Post('registrar')
-  registrar(@Body() dto: RegistrarDto) {
-    return this.auth.registrar(dto);
+  registrar(@Body() dto: RegistrarDto, @Headers('x-device-id') deviceId?: string) {
+    return this.auth.registrar(dto, deviceId);
   }
 
   @Post('login')
   @HttpCode(200)
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.identificador, dto.senha);
+  login(@Body() dto: LoginDto, @Headers('x-device-id') deviceId?: string) {
+    return this.auth.login(dto.identificador, dto.senha, deviceId);
   }
 
   @Post('refresh')

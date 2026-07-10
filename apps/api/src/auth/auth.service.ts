@@ -15,15 +15,18 @@ const REFRESH_DIAS = 30;
 export class AuthService {
   constructor(private readonly jwt: JwtService) {}
 
-  async registrar(dados: {
-    tipo: 'CPF' | 'CNPJ';
-    documento: string;
-    nomeFantasia: string;
-    razaoSocial?: string;
-    email: string;
-    telefone?: string;
-    senha: string;
-  }) {
+  async registrar(
+    dados: {
+      tipo: 'CPF' | 'CNPJ';
+      documento: string;
+      nomeFantasia: string;
+      razaoSocial?: string;
+      email: string;
+      telefone?: string;
+      senha: string;
+    },
+    deviceId?: string,
+  ) {
     const { pool } = tenantCtx();
     const doc = dados.documento.replace(/\D/g, '');
     const client = await pool.connect();
@@ -44,7 +47,9 @@ export class AuthService {
         await argon2.hash(dados.senha),
       ]);
       await client.query('commit');
-      return { clienteId: rows[0].id, status: rows[0].status };
+      await this.reivindicarCarrinho(rows[0].id, deviceId);
+      const tokens = await this.emitirTokens(rows[0].id, tenantCtx().tenant.slug);
+      return { clienteId: rows[0].id, status: rows[0].status, ...tokens };
     } catch (e) {
       await client.query('rollback');
       throw e;
@@ -53,7 +58,7 @@ export class AuthService {
     }
   }
 
-  async login(identificador: string, senha: string): Promise<TokenPair & { status: string }> {
+  async login(identificador: string, senha: string, deviceId?: string): Promise<TokenPair & { status: string }> {
     const { pool, tenant } = tenantCtx();
     const doc = identificador.replace(/\D/g, '');
     const { rows } = await pool.query(
@@ -68,6 +73,7 @@ export class AuthService {
     }
     if (reg.status === 'bloqueado') throw new UnauthorizedException('Cadastro bloqueado');
     await pool.query(`update cliente_credenciais set ultimo_login_em = now() where cliente_id = $1`, [reg.id]);
+    await this.reivindicarCarrinho(reg.id, deviceId);
     return { ...(await this.emitirTokens(reg.id, tenant.slug)), status: reg.status };
   }
 
@@ -94,5 +100,28 @@ export class AuthService {
     );
     const accessToken = await this.jwt.signAsync({ sub: clienteId, slug, tipo: 'cliente' });
     return { accessToken, refreshToken };
+  }
+
+  /** Mescla o carrinho anônimo do dispositivo no carrinho do cliente (maior quantidade vence). */
+  private async reivindicarCarrinho(clienteId: string, deviceId?: string) {
+    if (!deviceId) return;
+    const { pool } = tenantCtx();
+    const dev = await pool.query(`select id from carrinhos where device_id = $1`, [deviceId]);
+    if (!dev.rows[0]) return;
+    const cli = await pool.query(
+      `insert into carrinhos (cliente_id) values ($1)
+       on conflict (cliente_id) where cliente_id is not null do update set atualizado_em = now()
+       returning id`,
+      [clienteId],
+    );
+    await pool.query(
+      `insert into carrinho_itens (carrinho_id, produto_id, quantidade, preco_unit_snapshot)
+       select $1, produto_id, quantidade, preco_unit_snapshot from carrinho_itens where carrinho_id = $2
+       on conflict (carrinho_id, produto_id)
+         do update set quantidade = greatest(carrinho_itens.quantidade, excluded.quantidade)`,
+      [cli.rows[0].id, dev.rows[0].id],
+    );
+    await pool.query(`delete from carrinho_itens where carrinho_id = $1`, [dev.rows[0].id]);
+    await pool.query(`delete from carrinhos where id = $1`, [dev.rows[0].id]);
   }
 }

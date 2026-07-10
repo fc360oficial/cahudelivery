@@ -6,10 +6,11 @@ import { CatalogModule } from './catalog/catalog.module';
 import { DatabaseModule } from './database/database.module';
 import { IntegrationModule } from './integration/integration.module';
 import { OrdersModule } from './orders/orders.module';
+import { ProfileModule } from './profile/profile.module';
 import { TenancyMiddleware } from './tenancy/tenant-context';
 
 @Module({
-  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule],
   controllers: [AppController],
   providers: [AppService],
 })

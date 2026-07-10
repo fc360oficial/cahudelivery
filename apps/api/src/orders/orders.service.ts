@@ -54,7 +54,7 @@ export class OrdersService {
       );
       await pool.query(
         `insert into carrinho_itens (carrinho_id, produto_id, quantidade, preco_unit_snapshot)
-         values ($1,$2,$3, coalesce($4,0))
+         values ($1,$2,$3, coalesce($4::numeric,0))
          on conflict (carrinho_id, produto_id) do update set quantidade = $3`,
         [id, produtoId, quantidade, preco.rows[0]?.preco ?? 0],
       );

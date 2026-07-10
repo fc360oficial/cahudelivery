@@ -30,6 +30,7 @@ export class AuthService {
     const { pool } = tenantCtx();
     const doc = dados.documento.replace(/\D/g, '');
     const client = await pool.connect();
+    let novo: { id: string; status: string };
     try {
       await client.query('begin');
       const dup = await client.query(`select 1 from clientes where documento = $1 or email = $2`, [
@@ -47,15 +48,16 @@ export class AuthService {
         await argon2.hash(dados.senha),
       ]);
       await client.query('commit');
-      await this.reivindicarCarrinho(rows[0].id, deviceId);
-      const tokens = await this.emitirTokens(rows[0].id, tenantCtx().tenant.slug);
-      return { clienteId: rows[0].id, status: rows[0].status, ...tokens };
+      novo = rows[0];
     } catch (e) {
       await client.query('rollback');
       throw e;
     } finally {
       client.release();
     }
+    await this.reivindicarCarrinho(novo.id, deviceId);
+    const tokens = await this.emitirTokens(novo.id, tenantCtx().tenant.slug);
+    return { clienteId: novo.id, status: novo.status, ...tokens };
   }
 
   async login(identificador: string, senha: string, deviceId?: string): Promise<TokenPair & { status: string }> {

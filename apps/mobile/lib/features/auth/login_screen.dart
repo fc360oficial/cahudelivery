@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
 import '../shell/home_shell.dart';
 import 'cadastro_screen.dart';
@@ -56,18 +57,25 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Logo do flavor; sem asset, cai no nome do app em texto.
+                  Image.asset(
+                    AppBuildConfig.logoAsset,
+                    height: 120,
+                    errorBuilder: (_, e, s) => Text(
+                      t.appNome,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 30, fontWeight: FontWeight.bold, color: t.corPrimaria),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Text(
                     t.appNome,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: t.corPrimaria),
+                    style: TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700, color: t.corPrimaria),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    t.distribuidora,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-                  ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 30),
                   TextField(
                     controller: _identificador,
                     decoration: const InputDecoration(labelText: 'E-mail ou CNPJ/CPF'),

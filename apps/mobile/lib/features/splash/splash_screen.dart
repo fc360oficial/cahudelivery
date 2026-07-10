@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
 import '../auth/login_screen.dart';
 import '../shell/home_shell.dart';
@@ -42,9 +43,9 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (t.logoUrl != null)
-              Image.network(t.logoUrl!, width: 140, errorBuilder: (_, e, s) => _nome(t))
+              Image.network(t.logoUrl!, width: 140, errorBuilder: (_, e, s) => _logoLocal(t))
             else
-              _nome(t),
+              _logoLocal(t),
             const SizedBox(height: 24),
             const SizedBox(
               width: 28,
@@ -56,6 +57,20 @@ class _SplashScreenState extends State<SplashScreen> {
       ),
     );
   }
+
+  /// Logo do flavor num cartão branco (o fundo do splash é a cor do tenant).
+  Widget _logoLocal(TenantTheme t) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Image.asset(
+          AppBuildConfig.logoAsset,
+          width: 160,
+          errorBuilder: (_, e, s) => _nome(t),
+        ),
+      );
 
   Widget _nome(TenantTheme t) => Text(
         t.appNome,

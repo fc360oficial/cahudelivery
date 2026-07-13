@@ -113,11 +113,12 @@ class _ProdutosScreenState extends State<ProdutosScreen> {
                 autofocus: widget.buscaInicial!.isEmpty,
                 textInputAction: TextInputAction.search,
                 onSubmitted: (_) => _recarregar(),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                cursorColor: Colors.white,
-                decoration: const InputDecoration(
+                style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontSize: 16),
+                cursorColor: Theme.of(context).colorScheme.onPrimary,
+                decoration: InputDecoration(
                   hintText: 'Buscar produtos...',
-                  hintStyle: TextStyle(color: Colors.white70),
+                  hintStyle: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.7)),
                   filled: false,
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -162,9 +163,11 @@ class _ProdutosScreenState extends State<ProdutosScreen> {
           selected: ativo,
           onSelected: (_) => onTap(),
           labelStyle: TextStyle(
-              color: ativo ? Theme.of(context).colorScheme.primary : Colors.white,
+              color: ativo
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.onPrimary,
               fontWeight: FontWeight.w600),
-          backgroundColor: Colors.white.withValues(alpha: 0.15),
+          backgroundColor: Theme.of(context).colorScheme.onPrimary.withValues(alpha: 0.15),
           selectedColor: Colors.white,
           side: BorderSide.none,
           showCheckmark: false,

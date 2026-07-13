@@ -36,15 +36,20 @@ class TenantTheme extends ChangeNotifier {
     }
   }
 
+  /// Cor de texto/ícone legível sobre a cor primária (escuro sobre amarelo).
+  Color get corSobrePrimaria =>
+      corPrimaria.computeLuminance() > 0.5 ? const Color(0xFF1A1A1A) : Colors.white;
+
   ThemeData buildTheme() {
-    final scheme = ColorScheme.fromSeed(seedColor: corPrimaria, primary: corPrimaria);
+    final base = ColorScheme.fromSeed(seedColor: corPrimaria, primary: corPrimaria);
+    final scheme = base.copyWith(onPrimary: corSobrePrimaria);
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
       scaffoldBackgroundColor: const Color(0xFFF7F7F9),
       appBarTheme: AppBarTheme(
         backgroundColor: corPrimaria,
-        foregroundColor: Colors.white,
+        foregroundColor: corSobrePrimaria,
         elevation: 0,
         centerTitle: false,
       ),

@@ -46,10 +46,10 @@ class _SplashScreenState extends State<SplashScreen> {
             else
               _logoLocal(t),
             const SizedBox(height: 24),
-            const SizedBox(
+            SizedBox(
               width: 28,
               height: 28,
-              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+              child: CircularProgressIndicator(color: t.corSobrePrimaria, strokeWidth: 2.5),
             ),
           ],
         ),
@@ -57,22 +57,15 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 
-  /// Logo do flavor num cartão branco (o fundo do splash é a cor do tenant).
-  Widget _logoLocal(TenantTheme t) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Image.asset(
-          AppBuildConfig.logoAsset,
-          width: 160,
-          errorBuilder: (_, e, s) => _nome(t),
-        ),
+  /// Logo do flavor (o fundo do splash é a cor do tenant; logo sem fundo branco).
+  Widget _logoLocal(TenantTheme t) => Image.asset(
+        AppBuildConfig.logoAsset,
+        width: 200,
+        errorBuilder: (_, e, s) => _nome(t),
       );
 
   Widget _nome(TenantTheme t) => Text(
         t.appNome,
-        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+        style: TextStyle(color: t.corSobrePrimaria, fontSize: 32, fontWeight: FontWeight.bold),
       );
 }

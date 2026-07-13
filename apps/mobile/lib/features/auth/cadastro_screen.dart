@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../shell/home_shell.dart';
 
 /// Cadastro do cliente da distribuidora (POST /v1/auth/registrar).
-/// Dependendo da configuração do tenant, a conta pode nascer pendente
-/// de aprovação — o app avisa e volta ao login.
+/// A resposta já traz os tokens — o cadastro auto-loga o cliente.
 class CadastroScreen extends StatefulWidget {
-  const CadastroScreen({super.key});
+  const CadastroScreen({super.key, this.retornarAoLogar = false});
+  final bool retornarAoLogar;
 
   @override
   State<CadastroScreen> createState() => _CadastroScreenState();
@@ -44,23 +45,19 @@ class _CadastroScreenState extends State<CadastroScreen> {
         if (_telefone.text.trim().isNotEmpty) 'telefone': _telefone.text.trim(),
         'senha': _senha.text,
       }) as Map<String, dynamic>;
+      await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
       if (!mounted) return;
-      final pendente = r['status'] != 'ativo';
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(pendente ? 'Cadastro enviado!' : 'Conta criada!'),
-          content: Text(pendente
-              ? 'Seu cadastro está em análise pela distribuidora. '
-                  'Você será avisado quando for aprovado.'
-              : 'Sua conta está pronta — entre com seu e-mail e senha.'),
-          actions: [
-            FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(), child: const Text('Entendi')),
-          ],
-        ),
-      );
-      if (mounted) Navigator.of(context).pop();
+      if (r['status'] != 'aprovado' && r['status'] != 'ativo') {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Cadastro em análise pela distribuidora — você já pode navegar e montar pedidos.')));
+      }
+      if (widget.retornarAoLogar) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeShell()), (_) => false);
+      }
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

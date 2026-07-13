@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
 import '../../core/formatadores.dart';
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/stepper_quantidade.dart';
+import '../auth/entrar_ou_criar_screen.dart';
 import '../checkout/checkout_screen.dart';
 
 /// Aba Carrinho: itens com stepper e swipe para remover, subtotal em tempo
@@ -133,8 +135,20 @@ class CarrinhoScreen extends StatelessWidget {
                       Expanded(
                         child: FilledButton(
                           onPressed: atingiu || minimo <= 0
-                              ? () => Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => const CheckoutScreen()))
+                              ? () async {
+                                  if (!ApiClient.instance.logado) {
+                                    final ok = await Navigator.of(context).push<bool>(
+                                        MaterialPageRoute(
+                                            builder: (_) => const EntrarOuCriarScreen()));
+                                    if (ok != true) return;
+                                    await CarrinhoStore.instance
+                                        .carregar(); // carrinho já mesclado pela API
+                                  }
+                                  if (context.mounted) {
+                                    Navigator.of(context).push(MaterialPageRoute(
+                                        builder: (_) => const CheckoutScreen()));
+                                  }
+                                }
                               : null,
                           child: const Text('Finalizar pedido'),
                         ),

@@ -8,7 +8,8 @@ import 'cadastro_screen.dart';
 
 /// Login do cliente da distribuidora (e-mail ou CNPJ/CPF + senha).
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.retornarAoLogar = false});
+  final bool retornarAoLogar;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -32,9 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
       }) as Map<String, dynamic>;
       await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeShell()),
-      );
+      if (widget.retornarAoLogar) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const HomeShell()),
+        );
+      }
     } on ApiException catch (e) {
       setState(() => _erro = e.message);
     } catch (_) {
@@ -101,9 +106,16 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 14),
                   TextButton(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const CadastroScreen()),
-                    ),
+                    onPressed: () async {
+                      final ok = await Navigator.of(context).push<bool>(
+                        MaterialPageRoute(
+                            builder: (_) => CadastroScreen(
+                                retornarAoLogar: widget.retornarAoLogar)),
+                      );
+                      if (ok == true && context.mounted) {
+                        Navigator.of(context).pop(true);
+                      }
+                    },
                     child: const Text('Criar minha conta'),
                   ),
                   TextButton(

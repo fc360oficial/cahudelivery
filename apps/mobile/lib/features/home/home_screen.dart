@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/produto_card.dart';
@@ -88,7 +89,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final t = TenantTheme.instance;
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.appNome, style: const TextStyle(fontWeight: FontWeight.w800)),
+        // Logo do tenant na Home; sem asset, cai no nome do app em texto.
+        title: Image.asset(
+          AppBuildConfig.logoAsset,
+          height: 38,
+          errorBuilder: (_, e, s) =>
+              Text(t.appNome, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(64),
           child: Padding(

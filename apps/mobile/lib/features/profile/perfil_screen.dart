@@ -4,8 +4,8 @@ import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
 import '../../core/formatadores.dart' as fmt;
 import '../../core/tenant_theme.dart';
+import '../../widgets/convite_login.dart';
 import '../../widgets/estados.dart';
-import '../auth/login_screen.dart';
 import 'enderecos_screen.dart';
 import 'notificacoes_screen.dart';
 import 'perfil_dados_screen.dart';
@@ -29,6 +29,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Future<void> _carregar() async {
+    if (!ApiClient.instance.logado) return;
     setState(() {
       _perfil = null;
       _erro = null;
@@ -61,9 +62,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
     if (confirmar != true || !mounted) return;
     await ApiClient.instance.sair();
     CarrinhoStore.instance.limpar();
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+    await CarrinhoStore.instance.carregar(); // carrinho novo do device
+    if (mounted) setState(() {});
   }
 
   void _sobre() {
@@ -78,6 +78,18 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!ApiClient.instance.logado) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Perfil')),
+        body: ConviteLogin(
+          icone: Icons.person_outline,
+          titulo: 'Entre para ver seu perfil',
+          onAutenticado: () {
+            _carregar();
+          },
+        ),
+      );
+    }
     final cor = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
 import '../../core/formatadores.dart';
+import '../../widgets/convite_login.dart';
 import '../../widgets/estados.dart';
 import 'pedido_detalhe_screen.dart';
 import 'status_pedido.dart';
@@ -42,6 +43,7 @@ class _PedidosScreenState extends State<PedidosScreen> {
   }
 
   Future<void> _recarregar() async {
+    if (!ApiClient.instance.logado) return;
     setState(() {
       _pedidos.clear();
       _pagina = 1;
@@ -75,6 +77,18 @@ class _PedidosScreenState extends State<PedidosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!ApiClient.instance.logado) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Meus pedidos')),
+        body: ConviteLogin(
+          icone: Icons.receipt_long_outlined,
+          titulo: 'Entre para ver seus pedidos',
+          onAutenticado: () {
+            _recarregar();
+          },
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Meus pedidos')),
       body: _corpo(),

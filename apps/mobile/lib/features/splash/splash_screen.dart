@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/api_client.dart';
 import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
-import '../auth/login_screen.dart';
+import '../onboarding/cep_screen.dart';
 import '../shell/home_shell.dart';
 
 /// Splash: carrega o tema remoto do tenant e decide a rota inicial.
@@ -23,13 +23,12 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _boot() async {
     await TenantTheme.instance.carregar();
+    final prefs = await SharedPreferences.getInstance();
+    final cepVisto = prefs.getBool('cepVisto') ?? false;
     await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) =>
-            ApiClient.instance.logado ? const HomeShell() : const LoginScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => cepVisto ? const HomeShell() : const CepScreen()),
     );
   }
 

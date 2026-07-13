@@ -1,14 +1,18 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart';
 import '../../core/config.dart';
+import '../../core/formatadores.dart' as fmt;
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/produto_card.dart';
 import '../catalog/produto_screen.dart';
 import '../catalog/produtos_screen.dart';
+import '../onboarding/cep_screen.dart';
+import '../profile/enderecos_screen.dart';
 
 /// Aba Início: busca fixa no topo, carrossel de banners e vitrines
 /// "Promoções" e "Mais vendidos" (GET /v1/home).
@@ -23,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? _home;
   String? _erro;
+  String? _endereco; // linha "Entregar em ..." do topo
   final _bannerCtrl = PageController();
   int _banner = 0;
   Timer? _autoplay;
@@ -31,6 +36,44 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _carregar();
+    _carregarEndereco();
+  }
+
+  /// Logado: endereço padrão do cadastro. Visitante: CEP salvo na tela de CEP.
+  Future<void> _carregarEndereco() async {
+    String? txt;
+    if (ApiClient.instance.logado) {
+      try {
+        final r = await ApiClient.instance.get('/perfil/enderecos') as List;
+        if (r.isNotEmpty) {
+          final lista = List<Map<String, dynamic>>.from(r);
+          final e = lista.firstWhere((x) => x['padrao'] == true, orElse: () => lista.first);
+          txt = '${e['logradouro']}, ${e['numero']} — ${e['bairro']}, ${e['cidade']}/${e['uf']}';
+        }
+      } catch (_) {
+        // sem rede: cai no CEP salvo abaixo
+      }
+    }
+    if (txt == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final cepSalvo = prefs.getString('cep') ?? '';
+      final localidade = prefs.getString('cepLocalidade') ?? '';
+      if (cepSalvo.isNotEmpty) {
+        txt = 'CEP ${fmt.cep(cepSalvo)}${localidade.isNotEmpty ? ' · $localidade' : ''}';
+      }
+    }
+    if (mounted) setState(() => _endereco = txt);
+  }
+
+  Future<void> _editarEndereco() async {
+    if (ApiClient.instance.logado) {
+      await Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const EnderecosScreen()));
+    } else {
+      await Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => const CepScreen(edicao: true)));
+    }
+    _carregarEndereco();
   }
 
   @override
@@ -97,14 +140,24 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(t.appNome, style: const TextStyle(fontWeight: FontWeight.w800)),
         ),
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(64),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: _CampoBusca(onSubmeter: (termo) {
-              if (termo.trim().isEmpty) return;
-              Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => ProdutosScreen(buscaInicial: termo.trim(), titulo: 'Busca')));
-            }),
+          preferredSize: const Size.fromHeight(96),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                child: _linhaEndereco(context),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _CampoBusca(onSubmeter: (termo) {
+                  if (termo.trim().isEmpty) return;
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) =>
+                          ProdutosScreen(buscaInicial: termo.trim(), titulo: 'Busca')));
+                }),
+              ),
+            ],
           ),
         ),
       ),
@@ -139,6 +192,40 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+    );
+  }
+
+  /// "Entregar em ..." tocável no topo (padrão de app de delivery).
+  Widget _linhaEndereco(BuildContext context) {
+    final cor = Theme.of(context).colorScheme.onPrimary;
+    return InkWell(
+      onTap: _editarEndereco,
+      borderRadius: BorderRadius.circular(10),
+      child: Row(
+        children: [
+          Icon(Icons.location_on_outlined, size: 18, color: cor),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                      text: 'Entregar em  ',
+                      style: TextStyle(
+                          fontSize: 12.5, color: cor.withValues(alpha: 0.75))),
+                  TextSpan(
+                      text: _endereco ?? 'Informar CEP de entrega',
+                      style: TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w700, color: cor)),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Icon(Icons.keyboard_arrow_down, size: 18, color: cor),
+        ],
+      ),
     );
   }
 

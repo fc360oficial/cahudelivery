@@ -9,8 +9,10 @@ import '../shell/home_shell.dart';
 /// Primeira tela do visitante: captura o CEP de entrega (pode pular).
 /// Só salva localmente — validação de área de entrega depende de decisão
 /// de negócio da CAHU (pergunta 6 do ESCOPO).
+/// Em modo edição (aberta pela Home), volta com pop em vez de trocar a rota.
 class CepScreen extends StatefulWidget {
-  const CepScreen({super.key});
+  const CepScreen({super.key, this.edicao = false});
+  final bool edicao;
 
   @override
   State<CepScreen> createState() => _CepScreenState();
@@ -20,6 +22,21 @@ class _CepScreenState extends State<CepScreen> {
   final _cep = TextEditingController();
   String? _localidade; // "Bairro · Cidade/UF" vindo do ViaCEP
   bool _buscando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.edicao) _carregarSalvo();
+  }
+
+  Future<void> _carregarSalvo() async {
+    final prefs = await SharedPreferences.getInstance();
+    final salvo = prefs.getString('cep') ?? '';
+    if (salvo.isNotEmpty && mounted) {
+      setState(() => _cep.text = salvo);
+      _buscar();
+    }
+  }
 
   @override
   void dispose() {
@@ -50,8 +67,15 @@ class _CepScreenState extends State<CepScreen> {
   Future<void> _seguir({required bool salvarCep}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('cepVisto', true);
-    if (salvarCep) await prefs.setString('cep', _cep.text.replaceAll(RegExp(r'\D'), ''));
+    if (salvarCep) {
+      await prefs.setString('cep', _cep.text.replaceAll(RegExp(r'\D'), ''));
+      await prefs.setString('cepLocalidade', _localidade ?? '');
+    }
     if (!mounted) return;
+    if (widget.edicao) {
+      Navigator.of(context).pop(salvarCep);
+      return;
+    }
     Navigator.of(context)
         .pushReplacement(MaterialPageRoute(builder: (_) => const HomeShell()));
   }

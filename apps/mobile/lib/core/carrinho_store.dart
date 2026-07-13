@@ -25,7 +25,6 @@ class CarrinhoStore extends ChangeNotifier {
   }
 
   Future<void> carregar() async {
-    if (!ApiClient.instance.logado) return;
     carregando = true;
     erro = null;
     notifyListeners();

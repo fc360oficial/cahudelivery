@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,11 +22,17 @@ class ApiClient {
 
   String? _accessToken;
   String? _refreshToken;
+  String? _deviceId;
 
   Future<void> carregarSessao() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
     _refreshToken = prefs.getString('refreshToken');
+    _deviceId = prefs.getString('deviceId');
+    if (_deviceId == null) {
+      _deviceId = _uuidV4();
+      await prefs.setString('deviceId', _deviceId!);
+    }
   }
 
   bool get logado => _accessToken != null;
@@ -46,6 +53,13 @@ class ApiClient {
     await prefs.remove('refreshToken');
   }
 
+  /// UUID v4 sem dependência externa.
+  static String _uuidV4() {
+    final r = Random.secure();
+    String hex(int n) => List.generate(n, (_) => r.nextInt(16).toRadixString(16)).join();
+    return '${hex(8)}-${hex(4)}-4${hex(3)}-${'89ab'[r.nextInt(4)]}${hex(3)}-${hex(12)}';
+  }
+
   Future<dynamic> get(String path) => _send('GET', path);
   Future<dynamic> post(String path, [Object? body]) => _send('POST', path, body);
   Future<dynamic> put(String path, [Object? body]) => _send('PUT', path, body);
@@ -57,6 +71,7 @@ class ApiClient {
       'X-Tenant': AppBuildConfig.tenant,
       'Content-Type': 'application/json',
       if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+      'X-Device-Id': ?_deviceId,
     };
     final req = http.Request(method, uri)..headers.addAll(headers);
     if (body != null) req.body = jsonEncode(body);

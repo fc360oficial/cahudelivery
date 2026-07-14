@@ -41,6 +41,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.6
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -62,6 +64,24 @@ flutter:
 
   assets:
     - assets/logo/
+
+# Ícone do app (flavor CAHU) — rodar: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icone/icone.png"
+  adaptive_icon_background: "#FFD500"
+  adaptive_icon_foreground: "assets/icone/icone_adaptive.png"
+
+# Splash nativa (antes do Flutter carregar) — rodar: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#FFD500"
+  image: "assets/icone/splash_logo.png"
+  android_12:
+    color: "#FFD500"
+    image: "assets/icone/splash_logo.png"
+  ios: false
+  web: false
 
   # To add assets to your application, add an assets section, like this:
   # assets:

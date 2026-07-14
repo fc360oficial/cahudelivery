@@ -11,8 +11,10 @@ class TenantTheme extends ChangeNotifier {
 
   String appNome = AppBuildConfig.appNome;
   String distribuidora = '';
-  Color corPrimaria = const Color(0xFF1E88E5);
-  Color corSecundaria = const Color(0xFF0D47A1);
+  // Fallback embutido — mesmas cores do tema remoto do tenant CAHU, para não
+  // piscar azul (tema antigo) antes do GET /v1/config responder.
+  Color corPrimaria = const Color(0xFFFFD500);
+  Color corSecundaria = const Color(0xFF1A1A1A);
   String? logoUrl;
   Map<String, dynamic> configuracoes = const {};
   bool carregado = false;

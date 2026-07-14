@@ -1,111 +1,123 @@
+/* Retaguarda Fluxo Commerce — design tokens e base */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
-
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --acento: #ffd500;
+  --acento-escuro: #1a1a1a;
+  --fundo: #f4f5f7;
+  --card: #ffffff;
+  --texto: #1c1e21;
+  --texto-2: #65707e;
+  --borda: #e4e7eb;
+  --verde: #14803c;
+  --vermelho: #c02626;
+  --laranja: #b45309;
+  --azul: #1d4ed8;
+  --raio: 12px;
+  --sombra: 0 1px 3px rgb(16 24 40 / 0.07);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
+* { box-sizing: border-box; }
 body {
   margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--fundo);
+  color: var(--texto);
+  font-size: 14px;
 }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* Layout */
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 232px; flex-shrink: 0; background: var(--acento-escuro); color: #d5d8dd;
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
 }
+.sidebar .marca {
+  padding: 20px 18px 14px; color: #fff; font-weight: 700; font-size: 16px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+.sidebar .marca small { display: block; color: var(--acento); font-weight: 600; font-size: 11px; letter-spacing: 0.4px; }
+.sidebar nav { padding: 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.sidebar nav a {
+  padding: 9px 12px; border-radius: 8px; font-weight: 500; display: flex; gap: 10px; align-items: center;
+}
+.sidebar nav a:hover { background: rgb(255 255 255 / 0.07); color: #fff; }
+.sidebar nav a.ativo { background: var(--acento); color: #1a1a1a; font-weight: 700; }
+.sidebar .rodape { padding: 14px 18px; border-top: 1px solid rgb(255 255 255 / 0.08); font-size: 12.5px; }
+.sidebar .rodape button { background: none; border: 0; color: #d5d8dd; padding: 4px 0; }
+.sidebar .rodape button:hover { color: var(--acento); }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
+.conteudo { flex: 1; padding: 26px 30px; max-width: 1180px; }
+.conteudo h1 { margin: 0 0 18px; font-size: 21px; }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
+/* Cards e grid de KPIs */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); padding: 16px 18px; }
+.card .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+.card .valor { font-size: 24px; font-weight: 700; margin-top: 6px; }
+.card .valor.alerta { color: var(--laranja); }
+.card .valor.erro { color: var(--vermelho); }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+/* Tabela */
+.tabela-wrap { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto-2); padding: 12px 16px; border-bottom: 1px solid var(--borda); }
+td { padding: 12px 16px; border-bottom: 1px solid var(--borda); }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
+
+/* Badges de status */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.RECEBIDO { background: #eef2ff; color: var(--azul); }
+.badge.ENVIADO_ERP { background: #f0f9ff; color: #0369a1; }
+.badge.FATURADO { background: #fefce8; color: #a16207; }
+.badge.EM_SEPARACAO { background: #fff7ed; color: var(--laranja); }
+.badge.SAIU_ENTREGA { background: #f0fdf4; color: var(--verde); }
+.badge.ENTREGUE { background: #dcfce7; color: var(--verde); }
+.badge.FALHA_INTEGRACAO { background: #fef2f2; color: var(--vermelho); }
+.badge.CANCELADO { background: #f3f4f6; color: var(--texto-2); }
+.badge.pendente { background: #fefce8; color: #a16207; }
+.badge.aprovado { background: #dcfce7; color: var(--verde); }
+.badge.bloqueado { background: #fef2f2; color: var(--vermelho); }
+
+/* Controles */
+.filtros { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+input, select {
+  padding: 9px 12px; border: 1px solid var(--borda); border-radius: 8px; background: #fff;
+  font: inherit; min-width: 0;
 }
+input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: 0; border-color: transparent; }
+.btn {
+  background: var(--acento); color: #1a1a1a; border: 0; border-radius: 8px;
+  padding: 9px 16px; font-weight: 700;
+}
+.btn:hover { filter: brightness(0.95); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.btn-claro { background: #fff; border: 1px solid var(--borda); color: var(--texto); font-weight: 600; }
+.btn-mini { padding: 5px 11px; font-size: 12.5px; border-radius: 7px; }
+.btn-perigo { background: #fef2f2; border: 1px solid #fecaca; color: var(--vermelho); }
+.btn-ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: var(--verde); }
+
+/* Login */
+.login-fundo { min-height: 100vh; display: grid; place-items: center; background: var(--acento-escuro); }
+.login-card { background: #fff; border-radius: 16px; padding: 36px 34px; width: min(400px, 92vw); }
+.login-card h1 { font-size: 22px; margin: 0 0 2px; }
+.login-card p { color: var(--texto-2); margin: 0 0 22px; }
+.login-card form { display: flex; flex-direction: column; gap: 12px; }
+.faixa-amarela { height: 6px; width: 56px; background: var(--acento); border-radius: 99px; margin-bottom: 18px; }
+
+/* Detalhe do pedido */
+.grade-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .grade-2 { grid-template-columns: 1fr; } }
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { position: relative; padding: 0 0 16px 22px; border-left: 2px solid var(--borda); margin-left: 6px; }
+.timeline li:last-child { padding-bottom: 0; }
+.timeline li::before {
+  content: ''; position: absolute; left: -7px; top: 1px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--acento); border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--acento);
+}
+.mono { font-family: Consolas, monospace; font-size: 12.5px; }
+.erro-texto { color: var(--vermelho); white-space: pre-line; }
+.vazio { text-align: center; color: var(--texto-2); padding: 38px 0; }
+.pill-filtro { border: 1px solid var(--borda); background: #fff; border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 13px; }
+.pill-filtro.ativo { background: var(--acento); border-color: var(--acento); }

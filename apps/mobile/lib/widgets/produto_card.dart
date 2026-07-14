@@ -126,8 +126,8 @@ class ProdutoCard extends StatelessWidget {
       );
 }
 
-/// "+" de adição rápida com a quantidade mínima do produto; mostra a
-/// quantidade quando o item já está no carrinho (micro-interação da vitrine).
+/// Adição rápida no card: "+" quando o item não está no carrinho; quando já
+/// está, vira um mini stepper "− qtd +" (menos abaixo da qtd mínima remove).
 class _BotaoAdicionar extends StatefulWidget {
   const _BotaoAdicionar({required this.produto});
   final Map<String, dynamic> produto;
@@ -139,12 +139,20 @@ class _BotaoAdicionar extends StatefulWidget {
 class _BotaoAdicionarState extends State<_BotaoAdicionar> {
   bool _enviando = false;
 
-  Future<void> _adicionar() async {
+  Future<void> _mudar(double delta) async {
+    if (_enviando) return;
     final store = CarrinhoStore.instance;
     final id = widget.produto['id'] as String;
     final minima = asDouble(widget.produto['qtd_minima']);
+    final min = minima > 1 ? minima : 1.0;
     final atual = store.quantidadeDe(id);
-    final nova = atual > 0 ? atual + 1 : (minima > 1 ? minima : 1.0);
+    double nova;
+    if (atual <= 0) {
+      nova = min;
+    } else {
+      nova = atual + delta;
+      if (nova < min) nova = 0; // abaixo do mínimo remove do carrinho
+    }
     setState(() => _enviando = true);
     try {
       await store.definirQuantidade(id, nova);
@@ -161,29 +169,62 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
 
   @override
   Widget build(BuildContext context) {
-    final cor = Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
     return ListenableBuilder(
       listenable: CarrinhoStore.instance,
       builder: (context, _) {
         final qtd = CarrinhoStore.instance.quantidadeDe(widget.produto['id'] as String);
-        return SizedBox(
-          height: 32,
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              minimumSize: const Size(32, 32),
-              padding: EdgeInsets.symmetric(horizontal: qtd > 0 ? 10 : 0),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              backgroundColor: cor,
+        if (qtd <= 0) {
+          return SizedBox(
+            height: 32,
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(32, 32),
+                padding: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                backgroundColor: scheme.primary,
+              ),
+              onPressed: _enviando ? null : () => _mudar(1),
+              child: _enviando
+                  ? SizedBox(
+                      width: 14, height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: scheme.onPrimary))
+                  : const Icon(Icons.add, size: 18),
             ),
-            onPressed: _enviando ? null : _adicionar,
-            child: _enviando
-                ? const SizedBox(
-                    width: 14, height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : qtd > 0
-                    ? Text(qtd % 1 == 0 ? qtd.toInt().toString() : '$qtd',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800))
-                    : const Icon(Icons.add, size: 18),
+          );
+        }
+        Widget acao(IconData icone, double delta) => InkWell(
+              onTap: _enviando ? null : () => _mudar(delta),
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 26,
+                height: 32,
+                child: Icon(icone, size: 15, color: scheme.onPrimary),
+              ),
+            );
+        return Container(
+          height: 32,
+          decoration: BoxDecoration(
+            color: scheme.primary,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              acao(Icons.remove, -1),
+              _enviando
+                  ? SizedBox(
+                      width: 14, height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: scheme.onPrimary))
+                  : Text(qtd % 1 == 0 ? qtd.toInt().toString() : '$qtd',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: scheme.onPrimary)),
+              acao(Icons.add, 1),
+            ],
           ),
         );
       },

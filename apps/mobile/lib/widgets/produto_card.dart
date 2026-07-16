@@ -76,44 +76,17 @@ class ProdutoCard extends StatelessWidget {
                         style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                       ),
                       const Spacer(),
-                      if (emPromocao)
-                        Text(
-                          '${moeda(produto['preco_tabela'])}/${_siglaUnidade(produto)}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade500,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  semEstoque
-                                      ? 'Sem estoque'
-                                      : '${moeda(produto['preco'])}/${_siglaUnidade(produto)}',
-                                  style: TextStyle(
-                                    fontSize: semEstoque ? 13 : 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: semEstoque
-                                        ? Colors.grey.shade500
-                                        : (emPromocao ? Colors.red.shade600 : tema.primary),
-                                  ),
-                                ),
-                                // Preço por unidade avulsa quando a venda é por caixa/fardo —
-                                // dá o mesmo contexto de negócio que o comprador B2B já usa
-                                // pra comparar oferta (ex.: R$153,63/cx = R$5,69/un).
-                                if (!semEstoque && asDouble(produto['qtd_por_embalagem']) > 1)
-                                  Text(
-                                    '${moeda(asDouble(produto['preco']) / asDouble(produto['qtd_por_embalagem']))}/un',
-                                    style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
-                                  ),
-                              ],
-                            ),
+                            child: semEstoque
+                                ? const Text('Sem estoque',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.grey))
+                                : _blocoPreco(produto, tema, emPromocao),
                           ),
                           if (!semEstoque) _BotaoAdicionar(produto: produto),
                         ],
@@ -135,21 +108,47 @@ class ProdutoCard extends StatelessWidget {
     return porEmb > 1 ? '$un c/ ${porEmb.toInt()}' : '$un';
   }
 
-  /// Sigla curta pro "R$X/sigla" no preço (ex.: /fd, /cx, /un, /kg) —
-  /// mesmo padrão de precificação que o comprador B2B já reconhece.
-  static String _siglaUnidade(Map<String, dynamic> p) {
-    switch (p['unidade_venda']) {
-      case 'CX':
-        return 'cx';
-      case 'FD':
-        return 'fd';
-      case 'PC':
-        return 'pc';
-      case 'KG':
-        return 'kg';
-      default:
-        return 'un';
-    }
+  /// Bloco de preço organizado: valor por unidade em destaque (o que o
+  /// comprador compara pra decidir), e — quando a venda é por caixa/fardo —
+  /// o valor do pacote fechado logo abaixo, num selo bem legível.
+  /// Ex.: Coca-Cola: "R$ 9,90/un" em destaque, selo "fd c/10 R$ 99,00" abaixo.
+  static Widget _blocoPreco(Map<String, dynamic> produto, ColorScheme tema, bool emPromocao) {
+    final porEmb = asDouble(produto['qtd_por_embalagem']);
+    final sigla = siglaUnidade(produto);
+    final unit = precoUnitario(produto);
+    final cor = emPromocao ? Colors.red.shade600 : tema.primary;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (emPromocao)
+          Text(
+            moeda(precoUnitario(produto, campoPreco: 'preco_tabela')),
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+        Text('${moeda(unit)}/un',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: cor)),
+        if (porEmb > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '$sigla c/${porEmb.toInt()} ${moeda(produto['preco'])}',
+                style: TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _semFoto() => Container(

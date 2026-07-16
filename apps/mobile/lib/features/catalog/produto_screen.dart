@@ -188,18 +188,37 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                 ),
                 const SizedBox(height: 18),
                 if (emPromocao)
-                  Text(moeda(p['preco_tabela']),
+                  Text(moeda(precoUnitario(p, campoPreco: 'preco_tabela')),
                       style: TextStyle(
                           fontSize: 15,
                           color: Colors.grey.shade500,
                           decoration: TextDecoration.lineThrough)),
-                Text(moeda(p['preco']),
+                Text('${moeda(precoUnitario(p))}/un',
                     style: TextStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w800,
                         color: emPromocao ? Colors.red.shade600 : tema.primary)),
-                Text('por ${p['unidade_venda'] ?? 'unidade'}',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                // Preço do pacote fechado (fardo/caixa) quando a venda mínima
+                // não é por unidade avulsa — mesmo padrão do card de produto.
+                if (asDouble(p['qtd_por_embalagem']) > 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '${siglaUnidade(p)} com ${asDouble(p['qtd_por_embalagem']).toInt()}un — ${moeda(p['preco'])}',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
+                      ),
+                    ),
+                  )
+                else
+                  Text('por ${p['unidade_venda'] ?? 'unidade'}',
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                 if ((p['descricao'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Text('Descrição',

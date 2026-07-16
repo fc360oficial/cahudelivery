@@ -56,3 +56,29 @@ String cep(String? v) {
   final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
   return d.length == 8 ? '${d.substring(0, 5)}-${d.substring(5)}' : (v ?? '');
 }
+
+/// Sigla curta pro "R$X/sigla" no preço (ex.: /fd, /cx, /un, /kg) — mesmo
+/// padrão de precificação que o comprador B2B já reconhece.
+String siglaUnidade(Map<String, dynamic> p) {
+  switch (p['unidade_venda']) {
+    case 'CX':
+      return 'cx';
+    case 'FD':
+      return 'fd';
+    case 'PC':
+      return 'pc';
+    case 'KG':
+      return 'kg';
+    default:
+      return 'un';
+  }
+}
+
+/// Preço por unidade avulsa, calculado a partir do preço do pacote (fardo/
+/// caixa/etc.) — o comprador B2B compara oferta pelo valor unitário mesmo
+/// quando a venda mínima é por caixa fechada.
+double precoUnitario(Map<String, dynamic> p, {String campoPreco = 'preco'}) {
+  final porEmb = asDouble(p['qtd_por_embalagem']);
+  final precoPacote = asDouble(p[campoPreco]);
+  return porEmb > 1 ? precoPacote / porEmb : precoPacote;
+}

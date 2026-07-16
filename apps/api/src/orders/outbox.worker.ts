@@ -55,7 +55,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
         const ini = Date.now();
         try {
           const ped = await pool.query(
-            `select p.id, p.forma_pagamento, p.observacoes, p.endereco_snapshot_json,
+            `select p.id, p.forma_pagamento, p.tipo_entrega, p.observacoes, p.endereco_snapshot_json,
                     coalesce(c.erp_cliente_id, c.documento) as erp_cliente_id,
                     (select json_agg(json_build_object(
                         'erpProdutoId', coalesce(pr.erp_produto_id, pr.sku),
@@ -70,8 +70,9 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
             fluxoPedidoId: p.id,
             erpClienteId: p.erp_cliente_id,
             formaPagamento: p.forma_pagamento,
+            tipoEntrega: p.tipo_entrega,
             observacoes: p.observacoes ?? undefined,
-            enderecoEntrega: p.endereco_snapshot_json,
+            enderecoEntrega: p.endereco_snapshot_json ?? undefined,
             itens: p.itens ?? [],
           });
           await pool.query(`update pedidos set status = 'ENVIADO_ERP', erp_pedido_id = $2 where id = $1`, [p.id, erpPedidoId]);

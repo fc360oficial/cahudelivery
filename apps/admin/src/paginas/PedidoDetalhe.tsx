@@ -16,7 +16,8 @@ interface Detalhe {
   documento: string;
   email: string;
   telefone?: string;
-  endereco_snapshot_json: Record<string, string>;
+  tipo_entrega: 'entrega' | 'retirada';
+  endereco_snapshot_json: Record<string, string> | null;
   itens: { descricao: string; quantidade: string; precoUnit: string; total: string }[] | null;
   eventos: { status: string; detalhe?: string; origem: string; em: string }[] | null;
   cobranca?: { tipo: string; pix_copia_cola?: string; linha_digitavel?: string; valor: string; pago_em?: string } | null;
@@ -107,9 +108,15 @@ export function PedidoDetalhe() {
           <div className="card" style={{ marginTop: 14 }}>
             <div className="rotulo">Entrega</div>
             <div style={{ marginTop: 8 }}>
-              {end.logradouro}, {end.numero} {end.complemento ?? ''}<br />
-              {end.bairro} — {end.cidade}/{end.uf}<br />
-              CEP {end.cep}
+              {end ? (
+                <>
+                  {end.logradouro}, {end.numero} {end.complemento ?? ''}<br />
+                  {end.bairro} — {end.cidade}/{end.uf}<br />
+                  CEP {end.cep}
+                </>
+              ) : (
+                <strong>Retirada na distribuidora</strong>
+              )}
             </div>
             {p.observacoes && <div style={{ marginTop: 8, color: 'var(--texto-2)' }}>Obs: {p.observacoes}</div>}
           </div>

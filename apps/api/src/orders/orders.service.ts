@@ -73,13 +73,15 @@ export class OrdersService {
   async criarPedido(
     clienteId: string,
     dto: {
-      enderecoId: string;
+      enderecoId?: string;
       formaPagamento: 'boleto' | 'pix';
+      tipoEntrega?: 'entrega' | 'retirada';
       observacoes?: string;
       condicaoPagamento?: string;
     },
   ) {
     const { pool } = tenantCtx();
+    const tipoEntrega = dto.tipoEntrega ?? 'entrega';
     const { itens, subtotal } = await this.carrinho({ clienteId });
     if (!itens.length) throw new BadRequestException('Carrinho vazio');
     for (const i of itens) {
@@ -89,22 +91,28 @@ export class OrdersService {
     const cfg = await pool.query(`select valor_json from configuracoes where chave = 'pedido_minimo'`);
     const minimo = Number(cfg.rows[0]?.valor_json?.valor ?? 0);
     if (subtotal < minimo) throw new BadRequestException(`Pedido mínimo: R$ ${minimo.toFixed(2)}`);
-    const end = await pool.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [
-      dto.enderecoId,
-      clienteId,
-    ]);
-    if (!end.rows[0]) throw new BadRequestException('Endereço inválido');
+
+    let enderecoJson: string | null = null;
+    if (tipoEntrega === 'entrega') {
+      const end = await pool.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [
+        dto.enderecoId,
+        clienteId,
+      ]);
+      if (!end.rows[0]) throw new BadRequestException('Endereço inválido');
+      enderecoJson = JSON.stringify(end.rows[0]);
+    }
 
     const client = await pool.connect();
     try {
       await client.query('begin');
       const ped = await client.query(
-        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, subtotal, total, observacoes, condicao_pagamento)
-         values ($1,$2,$3,$4,$4,$5,$6) returning id, numero, status, criado_em`,
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento)
+         values ($1,$2,$3,$4,$5,$5,$6,$7) returning id, numero, status, criado_em`,
         [
           clienteId,
-          JSON.stringify(end.rows[0]),
+          enderecoJson,
           dto.formaPagamento,
+          tipoEntrega,
           subtotal,
           dto.observacoes ?? null,
           dto.formaPagamento === 'boleto' ? (dto.condicaoPagamento ?? 'À vista') : null,

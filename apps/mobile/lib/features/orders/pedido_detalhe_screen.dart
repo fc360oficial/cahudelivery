@@ -233,6 +233,16 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+            ] else if (p['tipo_entrega'] == 'retirada') ...[
+              _titulo('Entrega'),
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.storefront_outlined, color: Colors.grey.shade600),
+                  title: const Text('Retirada na distribuidora',
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: 12),
             ],
 
             if ((p['observacoes'] ?? '').toString().isNotEmpty) ...[

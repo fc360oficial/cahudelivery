@@ -46,8 +46,10 @@ export interface PedidoParaErp {
   fluxoPedidoId: string;
   erpClienteId: string;
   formaPagamento: FormaPagamento;
+  tipoEntrega: 'entrega' | 'retirada';
   observacoes?: string;
-  enderecoEntrega: EnderecoEntrega;
+  /** Ausente quando tipoEntrega = 'retirada' (cliente busca na distribuidora). */
+  enderecoEntrega?: EnderecoEntrega;
   itens: Array<{
     erpProdutoId: string;
     quantidade: number;

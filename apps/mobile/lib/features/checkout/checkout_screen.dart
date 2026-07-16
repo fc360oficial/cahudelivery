@@ -23,6 +23,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   List<Map<String, dynamic>>? _enderecos;
   String? _erro;
   String? _enderecoId;
+  String _tipoEntrega = 'entrega';
   String _pagamento = 'pix';
   String? _condicaoPagamento;
   final _observacoes = TextEditingController();
@@ -76,7 +77,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() => _confirmando = true);
     try {
       final pedido = await ApiClient.instance.post('/pedidos', {
-        'enderecoId': _enderecoId,
+        if (_tipoEntrega == 'entrega') 'enderecoId': _enderecoId,
+        'tipoEntrega': _tipoEntrega,
         'formaPagamento': _pagamento,
         if (_pagamento == 'boleto' && _condicaoPagamento != null)
           'condicaoPagamento': _condicaoPagamento,
@@ -141,7 +143,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed: _confirmando
                       ? null
                       : _passo == 0
-                          ? (_enderecoId == null ? null : () => setState(() => _passo = 1))
+                          ? ((_tipoEntrega == 'retirada' || _enderecoId != null)
+                              ? () => setState(() => _passo = 1)
+                              : null)
                           : _passo == 1
                               ? () => setState(() => _passo = 2)
                               : _confirmar,
@@ -210,6 +214,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  /// Alterna entre "Entrega" e "Retirar na loja" (retirada não exige endereço
+  /// — o pedido vai ao ERP sem endereço de entrega).
+  Widget _toggleTipoEntrega() {
+    final cor = Theme.of(context).colorScheme.primary;
+    Widget opcao(String valor, IconData icone, String rotulo) {
+      final ativo = _tipoEntrega == valor;
+      return Expanded(
+        child: InkWell(
+          onTap: () => setState(() => _tipoEntrega = valor),
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: ativo ? cor.withValues(alpha: 0.12) : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: ativo ? cor : Colors.transparent, width: 1.5),
+            ),
+            child: Column(
+              children: [
+                Icon(icone, color: ativo ? cor : Colors.grey.shade600),
+                const SizedBox(height: 4),
+                Text(rotulo,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: ativo ? cor : Colors.grey.shade700)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        opcao('entrega', Icons.local_shipping_outlined, 'Entrega'),
+        const SizedBox(width: 10),
+        opcao('retirada', Icons.storefront_outlined, 'Retirar na loja'),
+      ],
+    );
+  }
+
   // ---------- Passo 1: endereço ----------
   Widget _passoEndereco() {
     if (_erro != null) {
@@ -229,10 +275,33 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Onde entregar?',
+        const Text('Como você quer receber?',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
-        if (_enderecos!.isEmpty)
+        _toggleTipoEntrega(),
+        const SizedBox(height: 16),
+        if (_tipoEntrega == 'retirada')
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.storefront_outlined, color: Colors.grey.shade700, size: 22),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Seu pedido ficará disponível para retirada na distribuidora '
+                    'após o faturamento. Sem custo de entrega.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade800, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (_enderecos!.isEmpty)
           EstadoVazio(
             icone: Icons.location_on_outlined,
             titulo: 'Nenhum endereço cadastrado',
@@ -396,10 +465,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _linhaResumo(Icons.location_on_outlined,
-                    endereco == null
-                        ? '—'
-                        : '${endereco['logradouro']}, ${endereco['numero']} — ${endereco['cidade']}/${endereco['uf']}'),
+                _linhaResumo(
+                  _tipoEntrega == 'retirada'
+                      ? Icons.storefront_outlined
+                      : Icons.location_on_outlined,
+                  _tipoEntrega == 'retirada'
+                      ? 'Retirar na distribuidora'
+                      : (endereco == null
+                          ? '—'
+                          : '${endereco['logradouro']}, ${endereco['numero']} — ${endereco['cidade']}/${endereco['uf']}'),
+                ),
                 const Divider(height: 20),
                 _linhaResumo(
                   _pagamento == 'pix' ? Icons.qr_code_2 : Icons.receipt_outlined,

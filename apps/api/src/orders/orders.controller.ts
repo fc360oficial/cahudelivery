@@ -27,8 +27,9 @@ class ItemDto {
 }
 
 class CriarPedidoDto {
-  @IsUUID() enderecoId!: string;
+  @IsOptional() @IsUUID() enderecoId?: string;
   @IsIn(['boleto', 'pix']) formaPagamento!: 'boleto' | 'pix';
+  @IsOptional() @IsIn(['entrega', 'retirada']) tipoEntrega?: 'entrega' | 'retirada';
   @IsOptional() @IsString() observacoes?: string;
   @IsOptional() @IsString() condicaoPagamento?: string;
 }

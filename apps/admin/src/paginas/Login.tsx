@@ -30,7 +30,9 @@ export function Login() {
   return (
     <div className="login-fundo">
       <div className="login-card">
-        <div className="faixa-amarela" />
+        <div className="login-logo">
+          <img src="/logo.png" alt="" onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }} />
+        </div>
         <h1>Retaguarda</h1>
         <p>Acesso da equipe da distribuidora</p>
         <form onSubmit={entrar}>

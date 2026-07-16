@@ -6,6 +6,14 @@ const LINKS = [
   { para: '/pedidos', rotulo: '🧾 Pedidos' },
   { para: '/clientes', rotulo: '👥 Clientes' },
   { para: '/produtos', rotulo: '📦 Produtos' },
+  { para: '/categorias', rotulo: '🗂️ Categorias' },
+  { para: '/marcas', rotulo: '🏷️ Marcas' },
+  { para: '/promocoes', rotulo: '💛 Promoções' },
+  { para: '/banners', rotulo: '🖼️ Banners' },
+  { para: '/notificacoes', rotulo: '🔔 Notificações' },
+  { para: '/usuarios', rotulo: '🔑 Usuários' },
+  { para: '/configuracoes', rotulo: '⚙️ Configurações' },
+  { para: '/logs', rotulo: '🔌 Integração ERP' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
@@ -14,6 +22,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="layout">
       <aside className="sidebar">
         <div className="marca">
+          {/* Logo do tenant — mesmo estilo do app (amarelo + logo) */}
+          <div className="marca-logo">
+            <img src="/logo.png" alt="" onError={(e) => (e.currentTarget.style.display = 'none')} />
+          </div>
           {s?.distribuidora ?? 'Retaguarda'}
           <small>FLUXO COMMERCE</small>
         </div>

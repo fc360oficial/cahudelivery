@@ -30,6 +30,7 @@ class CriarPedidoDto {
   @IsUUID() enderecoId!: string;
   @IsIn(['boleto', 'pix']) formaPagamento!: 'boleto' | 'pix';
   @IsOptional() @IsString() observacoes?: string;
+  @IsOptional() @IsString() condicaoPagamento?: string;
 }
 
 @Controller()

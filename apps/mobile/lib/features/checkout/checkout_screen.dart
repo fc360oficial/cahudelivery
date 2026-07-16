@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
 import '../../core/formatadores.dart';
+import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../profile/endereco_form_screen.dart';
 import 'pedido_sucesso_screen.dart';
@@ -23,6 +24,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _erro;
   String? _enderecoId;
   String _pagamento = 'pix';
+  String? _condicaoPagamento;
   final _observacoes = TextEditingController();
   bool _confirmando = false;
 
@@ -76,6 +78,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       final pedido = await ApiClient.instance.post('/pedidos', {
         'enderecoId': _enderecoId,
         'formaPagamento': _pagamento,
+        if (_pagamento == 'boleto' && _condicaoPagamento != null)
+          'condicaoPagamento': _condicaoPagamento,
         if (_observacoes.text.trim().isNotEmpty) 'observacoes': _observacoes.text.trim(),
       }) as Map<String, dynamic>;
       CarrinhoStore.instance.limpar();
@@ -315,6 +319,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             'Código copia-e-cola liberado após o faturamento'),
         opcao('boleto', Icons.receipt_outlined, 'Boleto',
             'Boleto emitido junto com a nota fiscal'),
+        if (_pagamento == 'boleto') _condicoesBoleto(),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(14),
@@ -337,6 +342,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// Prazos de boleto disponíveis pro cliente. Placeholder até a integração
+  /// com o ERP trazer o limite de crédito real por cliente (Fase 4) — por
+  /// ora, lista configurável pela retaguarda (config 'condicoes_boleto'),
+  /// igual pra todo mundo.
+  Widget _condicoesBoleto() {
+    final lista = (TenantTheme.instance.configuracoes['condicoes_boleto'] as List?)
+            ?.cast<String>() ??
+        const ['À vista'];
+    _condicaoPagamento ??= lista.first;
+    final cor = Theme.of(context).colorScheme.primary;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final c in lista)
+            ChoiceChip(
+              label: Text(c),
+              selected: _condicaoPagamento == c,
+              onSelected: (_) => setState(() => _condicaoPagamento = c),
+              selectedColor: cor.withValues(alpha: 0.15),
+              labelStyle: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: _condicaoPagamento == c ? cor : Colors.grey.shade700,
+              ),
+              side: BorderSide(color: _condicaoPagamento == c ? cor : Colors.grey.shade300),
+            ),
+        ],
+      ),
     );
   }
 
@@ -363,8 +401,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ? '—'
                         : '${endereco['logradouro']}, ${endereco['numero']} — ${endereco['cidade']}/${endereco['uf']}'),
                 const Divider(height: 20),
-                _linhaResumo(_pagamento == 'pix' ? Icons.qr_code_2 : Icons.receipt_outlined,
-                    _pagamento == 'pix' ? 'PIX' : 'Boleto'),
+                _linhaResumo(
+                  _pagamento == 'pix' ? Icons.qr_code_2 : Icons.receipt_outlined,
+                  _pagamento == 'pix'
+                      ? 'PIX'
+                      : 'Boleto — ${_condicaoPagamento ?? 'À vista'}',
+                ),
               ],
             ),
           ),

@@ -7,6 +7,7 @@ interface Detalhe {
   numero: number;
   status: string;
   forma_pagamento: string;
+  condicao_pagamento?: string;
   total: string;
   observacoes?: string;
   erp_pedido_id?: string;
@@ -113,7 +114,10 @@ export function PedidoDetalhe() {
             {p.observacoes && <div style={{ marginTop: 8, color: 'var(--texto-2)' }}>Obs: {p.observacoes}</div>}
           </div>
           <div className="card" style={{ marginTop: 14 }}>
-            <div className="rotulo">Cobrança ({p.forma_pagamento.toUpperCase()})</div>
+            <div className="rotulo">
+              Cobrança ({p.forma_pagamento.toUpperCase()}
+              {p.condicao_pagamento ? ` — ${p.condicao_pagamento}` : ''})
+            </div>
             <div style={{ marginTop: 8 }}>
               {p.cobranca ? (
                 <>

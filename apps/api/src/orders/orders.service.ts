@@ -72,7 +72,12 @@ export class OrdersService {
 
   async criarPedido(
     clienteId: string,
-    dto: { enderecoId: string; formaPagamento: 'boleto' | 'pix'; observacoes?: string },
+    dto: {
+      enderecoId: string;
+      formaPagamento: 'boleto' | 'pix';
+      observacoes?: string;
+      condicaoPagamento?: string;
+    },
   ) {
     const { pool } = tenantCtx();
     const { itens, subtotal } = await this.carrinho({ clienteId });
@@ -94,9 +99,16 @@ export class OrdersService {
     try {
       await client.query('begin');
       const ped = await client.query(
-        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, subtotal, total, observacoes)
-         values ($1,$2,$3,$4,$4,$5) returning id, numero, status, criado_em`,
-        [clienteId, JSON.stringify(end.rows[0]), dto.formaPagamento, subtotal, dto.observacoes ?? null],
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, subtotal, total, observacoes, condicao_pagamento)
+         values ($1,$2,$3,$4,$4,$5,$6) returning id, numero, status, criado_em`,
+        [
+          clienteId,
+          JSON.stringify(end.rows[0]),
+          dto.formaPagamento,
+          subtotal,
+          dto.observacoes ?? null,
+          dto.formaPagamento === 'boleto' ? (dto.condicaoPagamento ?? 'À vista') : null,
+        ],
       );
       const pedidoId = ped.rows[0].id;
       for (const i of itens) {

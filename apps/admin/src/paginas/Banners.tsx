@@ -79,7 +79,7 @@ export function Banners() {
             <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={escolherArquivo} style={{ display: 'none' }} />
           </label>
           {form.imagemUrl && <img src={form.imagemUrl} alt="" style={{ height: 38, borderRadius: 6, alignSelf: 'center' }} />}
-          <input placeholder="ou cole a URL da imagem (1200x400)" value={form.imagemUrl} onChange={(e) => setForm({ ...form, imagemUrl: e.target.value })} required style={{ flex: 1, minWidth: 200 }} />
+          <input placeholder="ou cole a URL da imagem (1400x400)" value={form.imagemUrl} onChange={(e) => setForm({ ...form, imagemUrl: e.target.value })} required style={{ flex: 1, minWidth: 200 }} />
           <select value={form.destinoTipo} onChange={(e) => setForm({ ...form, destinoTipo: e.target.value })}>
             <option value="">Sem destino</option>
             <option value="promocao">Promoção</option>
@@ -94,7 +94,7 @@ export function Banners() {
           <button className="btn">{editando ? 'Salvar' : 'Adicionar'}</button>
           {editando && <button type="button" className="btn btn-claro" onClick={() => { setEditando(null); setForm(VAZIO); }}>Cancelar</button>}
         </div>
-        <small style={{ color: 'var(--texto-2)' }}>Tamanho ideal 1200×400, até 5MB (PNG/JPG/WEBP). Para ver no celular, acesse a retaguarda pelo IP do notebook antes de enviar.</small>
+        <small style={{ color: 'var(--texto-2)' }}>Tamanho ideal 1400×400 (proporção 3.5:1, o mesmo do app), até 5MB (PNG/JPG/WEBP).</small>
       </form>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">

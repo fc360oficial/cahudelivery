@@ -13,6 +13,19 @@ class CadastroScreen extends StatefulWidget {
   State<CadastroScreen> createState() => _CadastroScreenState();
 }
 
+/// Categorias de estabelecimento (segmenta o cliente para catálogo/promoções).
+const categoriasEstabelecimento = [
+  'Açougue e Frigorífico',
+  'Atacarejo e Supermercado',
+  'Restaurante',
+  'Bar e Petiscos',
+  'Padaria e Confeitaria',
+  'Cafeteria',
+  'Mercearia e Conveniência',
+  'Distribuidor',
+  'Outro',
+];
+
 class _CadastroScreenState extends State<CadastroScreen> {
   final _form = GlobalKey<FormState>();
   String _tipo = 'CNPJ';
@@ -22,6 +35,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _email = TextEditingController();
   final _telefone = TextEditingController();
   final _senha = TextEditingController();
+  String? _categoria;
   bool _enviando = false;
 
   @override
@@ -43,6 +57,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
         if (_razaoSocial.text.trim().isNotEmpty) 'razaoSocial': _razaoSocial.text.trim(),
         'email': _email.text.trim(),
         if (_telefone.text.trim().isNotEmpty) 'telefone': _telefone.text.trim(),
+        if (_categoria != null) 'categoria': _categoria,
         'senha': _senha.text,
       }) as Map<String, dynamic>;
       await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
@@ -132,6 +147,15 @@ class _CadastroScreenState extends State<CadastroScreen> {
               keyboardType: TextInputType.phone,
               decoration:
                   const InputDecoration(labelText: 'Telefone / WhatsApp (opcional)'),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _categoria,
+              decoration: const InputDecoration(labelText: 'Categoria do estabelecimento (opcional)'),
+              items: categoriasEstabelecimento
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: (v) => setState(() => _categoria = v),
             ),
             const SizedBox(height: 14),
             TextFormField(

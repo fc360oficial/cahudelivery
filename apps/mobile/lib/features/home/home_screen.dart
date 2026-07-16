@@ -1,17 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart';
 import '../../core/config.dart';
-import '../../core/formatadores.dart' as fmt;
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/produto_card.dart';
+import '../auth/entrar_ou_criar_screen.dart';
 import '../catalog/produto_screen.dart';
 import '../catalog/produtos_screen.dart';
-import '../onboarding/cep_screen.dart';
 import '../profile/enderecos_screen.dart';
 
 /// Aba Início: busca fixa no topo, carrossel de banners e vitrines
@@ -39,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _carregarEndereco();
   }
 
-  /// Logado: endereço padrão do cadastro. Visitante: CEP salvo na tela de CEP.
+  /// Logado: endereço padrão do cadastro. Visitante: nenhum endereço a mostrar.
   Future<void> _carregarEndereco() async {
     String? txt;
     if (ApiClient.instance.logado) {
@@ -51,15 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
           txt = '${e['logradouro']}, ${e['numero']} — ${e['bairro']}, ${e['cidade']}/${e['uf']}';
         }
       } catch (_) {
-        // sem rede: cai no CEP salvo abaixo
-      }
-    }
-    if (txt == null) {
-      final prefs = await SharedPreferences.getInstance();
-      final cepSalvo = prefs.getString('cep') ?? '';
-      final localidade = prefs.getString('cepLocalidade') ?? '';
-      if (cepSalvo.isNotEmpty) {
-        txt = 'CEP ${fmt.cep(cepSalvo)}${localidade.isNotEmpty ? ' · $localidade' : ''}';
+        // sem rede: mantém sem endereço
       }
     }
     if (mounted) setState(() => _endereco = txt);
@@ -71,7 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
           .push(MaterialPageRoute(builder: (_) => const EnderecosScreen()));
     } else {
       await Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => const CepScreen(edicao: true)));
+          .push(MaterialPageRoute(builder: (_) => const EntrarOuCriarScreen()));
     }
     _carregarEndereco();
   }
@@ -179,8 +169,21 @@ class _HomeScreenState extends State<HomeScreen> {
                                 somentePromocao: true, titulo: 'Promoções'))),
                       ),
                       _vitrine('Mais vendidos', _home!['maisVendidos'] as List? ?? const []),
+                      // Prateleiras por categoria abaixo das vitrines de conversão
+                      // (promoção/mais vendidos primeiro) — navegação por descoberta,
+                      // pro comprador "passear" pelo catálogo como numa loja física.
+                      for (final prat in (_home!['prateleiras'] as List? ?? const []))
+                        _vitrine(
+                          (prat as Map<String, dynamic>)['nome'] as String,
+                          prat['produtos'] as List? ?? const [],
+                          verTodos: () => Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => ProdutosScreen(
+                                  categoriaId: prat['categoriaId'] as String,
+                                  titulo: prat['nome'] as String))),
+                        ),
                       if ((_home!['promocoes'] as List? ?? []).isEmpty &&
-                          (_home!['maisVendidos'] as List? ?? []).isEmpty)
+                          (_home!['maisVendidos'] as List? ?? []).isEmpty &&
+                          (_home!['prateleiras'] as List? ?? []).isEmpty)
                         const Padding(
                           padding: EdgeInsets.only(top: 60),
                           child: EstadoVazio(
@@ -214,7 +217,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                           fontSize: 12.5, color: cor.withValues(alpha: 0.75))),
                   TextSpan(
-                      text: _endereco ?? 'Informar CEP de entrega',
+                      text: _endereco ?? 'Informar endereço de entrega',
                       style: TextStyle(
                           fontSize: 13, fontWeight: FontWeight.w700, color: cor)),
                 ],
@@ -235,35 +238,42 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       children: [
         const SizedBox(height: 12),
-        SizedBox(
-          height: 150,
-          child: PageView.builder(
-            controller: _bannerCtrl,
-            itemCount: banners.length,
-            onPageChanged: (i) => setState(() => _banner = i),
-            itemBuilder: (_, i) {
-              final b = banners[i] as Map<String, dynamic>;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ClipRRect(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          // Proporção 3.5:1 (ex.: arte 1400x400) — banner baixo e largo.
+          // BoxFit.cover: preenche a caixa inteira sem sobrar tarja cinza,
+          // cortando as bordas quando a arte não bate exatamente nessa
+          // proporção — mantenha o conteúdo importante longe das bordas.
+          child: AspectRatio(
+            aspectRatio: 3.5,
+            child: PageView.builder(
+              controller: _bannerCtrl,
+              itemCount: banners.length,
+              onPageChanged: (i) => setState(() => _banner = i),
+              itemBuilder: (_, i) {
+                final b = banners[i] as Map<String, dynamic>;
+                return ClipRRect(
                   borderRadius: BorderRadius.circular(16),
                   child: InkWell(
                     onTap: () => _abrirBanner(b),
-                    child: Image.network(
-                      b['imagem_url'] ?? '',
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (_, e, s) => Container(
-                        color: Colors.grey.shade200,
-                        alignment: Alignment.center,
-                        child: Text(b['titulo'] ?? '',
-                            style: const TextStyle(fontWeight: FontWeight.w600)),
+                    child: Container(
+                      color: Colors.grey.shade200,
+                      child: Image.network(
+                        b['imagem_url'] ?? '',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, e, s) => Container(
+                          alignment: Alignment.center,
+                          child: Text(b['titulo'] ?? '',
+                              style: const TextStyle(fontWeight: FontWeight.w600)),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
         if (banners.length > 1) ...[

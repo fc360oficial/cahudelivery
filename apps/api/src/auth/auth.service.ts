@@ -23,6 +23,7 @@ export class AuthService {
       razaoSocial?: string;
       email: string;
       telefone?: string;
+      categoria?: string;
       senha: string;
     },
     deviceId?: string,
@@ -39,9 +40,17 @@ export class AuthService {
       ]);
       if (dup.rowCount) throw new ConflictException('Documento ou e-mail já cadastrado');
       const { rows } = await client.query(
-        `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, telefone)
-         values ($1,$2,$3,$4,$5,$6) returning id, status`,
-        [dados.tipo, doc, dados.razaoSocial ?? null, dados.nomeFantasia, dados.email.toLowerCase(), dados.telefone ?? null],
+        `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, telefone, categoria)
+         values ($1,$2,$3,$4,$5,$6,$7) returning id, status`,
+        [
+          dados.tipo,
+          doc,
+          dados.razaoSocial ?? null,
+          dados.nomeFantasia,
+          dados.email.toLowerCase(),
+          dados.telefone ?? null,
+          dados.categoria ?? null,
+        ],
       );
       await client.query(`insert into cliente_credenciais (cliente_id, senha_hash) values ($1,$2)`, [
         rows[0].id,

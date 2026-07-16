@@ -78,7 +78,7 @@ class ProdutoCard extends StatelessWidget {
                       const Spacer(),
                       if (emPromocao)
                         Text(
-                          moeda(produto['preco_tabela']),
+                          '${moeda(produto['preco_tabela'])}/${_siglaUnidade(produto)}',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey.shade500,
@@ -89,15 +89,30 @@ class ProdutoCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
-                            child: Text(
-                              semEstoque ? 'Sem estoque' : moeda(produto['preco']),
-                              style: TextStyle(
-                                fontSize: semEstoque ? 13 : 16,
-                                fontWeight: FontWeight.w800,
-                                color: semEstoque
-                                    ? Colors.grey.shade500
-                                    : (emPromocao ? Colors.red.shade600 : tema.primary),
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  semEstoque
+                                      ? 'Sem estoque'
+                                      : '${moeda(produto['preco'])}/${_siglaUnidade(produto)}',
+                                  style: TextStyle(
+                                    fontSize: semEstoque ? 13 : 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: semEstoque
+                                        ? Colors.grey.shade500
+                                        : (emPromocao ? Colors.red.shade600 : tema.primary),
+                                  ),
+                                ),
+                                // Preço por unidade avulsa quando a venda é por caixa/fardo —
+                                // dá o mesmo contexto de negócio que o comprador B2B já usa
+                                // pra comparar oferta (ex.: R$153,63/cx = R$5,69/un).
+                                if (!semEstoque && asDouble(produto['qtd_por_embalagem']) > 1)
+                                  Text(
+                                    '${moeda(asDouble(produto['preco']) / asDouble(produto['qtd_por_embalagem']))}/un',
+                                    style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+                                  ),
+                              ],
                             ),
                           ),
                           if (!semEstoque) _BotaoAdicionar(produto: produto),
@@ -118,6 +133,23 @@ class ProdutoCard extends StatelessWidget {
     final un = p['unidade_venda'] ?? 'UN';
     final porEmb = asDouble(p['qtd_por_embalagem']);
     return porEmb > 1 ? '$un c/ ${porEmb.toInt()}' : '$un';
+  }
+
+  /// Sigla curta pro "R$X/sigla" no preço (ex.: /fd, /cx, /un, /kg) —
+  /// mesmo padrão de precificação que o comprador B2B já reconhece.
+  static String _siglaUnidade(Map<String, dynamic> p) {
+    switch (p['unidade_venda']) {
+      case 'CX':
+        return 'cx';
+      case 'FD':
+        return 'fd';
+      case 'PC':
+        return 'pc';
+      case 'KG':
+        return 'kg';
+      default:
+        return 'un';
+    }
   }
 
   Widget _semFoto() => Container(

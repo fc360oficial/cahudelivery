@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- usesCleartextTraffic: API de dev/teste roda em http:// na rede local.
+         Em produção (API atrás de HTTPS) isso pode voltar a false. -->
     <application
         android:label="CAHU Delivery"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

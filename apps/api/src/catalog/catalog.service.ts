@@ -67,7 +67,7 @@ export class CatalogService {
   async home(clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
-    const [banners, promocoes, maisVendidos] = await Promise.all([
+    const [banners, promocoes, maisVendidos, categoriasComProduto] = await Promise.all([
       pool.query(
         `select id, titulo, imagem_url, destino_tipo, destino_id from banners
           where ativo and (inicio_em is null or now() >= inicio_em) and (fim_em is null or now() <= fim_em)
@@ -81,8 +81,32 @@ export class CatalogService {
             group by pi2.produto_id order by sum(pi2.quantidade) desc limit 10)`,
         [tabela],
       ),
+      // Categorias que têm produto ativo, na ordem cadastrada — vira "prateleira" na home.
+      pool.query(
+        `select c.id, c.nome from categorias c
+          where c.ativo and exists (select 1 from produtos p where p.categoria_id = c.id and p.ativo)
+          order by c.ordem, c.nome`,
+      ),
     ]);
-    return { banners: banners.rows, promocoes: promocoes.rows, maisVendidos: maisVendidos.rows };
+
+    // Navegação por descoberta: uma prateleira horizontal por categoria (estilo "vitrine de loja"),
+    // não só recomendação. Busca em paralelo, limitando itens por prateleira para a home carregar rápido.
+    const prateleiras = await Promise.all(
+      categoriasComProduto.rows.map(async (c) => {
+        const { rows } = await pool.query(
+          `${SELECT_PRODUTO} and p.categoria_id = $2 order by p.nome limit 10`,
+          [tabela, c.id],
+        );
+        return { categoriaId: c.id, nome: c.nome, produtos: rows };
+      }),
+    );
+
+    return {
+      banners: banners.rows,
+      promocoes: promocoes.rows,
+      maisVendidos: maisVendidos.rows,
+      prateleiras: prateleiras.filter((p) => p.produtos.length > 0),
+    };
   }
 
   async categorias() {

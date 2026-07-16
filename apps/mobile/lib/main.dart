@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/api_client.dart';
 import 'core/tenant_theme.dart';
-import 'features/onboarding/cep_screen.dart';
 import 'features/shell/home_shell.dart';
 
 Future<void> main() async {
@@ -17,11 +15,7 @@ Future<void> main() async {
   await TenantTheme.instance
       .carregar()
       .timeout(const Duration(seconds: 6), onTimeout: () {});
-  final prefs = await SharedPreferences.getInstance();
-  final cepVisto = prefs.getBool('cepVisto') ?? false;
-  runApp(FluxoCommerceApp(
-    inicio: cepVisto ? const HomeShell() : const CepScreen(),
-  ));
+  runApp(const FluxoCommerceApp(inicio: HomeShell()));
   FlutterNativeSplash.remove();
 }
 

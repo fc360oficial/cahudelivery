@@ -11,8 +11,10 @@ const EXTENSOES = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
 /**
  * Upload de imagens (banners, fotos de produto) feito pela retaguarda.
  * Grava em <cwd>/uploads e devolve a URL pública servida pela própria API.
- * Dica de teste no celular: abra a retaguarda pelo IP do notebook, assim a URL
- * salva usa o IP e a imagem carrega no app.
+ * A URL usa PUBLIC_URL quando definida (ex.: IP da rede local em testes de
+ * celular) — sem isso, cai no host da própria requisição, que quebra se a
+ * retaguarda for acessada por localhost mas o app for testado em outro
+ * dispositivo.
  */
 @Controller('admin')
 @UseGuards(AdminGuard)
@@ -33,6 +35,7 @@ export class AdminUploadController {
   )
   upload(@Req() req: Request, @UploadedFile() arquivo?: Express.Multer.File) {
     if (!arquivo) throw new BadRequestException('Nenhum arquivo enviado (campo: arquivo)');
-    return { url: `${req.protocol}://${req.get('host')}/uploads/${arquivo.filename}` };
+    const base = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
+    return { url: `${base}/uploads/${arquivo.filename}` };
   }
 }

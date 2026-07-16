@@ -9,6 +9,7 @@ class RegistrarDto {
   @IsOptional() @IsString() razaoSocial?: string;
   @IsEmail() email!: string;
   @IsOptional() @IsString() telefone?: string;
+  @IsOptional() @IsString() categoria?: string;
   @MinLength(6) senha!: string;
 }
 

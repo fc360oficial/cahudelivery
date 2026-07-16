@@ -33,11 +33,15 @@ class _PedidosScreenState extends State<PedidosScreen> {
         _carregarMais();
       }
     });
+    // Recarrega quando o login muda (ex.: logou dentro do checkout, empilhado
+    // por cima) — _recarregar() já ignora a chamada se ainda não está logado.
+    ApiClient.instance.addListener(_recarregar);
     _recarregar();
   }
 
   @override
   void dispose() {
+    ApiClient.instance.removeListener(_recarregar);
     _scroll.dispose();
     super.dispose();
   }
@@ -77,21 +81,26 @@ class _PedidosScreenState extends State<PedidosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!ApiClient.instance.logado) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Meus pedidos')),
-        body: ConviteLogin(
-          icone: Icons.receipt_long_outlined,
-          titulo: 'Entre para ver seus pedidos',
-          onAutenticado: () {
-            _recarregar();
-          },
-        ),
-      );
-    }
-    return Scaffold(
-      appBar: AppBar(title: const Text('Meus pedidos')),
-      body: _corpo(),
+    return ListenableBuilder(
+      listenable: ApiClient.instance,
+      builder: (context, _) {
+        if (!ApiClient.instance.logado) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Meus pedidos')),
+            body: ConviteLogin(
+              icone: Icons.receipt_long_outlined,
+              titulo: 'Entre para ver seus pedidos',
+              onAutenticado: () {
+                _recarregar();
+              },
+            ),
+          );
+        }
+        return Scaffold(
+          appBar: AppBar(title: const Text('Meus pedidos')),
+          body: _corpo(),
+        );
+      },
     );
   }
 

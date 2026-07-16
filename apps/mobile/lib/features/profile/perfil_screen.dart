@@ -25,7 +25,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
   @override
   void initState() {
     super.initState();
+    // Recarrega quando o login muda (ex.: logou dentro do checkout, empilhado
+    // por cima) — _carregar() já ignora a chamada se ainda não está logado.
+    ApiClient.instance.addListener(_carregar);
     _carregar();
+  }
+
+  @override
+  void dispose() {
+    ApiClient.instance.removeListener(_carregar);
+    super.dispose();
   }
 
   Future<void> _carregar() async {
@@ -78,18 +87,27 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!ApiClient.instance.logado) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Perfil')),
-        body: ConviteLogin(
-          icone: Icons.person_outline,
-          titulo: 'Entre para ver seu perfil',
-          onAutenticado: () {
-            _carregar();
-          },
-        ),
-      );
-    }
+    return ListenableBuilder(
+      listenable: ApiClient.instance,
+      builder: (context, _) {
+        if (!ApiClient.instance.logado) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Perfil')),
+            body: ConviteLogin(
+              icone: Icons.person_outline,
+              titulo: 'Entre para ver seu perfil',
+              onAutenticado: () {
+                _carregar();
+              },
+            ),
+          );
+        }
+        return _corpoLogado(context);
+      },
+    );
+  }
+
+  Widget _corpoLogado(BuildContext context) {
     final cor = Theme.of(context).colorScheme.primary;
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),

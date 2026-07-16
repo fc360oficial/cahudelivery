@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +17,10 @@ class ApiException implements Exception {
 
 /// Cliente HTTP central: injeta X-Tenant e Bearer, renova o access token
 /// automaticamente com o refresh token e padroniza erros (RFC 7807 do backend).
-class ApiClient {
+/// ChangeNotifier: telas que checam `logado` (Pedidos, Perfil) escutam via
+/// ListenableBuilder — sem isso, logar dentro do checkout (empilhado por
+/// cima) não avisava essas abas, que já tinham sido desenhadas como visitante.
+class ApiClient extends ChangeNotifier {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
 
@@ -43,6 +47,7 @@ class ApiClient {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('accessToken', access);
     await prefs.setString('refreshToken', refresh);
+    notifyListeners();
   }
 
   Future<void> sair() async {
@@ -51,6 +56,7 @@ class ApiClient {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
+    notifyListeners();
   }
 
   /// UUID v4 sem dependência externa.

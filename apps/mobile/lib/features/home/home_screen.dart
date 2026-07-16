@@ -35,6 +35,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _carregar();
     _carregarEndereco();
+    // Recarrega quando o login muda em qualquer lugar do app (ex.: checkout).
+    ApiClient.instance.addListener(_carregarEndereco);
   }
 
   /// Logado: endereço padrão do cadastro. Visitante: nenhum endereço a mostrar.
@@ -68,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    ApiClient.instance.removeListener(_carregarEndereco);
     _autoplay?.cancel();
     _bannerCtrl.dispose();
     super.dispose();

@@ -82,7 +82,7 @@ export class AuthService {
     if (!reg || !(await argon2.verify(reg.senha_hash, senha))) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
-    if (reg.status === 'bloqueado') throw new UnauthorizedException('Cadastro bloqueado');
+    if (reg.status === 'bloqueado' || reg.status === 'excluido') throw new UnauthorizedException('Cadastro bloqueado');
     await pool.query(`update cliente_credenciais set ultimo_login_em = now() where cliente_id = $1`, [reg.id]);
     await this.reivindicarCarrinho(reg.id, deviceId);
     return { ...(await this.emitirTokens(reg.id, tenant.slug)), status: reg.status };

@@ -9,7 +9,7 @@ interface LinhaCliente {
   nome_fantasia: string;
   email: string;
   telefone?: string;
-  status: 'pendente' | 'aprovado' | 'bloqueado';
+  status: 'pendente' | 'aprovado' | 'bloqueado' | 'excluido';
   criado_em: string;
   pedidos: number;
 }
@@ -41,12 +41,25 @@ export function Clientes() {
     }
   }
 
+  async function excluir(c: LinhaCliente) {
+    const aviso = c.pedidos
+      ? `${c.nome_fantasia} já tem ${c.pedidos} pedido(s). Os dados pessoais serão anonimizados (o histórico de venda é mantido por obrigação fiscal). Continuar?`
+      : `Excluir ${c.nome_fantasia} definitivamente? Essa ação não pode ser desfeita.`;
+    if (!confirm(aviso)) return;
+    try {
+      await api(`/admin/clientes/${c.id}`, { method: 'DELETE' });
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+  }
+
   return (
     <>
       <h1>Clientes</h1>
       <div className="filtros">
         <input placeholder="Buscar por nome, CNPJ ou e-mail…" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ flex: 1, maxWidth: 340 }} />
-        {['', 'pendente', 'aprovado', 'bloqueado'].map((s) => (
+        {['', 'pendente', 'aprovado', 'bloqueado', 'excluido'].map((s) => (
           <button key={s || 'todos'} className={`pill-filtro ${status === s ? 'ativo' : ''}`} onClick={() => setParams(s ? { status: s } : {})}>
             {s ? s[0].toUpperCase() + s.slice(1) : 'Todos'}
           </button>
@@ -68,11 +81,16 @@ export function Clientes() {
                 <td><span className={`badge ${c.status}`}>{c.status}</span></td>
                 <td>{fmtData(c.criado_em)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  {c.status !== 'aprovado' && (
-                    <button className="btn-mini btn-ok" onClick={() => mudar(c.id, 'aprovado')}>Aprovar</button>
-                  )}{' '}
-                  {c.status !== 'bloqueado' && (
-                    <button className="btn-mini btn-perigo" onClick={() => mudar(c.id, 'bloqueado')}>Bloquear</button>
+                  {c.status !== 'excluido' && (
+                    <>
+                      {c.status !== 'aprovado' && (
+                        <button className="btn-mini btn-ok" onClick={() => mudar(c.id, 'aprovado')}>Aprovar</button>
+                      )}{' '}
+                      {c.status !== 'bloqueado' && (
+                        <button className="btn-mini btn-perigo" onClick={() => mudar(c.id, 'bloqueado')}>Bloquear</button>
+                      )}{' '}
+                      <button className="btn-mini btn-perigo" onClick={() => excluir(c)}>Excluir</button>
+                    </>
                   )}
                 </td>
               </tr>

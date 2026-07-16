@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsIn } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
@@ -47,6 +47,11 @@ export class AdminController {
   @Patch('clientes/:id/status')
   statusCliente(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: StatusClienteDto) {
     return this.admin.mudarStatusCliente(id, dto.status, req.admin.usuarioId);
+  }
+
+  @Delete('clientes/:id')
+  excluirCliente(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.excluirCliente(id, req.admin.usuarioId);
   }
 
   @Get('produtos')

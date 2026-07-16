@@ -89,6 +89,7 @@ tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
 .badge.pendente { background: #fefce8; color: #a16207; }
 .badge.aprovado { background: #dcfce7; color: var(--verde); }
 .badge.bloqueado { background: #fef2f2; color: var(--vermelho); }
+.badge.excluido { background: #f3f4f6; color: var(--texto-2); }
 
 /* Controles */
 .filtros { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }

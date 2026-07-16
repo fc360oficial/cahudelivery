@@ -46,6 +46,21 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
   return body as T;
 }
 
+/** Envia uma imagem (banner, foto de produto) e devolve a URL pública. */
+export async function upload(arquivo: File): Promise<string> {
+  const s = sessao();
+  const fd = new FormData();
+  fd.append('arquivo', arquivo);
+  const res = await fetch(`${API_URL}/admin/upload`, {
+    method: 'POST',
+    headers: { 'X-Tenant': TENANT, ...(s ? { Authorization: `Bearer ${s.accessToken}` } : {}) },
+    body: fd,
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body?.message ?? 'Falha no upload');
+  return body.url as string;
+}
+
 export const fmtMoeda = (v: unknown) =>
   Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 

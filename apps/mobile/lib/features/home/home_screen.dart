@@ -7,6 +7,7 @@ import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../../widgets/produto_card.dart';
+import '../../widgets/vitrine_patrocinada.dart';
 import '../auth/entrar_ou_criar_screen.dart';
 import '../catalog/produto_screen.dart';
 import '../catalog/produtos_screen.dart';
@@ -175,15 +176,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       // Prateleiras por categoria abaixo das vitrines de conversão
                       // (promoção/mais vendidos primeiro) — navegação por descoberta,
                       // pro comprador "passear" pelo catálogo como numa loja física.
-                      for (final prat in (_home!['prateleiras'] as List? ?? const []))
-                        _vitrine(
-                          (prat as Map<String, dynamic>)['nome'] as String,
-                          prat['produtos'] as List? ?? const [],
-                          verTodos: () => Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => ProdutosScreen(
-                                  categoriaId: prat['categoriaId'] as String,
-                                  titulo: prat['nome'] as String))),
-                        ),
+                      for (final item in (_home!['prateleiras'] as List? ?? const []))
+                        (item as Map<String, dynamic>)['tipo'] == 'patrocinador'
+                            ? VitrinePatrocinada(patrocinador: item)
+                            : _vitrine(
+                                item['nome'] as String,
+                                item['produtos'] as List? ?? const [],
+                                verTodos: () => Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => ProdutosScreen(
+                                        categoriaId: item['categoriaId'] as String,
+                                        titulo: item['nome'] as String))),
+                              ),
                       if ((_home!['promocoes'] as List? ?? []).isEmpty &&
                           (_home!['maisVendidos'] as List? ?? []).isEmpty &&
                           (_home!['prateleiras'] as List? ?? []).isEmpty)

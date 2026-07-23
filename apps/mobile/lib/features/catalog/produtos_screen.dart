@@ -14,6 +14,7 @@ class ProdutosScreen extends StatefulWidget {
     this.subcategorias = const [],
     this.buscaInicial,
     this.somentePromocao = false,
+    this.produtosFixos,
   });
 
   final String titulo;
@@ -21,6 +22,7 @@ class ProdutosScreen extends StatefulWidget {
   final List<Map<String, dynamic>> subcategorias;
   final String? buscaInicial;
   final bool somentePromocao;
+  final List<Map<String, dynamic>>? produtosFixos;
 
   @override
   State<ProdutosScreen> createState() => _ProdutosScreenState();
@@ -71,6 +73,15 @@ class _ProdutosScreenState extends State<ProdutosScreen> {
 
   Future<void> _carregarMais() async {
     if (_carregando || _fim) return;
+    if (widget.produtosFixos != null) {
+      setState(() {
+        _produtos
+          ..clear()
+          ..addAll(widget.produtosFixos!);
+        _fim = true;
+      });
+      return;
+    }
     setState(() => _carregando = true);
     try {
       final q = <String, String>{

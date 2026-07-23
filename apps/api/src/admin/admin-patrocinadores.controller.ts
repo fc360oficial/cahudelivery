@@ -10,7 +10,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { AdminGuard } from './admin.guard';
@@ -26,7 +26,7 @@ class PatrocinadorDto {
   @IsOptional() @IsString() bannerUrl?: string;
   @IsOptional() @IsUUID() aposCategoriaId?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
-  @IsArray() @Type(() => PatrocinadorProdutoDto) produtos!: PatrocinadorProdutoDto[];
+  @IsArray() @ValidateNested({ each: true }) @Type(() => PatrocinadorProdutoDto) produtos!: PatrocinadorProdutoDto[];
 }
 
 /** CRUD das vitrines patrocinadas (indústria/fabricante), gerenciado pela retaguarda. */

@@ -93,7 +93,7 @@ export class CatalogService {
         `select pat.id, pat.nome, pat.logo_url, pat.banner_url, pat.apos_categoria_id,
                 (select json_agg(json_build_object(
                     'id', p.id, 'sku', p.sku, 'nome', p.nome, 'unidade_venda', p.unidade_venda,
-                    'qtd_por_embalagem', p.qtd_por_embalagem, 'estoque', coalesce(e.quantidade,0),
+                    'qtd_por_embalagem', p.qtd_por_embalagem, 'qtd_minima', p.qtd_minima, 'estoque', coalesce(e.quantidade,0),
                     'preco_tabela', pr.preco, 'preco_promocional', promo.preco_promocional,
                     'preco', coalesce(pp.preco_especial, promo.preco_promocional, pr.preco),
                     'imagens', (select json_agg(json_build_object('url', pi.url,'ordem', pi.ordem) order by pi.ordem)

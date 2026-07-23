@@ -67,7 +67,7 @@ export class CatalogService {
   async home(clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
-    const [banners, promocoes, maisVendidos, categoriasComProduto] = await Promise.all([
+    const [banners, promocoes, maisVendidos, categoriasComProduto, patrocinadores] = await Promise.all([
       pool.query(
         `select id, titulo, imagem_url, destino_tipo, destino_id from banners
           where ativo and (inicio_em is null or now() >= inicio_em) and (fim_em is null or now() <= fim_em)
@@ -87,6 +87,33 @@ export class CatalogService {
           where c.ativo and exists (select 1 from produtos p where p.categoria_id = c.id and p.ativo)
           order by c.ordem, c.nome`,
       ),
+      // Vitrines patrocinadas (indústria/fabricante) — produtos escolhidos manualmente,
+      // com preço especial vencendo promoção que vence tabela (mesma precedência do SELECT_PRODUTO).
+      pool.query(
+        `select pat.id, pat.nome, pat.logo_url, pat.banner_url, pat.apos_categoria_id,
+                (select json_agg(json_build_object(
+                    'id', p.id, 'sku', p.sku, 'nome', p.nome, 'unidade_venda', p.unidade_venda,
+                    'qtd_por_embalagem', p.qtd_por_embalagem, 'estoque', coalesce(e.quantidade,0),
+                    'preco_tabela', pr.preco, 'preco_promocional', promo.preco_promocional,
+                    'preco', coalesce(pp.preco_especial, promo.preco_promocional, pr.preco),
+                    'imagens', (select json_agg(json_build_object('url', pi.url,'ordem', pi.ordem) order by pi.ordem)
+                                  from produto_imagens pi where pi.produto_id = p.id)
+                  ) order by pp.ordem)
+                   from patrocinador_produtos pp
+                   join produtos p on p.id = pp.produto_id and p.ativo
+                   left join estoques e on e.produto_id = p.id
+                   left join precos pr on pr.produto_id = p.id and pr.tabela_preco_id = $1
+                   left join lateral (
+                     select ppo.preco_promocional from promocao_produtos ppo
+                       join promocoes pm on pm.id = ppo.promocao_id
+                      where ppo.produto_id = p.id and pm.ativo and now() between pm.inicio_em and pm.fim_em
+                      order by ppo.preco_promocional asc limit 1
+                   ) promo on true
+                  where pp.patrocinador_id = pat.id
+                ) as produtos
+           from patrocinadores pat where pat.ativo order by pat.criado_em`,
+        [tabela],
+      ),
     ]);
 
     // Navegação por descoberta: uma prateleira horizontal por categoria (estilo "vitrine de loja"),
@@ -97,15 +124,44 @@ export class CatalogService {
           `${SELECT_PRODUTO} and p.categoria_id = $2 order by p.nome limit 10`,
           [tabela, c.id],
         );
-        return { categoriaId: c.id, nome: c.nome, produtos: rows };
+        return { tipo: 'categoria' as const, categoriaId: c.id, nome: c.nome, produtos: rows };
       }),
     );
+
+    // Mescla as vitrines patrocinadas ativas na posição escolhida na retaguarda:
+    // logo depois da categoria referenciada (apos_categoria_id), ou no topo se nulo.
+    const topo: unknown[] = [];
+    const depoisDaCategoria = new Map<string, unknown[]>();
+    for (const row of patrocinadores.rows) {
+      if (!row.produtos?.length) continue;
+      const item = {
+        tipo: 'patrocinador' as const,
+        id: row.id,
+        nome: row.nome,
+        logoUrl: row.logo_url,
+        bannerUrl: row.banner_url,
+        produtos: row.produtos,
+      };
+      if (row.apos_categoria_id) {
+        const lista = depoisDaCategoria.get(row.apos_categoria_id) ?? [];
+        lista.push(item);
+        depoisDaCategoria.set(row.apos_categoria_id, lista);
+      } else {
+        topo.push(item);
+      }
+    }
+    const feed: unknown[] = [...topo];
+    for (const prat of prateleiras.filter((p) => p.produtos.length > 0)) {
+      feed.push(prat);
+      const extras = depoisDaCategoria.get(prat.categoriaId);
+      if (extras) feed.push(...extras);
+    }
 
     return {
       banners: banners.rows,
       promocoes: promocoes.rows,
       maisVendidos: maisVendidos.rows,
-      prateleiras: prateleiras.filter((p) => p.produtos.length > 0),
+      prateleiras: feed,
     };
   }
 

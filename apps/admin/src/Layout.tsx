@@ -9,6 +9,7 @@ const LINKS = [
   { para: '/categorias', rotulo: '🗂️ Categorias' },
   { para: '/marcas', rotulo: '🏷️ Marcas' },
   { para: '/promocoes', rotulo: '💛 Promoções' },
+  { para: '/patrocinadores', rotulo: '🏭 Patrocinadores' },
   { para: '/banners', rotulo: '🖼️ Banners' },
   { para: '/notificacoes', rotulo: '🔔 Notificações' },
   { para: '/usuarios', rotulo: '🔑 Usuários' },

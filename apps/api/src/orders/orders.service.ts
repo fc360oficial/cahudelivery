@@ -30,7 +30,7 @@ export class OrdersService {
               coalesce(e.quantidade,0) as estoque,
               least(
                 coalesce(promo.preco_promocional, pr.preco),
-                case when p.desconto_qtd_minima is not null and ci.quantidade >= p.desconto_qtd_minima
+                case when p.desconto_qtd_minima is not null and pr.preco is not null and ci.quantidade >= p.desconto_qtd_minima
                      then p.desconto_qtd_preco else pr.preco end
               ) as preco_atual
          from carrinho_itens ci

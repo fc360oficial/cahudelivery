@@ -130,12 +130,20 @@ export class CatalogService {
 
     // Mescla as vitrines patrocinadas ativas na posição escolhida na retaguarda:
     // logo depois da categoria referenciada (apos_categoria_id), ou no topo se nulo.
-    const topo: unknown[] = [];
-    const depoisDaCategoria = new Map<string, unknown[]>();
+    interface PatrocinadorItem {
+      tipo: 'patrocinador';
+      id: string;
+      nome: string;
+      logoUrl: string;
+      bannerUrl: string;
+      produtos: unknown[];
+    }
+    const topo: PatrocinadorItem[] = [];
+    const depoisDaCategoria = new Map<string, PatrocinadorItem[]>();
     for (const row of patrocinadores.rows) {
       if (!row.produtos?.length) continue;
-      const item = {
-        tipo: 'patrocinador' as const,
+      const item: PatrocinadorItem = {
+        tipo: 'patrocinador',
         id: row.id,
         nome: row.nome,
         logoUrl: row.logo_url,
@@ -151,11 +159,28 @@ export class CatalogService {
       }
     }
     const feed: unknown[] = [...topo];
+    const categoriasNaFeed = new Set<string>();
     for (const prat of prateleiras.filter((p) => p.produtos.length > 0)) {
       feed.push(prat);
+      categoriasNaFeed.add(prat.categoriaId);
       const extras = depoisDaCategoria.get(prat.categoriaId);
       if (extras) feed.push(...extras);
     }
+
+    // Fallback: patrocinador cuja categoria-âncora não virou prateleira (ficou sem produto
+    // ativo — ex.: tudo saiu de estoque ou foi desativado). Sem isso a vitrine paga sumiria
+    // silenciosamente do feed. Cai pro topo da home, junto dos patrocinadores sem âncora.
+    const orfaos: PatrocinadorItem[] = [];
+    for (const [categoriaId, itens] of depoisDaCategoria) {
+      if (categoriasNaFeed.has(categoriaId)) continue;
+      for (const item of itens) {
+        console.warn(
+          `[catalog.home] patrocinador "${item.nome}" (id=${item.id}) ficou órfão: a categoria-âncora ${categoriaId} não tem produtos ativos no momento. Caindo para o topo da home como fallback.`,
+        );
+        orfaos.push(item);
+      }
+    }
+    if (orfaos.length) feed.splice(topo.length, 0, ...orfaos);
 
     return {
       banners: banners.rows,

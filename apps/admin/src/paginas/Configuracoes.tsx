@@ -6,6 +6,7 @@ interface Config {
   formas_pagamento?: string[];
   aprovacao_cadastro?: boolean;
   horario_atendimento?: Record<string, string>;
+  limite_estoque_baixo?: number;
 }
 
 export function Configuracoes() {
@@ -49,6 +50,14 @@ export function Configuracoes() {
             onChange={(e) => setCfg({ ...cfg, pedido_minimo: { tipo: 'valor', valor: Number(e.target.value) } })}
             style={{ marginTop: 8, width: 160 }} />
           <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>0 = sem pedido mínimo. O app mostra a barra "faltam R$ X".</div>
+        </div>
+
+        <div className="card">
+          <div className="rotulo">Estoque baixo</div>
+          <input type="number" min="0" value={cfg.limite_estoque_baixo ?? 0}
+            onChange={(e) => setCfg({ ...cfg, limite_estoque_baixo: Number(e.target.value) })}
+            style={{ marginTop: 8, width: 160 }} />
+          <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>0 = selo desativado. Produtos com estoque igual ou menor que esse número mostram "X em estoque" no app.</div>
         </div>
 
         <div className="card">

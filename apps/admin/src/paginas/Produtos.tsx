@@ -84,6 +84,7 @@ export function Produtos() {
         method: 'PATCH',
         body: JSON.stringify({ dataValidade: validadeEdit.trim() || undefined }),
       });
+      setEditandoId(null);
       carregar();
     } catch (e) {
       setErro((e as Error).message);

@@ -61,7 +61,7 @@ class VitrinePatrocinada extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 254,
+          height: 300,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),

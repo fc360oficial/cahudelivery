@@ -16,7 +16,6 @@ class ProdutoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tema = Theme.of(context).colorScheme;
     final imagens = produto['imagens'] as List?;
     final imagemUrl = (imagens != null && imagens.isNotEmpty) ? imagens.first['url'] as String? : null;
     final emPromocao = produto['preco_promocional'] != null;
@@ -57,21 +56,6 @@ class ProdutoCard extends StatelessWidget {
                                 color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                       ),
                     ),
-                  if (_estoqueBaixo(produto))
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade700,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text('${asDouble(produto['estoque']).toInt()} em estoque',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                      ),
-                    ),
                 ],
               ),
               Expanded(
@@ -102,7 +86,7 @@ class ProdutoCard extends StatelessWidget {
                                         fontSize: 13,
                                         fontWeight: FontWeight.w800,
                                         color: Colors.grey))
-                                : _blocoPreco(produto, tema, emPromocao),
+                                : _blocoPreco(produto, emPromocao),
                           ),
                           if (!semEstoque) _BotaoAdicionar(produto: produto),
                         ],
@@ -134,11 +118,11 @@ class ProdutoCard extends StatelessWidget {
   /// comprador compara pra decidir), e — quando a venda é por caixa/fardo —
   /// o valor do pacote fechado logo abaixo, num selo bem legível.
   /// Ex.: Coca-Cola: "R$ 9,90/un" em destaque, selo "fd c/10 R$ 99,00" abaixo.
-  static Widget _blocoPreco(Map<String, dynamic> produto, ColorScheme tema, bool emPromocao) {
+  static Widget _blocoPreco(Map<String, dynamic> produto, bool emPromocao) {
     final porEmb = asDouble(produto['qtd_por_embalagem']);
     final sigla = siglaUnidade(produto);
     final unit = precoUnitario(produto);
-    final cor = emPromocao ? Colors.red.shade600 : tema.primary;
+    final cor = Colors.red.shade600;
     final descontoQtdMinima = produto['desconto_qtd_minima'] as int?;
     final descontoQtdPreco = produto['desconto_qtd_preco'];
     return Column(
@@ -184,6 +168,22 @@ class ProdutoCard extends StatelessWidget {
                 'a partir de $descontoQtdMinima un: ${moeda(descontoQtdPreco)}',
                 style: TextStyle(
                     fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.green.shade800),
+              ),
+            ),
+          ),
+        if (_estoqueBaixo(produto))
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '${asDouble(produto['estoque']).toInt()} em estoque',
+                style: TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.orange.shade800),
               ),
             ),
           ),

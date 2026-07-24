@@ -144,8 +144,10 @@ class ProdutoCard extends StatelessWidget {
               decoration: TextDecoration.lineThrough,
             ),
           ),
-        Text('${moeda(unit)}/un',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: cor)),
+        Text('${moeda(unit)} /un',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: cor)),
         if (porEmb > 1)
           Padding(
             padding: const EdgeInsets.only(top: 3),

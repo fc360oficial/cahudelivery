@@ -48,9 +48,12 @@ export function Produtos() {
   }
 
   async function salvarDesconto(id: string) {
+    const minima = minimaEdit.trim() === '' ? undefined : Number(minimaEdit);
+    const preco = precoEdit.trim() === '' ? undefined : Number(precoEdit);
+    if ((minima === undefined) !== (preco === undefined)) {
+      return setErro('Informe quantidade mínima e preço com desconto juntos, ou deixe os dois em branco');
+    }
     try {
-      const minima = minimaEdit.trim() === '' ? undefined : Number(minimaEdit);
-      const preco = precoEdit.trim() === '' ? undefined : Number(precoEdit);
       await api(`/admin/produtos/${id}/desconto-qtd`, {
         method: 'PATCH',
         body: JSON.stringify({ descontoQtdMinima: minima, descontoQtdPreco: preco }),

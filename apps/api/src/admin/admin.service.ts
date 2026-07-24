@@ -227,6 +227,9 @@ export class AdminService {
   }
 
   async descontoQtdProduto(id: string, minima: number | null, preco: number | null, usuarioId: string) {
+    if ((minima === null) !== (preco === null)) {
+      throw new BadRequestException('Informe quantidade mínima e preço com desconto juntos, ou remova os dois');
+    }
     const { pool } = tenantCtx();
     const r = await pool.query(
       `update produtos set desconto_qtd_minima = $2, desconto_qtd_preco = $3 where id = $1 returning id`,

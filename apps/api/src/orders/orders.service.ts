@@ -28,7 +28,11 @@ export class OrdersService {
     const { rows } = await pool.query(
       `select ci.produto_id, ci.quantidade, p.nome, p.unidade_venda, p.qtd_minima,
               coalesce(e.quantidade,0) as estoque,
-              coalesce(promo.preco_promocional, pr.preco) as preco_atual
+              least(
+                coalesce(promo.preco_promocional, pr.preco),
+                case when p.desconto_qtd_minima is not null and ci.quantidade >= p.desconto_qtd_minima
+                     then p.desconto_qtd_preco else pr.preco end
+              ) as preco_atual
          from carrinho_itens ci
          join produtos p on p.id = ci.produto_id
          left join estoques e on e.produto_id = p.id

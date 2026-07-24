@@ -14,7 +14,7 @@ export interface FiltroProdutos {
 /** Colunas + preço resolvido (promoção vigente vence a tabela) + estoque. */
 const SELECT_PRODUTO = `
   select p.id, p.sku, p.ean, p.nome, p.descricao, p.unidade_venda, p.qtd_por_embalagem,
-         p.qtd_minima, m.nome as marca, c.nome as categoria, c.id as categoria_id,
+         p.qtd_minima, p.desconto_qtd_minima, p.desconto_qtd_preco, m.nome as marca, c.nome as categoria, c.id as categoria_id,
          coalesce(e.quantidade, 0) as estoque,
          pr.preco as preco_tabela,
          promo.preco_promocional,

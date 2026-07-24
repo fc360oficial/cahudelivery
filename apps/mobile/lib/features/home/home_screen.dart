@@ -128,6 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 somentePromocao: true, titulo: 'Promoções'))),
                       ),
                       _vitrine('Mais vendidos', _home!['maisVendidos'] as List? ?? const []),
+                      _vitrine('Vencimento Próximo',
+                          _home!['vencimentoProximo'] as List? ?? const []),
                       // Prateleiras por categoria abaixo das vitrines de conversão
                       // (promoção/mais vendidos primeiro) — navegação por descoberta,
                       // pro comprador "passear" pelo catálogo como numa loja física.
@@ -144,6 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                       if ((_home!['promocoes'] as List? ?? []).isEmpty &&
                           (_home!['maisVendidos'] as List? ?? []).isEmpty &&
+                          (_home!['vencimentoProximo'] as List? ?? []).isEmpty &&
                           (_home!['prateleiras'] as List? ?? []).isEmpty)
                         const Padding(
                           padding: EdgeInsets.only(top: 60),

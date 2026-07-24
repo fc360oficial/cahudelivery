@@ -108,6 +108,12 @@ class ProdutoCard extends StatelessWidget {
     return porEmb > 1 ? '$un c/ ${porEmb.toInt()}' : '$un';
   }
 
+  static String _formatarData(String iso) {
+    final d = DateTime.tryParse(iso);
+    if (d == null) return iso;
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
+  }
+
   static bool _estoqueBaixo(Map<String, dynamic> produto) {
     final estoque = asDouble(produto['estoque']);
     final limite = asDouble(TenantTheme.instance.configuracoes['limite_estoque_baixo']);
@@ -125,6 +131,7 @@ class ProdutoCard extends StatelessWidget {
     final cor = Colors.red.shade600;
     final descontoQtdMinima = produto['desconto_qtd_minima'] as int?;
     final descontoQtdPreco = produto['desconto_qtd_preco'];
+    final dataValidade = produto['data_validade'] as String?;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -184,6 +191,22 @@ class ProdutoCard extends StatelessWidget {
                 '${asDouble(produto['estoque']).toInt()} em estoque',
                 style: TextStyle(
                     fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.orange.shade800),
+              ),
+            ),
+          ),
+        if (dataValidade != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'Val. ${_formatarData(dataValidade)}',
+                style: TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.red.shade700),
               ),
             ),
           ),

@@ -14,7 +14,7 @@ export interface FiltroProdutos {
 /** Colunas + preço resolvido (promoção vigente vence a tabela) + estoque. */
 const SELECT_PRODUTO = `
   select p.id, p.sku, p.ean, p.nome, p.descricao, p.unidade_venda, p.qtd_por_embalagem,
-         p.qtd_minima, p.desconto_qtd_minima, p.desconto_qtd_preco, m.nome as marca, c.nome as categoria, c.id as categoria_id,
+         p.qtd_minima, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade, m.nome as marca, c.nome as categoria, c.id as categoria_id,
          coalesce(e.quantidade, 0) as estoque,
          pr.preco as preco_tabela,
          promo.preco_promocional,
@@ -67,7 +67,11 @@ export class CatalogService {
   async home(clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
-    const [banners, promocoes, maisVendidos, categoriasComProduto, patrocinadores] = await Promise.all([
+    const diasCfg = await pool.query(
+      `select valor_json from configuracoes where chave = 'dias_vencimento_proximo'`,
+    );
+    const diasVencimento = Number(diasCfg.rows[0]?.valor_json ?? 0);
+    const [banners, promocoes, maisVendidos, categoriasComProduto, patrocinadores, vencimentoProximo] = await Promise.all([
       pool.query(
         `select id, titulo, imagem_url, destino_tipo, destino_id from banners
           where ativo and (inicio_em is null or now() >= inicio_em) and (fim_em is null or now() <= fim_em)
@@ -114,6 +118,16 @@ export class CatalogService {
            from patrocinadores pat where pat.ativo order by pat.criado_em`,
         [tabela],
       ),
+      // Vencimento Próximo: produtos com validade cadastrada dentro do limite configurado
+      // (dias_vencimento_proximo em configuracoes). 0/ausente = sem limite, sem vitrine.
+      diasVencimento > 0
+        ? pool.query(
+            `${SELECT_PRODUTO} and p.data_validade is not null
+               and p.data_validade between current_date and current_date + $2::int
+              order by p.data_validade asc limit 10`,
+            [tabela, diasVencimento],
+          )
+        : Promise.resolve({ rows: [] as unknown[] }),
     ]);
 
     // Navegação por descoberta: uma prateleira horizontal por categoria (estilo "vitrine de loja"),
@@ -186,6 +200,7 @@ export class CatalogService {
       banners: banners.rows,
       promocoes: promocoes.rows,
       maisVendidos: maisVendidos.rows,
+      vencimentoProximo: vencimentoProximo.rows,
       prateleiras: feed,
     };
   }

@@ -198,7 +198,8 @@ export class AdminService {
     }
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
-      `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, c.nome as categoria, m.nome as marca,
+      `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, p.desconto_qtd_minima, p.desconto_qtd_preco,
+              c.nome as categoria, m.nome as marca,
               coalesce(e.quantidade,0) as estoque,
               (select preco from precos pr join tabelas_preco t on t.id = pr.tabela_preco_id and t.padrao
                 where pr.produto_id = p.id) as preco

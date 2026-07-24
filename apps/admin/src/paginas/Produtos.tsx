@@ -11,12 +11,17 @@ interface LinhaProduto {
   marca?: string;
   estoque: string;
   preco?: string;
+  desconto_qtd_minima?: number;
+  desconto_qtd_preco?: string;
 }
 
 export function Produtos() {
   const [busca, setBusca] = useState('');
   const [dados, setDados] = useState<LinhaProduto[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [minimaEdit, setMinimaEdit] = useState('');
+  const [precoEdit, setPrecoEdit] = useState('');
 
   const carregar = useCallback(() => {
     const q = busca ? `?busca=${encodeURIComponent(busca)}` : '';
@@ -36,6 +41,37 @@ export function Produtos() {
     }
   }
 
+  function abrirEdicaoDesconto(p: LinhaProduto) {
+    setEditandoId(p.id);
+    setMinimaEdit(p.desconto_qtd_minima != null ? String(p.desconto_qtd_minima) : '');
+    setPrecoEdit(p.desconto_qtd_preco != null ? String(p.desconto_qtd_preco) : '');
+  }
+
+  async function salvarDesconto(id: string) {
+    try {
+      const minima = minimaEdit.trim() === '' ? undefined : Number(minimaEdit);
+      const preco = precoEdit.trim() === '' ? undefined : Number(precoEdit);
+      await api(`/admin/produtos/${id}/desconto-qtd`, {
+        method: 'PATCH',
+        body: JSON.stringify({ descontoQtdMinima: minima, descontoQtdPreco: preco }),
+      });
+      setEditandoId(null);
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+  }
+
+  async function removerDesconto(id: string) {
+    try {
+      await api(`/admin/produtos/${id}/desconto-qtd`, { method: 'PATCH', body: JSON.stringify({}) });
+      setEditandoId(null);
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+  }
+
   return (
     <>
       <h1>Produtos</h1>
@@ -46,7 +82,7 @@ export function Produtos() {
       <div className="tabela-wrap">
         <table>
           <thead>
-            <tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Situação</th><th></th></tr>
+            <tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por quantidade</th><th>Situação</th><th></th></tr>
           </thead>
           <tbody>
             {dados?.map((p) => (
@@ -57,6 +93,26 @@ export function Produtos() {
                 <td>{p.unidade_venda}</td>
                 <td>{Number(p.estoque)}</td>
                 <td>{p.preco ? fmtMoeda(p.preco) : '—'}</td>
+                <td>
+                  {editandoId === p.id ? (
+                    <div className="filtros" style={{ flexWrap: 'nowrap' }}>
+                      <input type="number" min="1" placeholder="A partir de" value={minimaEdit}
+                        onChange={(e) => setMinimaEdit(e.target.value)} style={{ width: 90 }} />
+                      <input type="number" step="0.01" min="0" placeholder="Preço" value={precoEdit}
+                        onChange={(e) => setPrecoEdit(e.target.value)} style={{ width: 100 }} />
+                      <button className="btn-mini btn-ok" onClick={() => salvarDesconto(p.id)}>Salvar</button>
+                      <button className="btn-mini btn-claro" onClick={() => setEditandoId(null)}>Cancelar</button>
+                    </div>
+                  ) : p.desconto_qtd_minima != null ? (
+                    <span>
+                      a partir de {p.desconto_qtd_minima} un: {fmtMoeda(p.desconto_qtd_preco)}{' '}
+                      <button className="btn-mini btn-claro" onClick={() => abrirEdicaoDesconto(p)}>Editar</button>{' '}
+                      <button className="btn-mini btn-perigo" onClick={() => removerDesconto(p.id)}>Remover</button>
+                    </span>
+                  ) : (
+                    <button className="btn-mini btn-claro" onClick={() => abrirEdicaoDesconto(p)}>+ Adicionar</button>
+                  )}
+                </td>
                 <td><span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span></td>
                 <td>
                   <button className={`btn-mini ${p.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(p)}>
@@ -65,7 +121,7 @@ export function Produtos() {
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={8} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={9} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
           </tbody>
         </table>
       </div>

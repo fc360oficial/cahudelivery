@@ -196,7 +196,7 @@ class _ProdutosScreenState extends State<ProdutosScreen> {
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.58,
+        childAspectRatio: 0.52,
         children: List.generate(6, (_) => const Esqueleto(radius: 16)),
       );
     }
@@ -218,7 +218,7 @@ class _ProdutosScreenState extends State<ProdutosScreen> {
           maxCrossAxisExtent: 220,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 0.58,
+          childAspectRatio: 0.52,
         ),
         itemCount: _produtos.length + (_fim ? 0 : 1),
         itemBuilder: (_, i) {

@@ -225,6 +225,21 @@ export class AdminService {
     return { ok: true };
   }
 
+  async descontoQtdProduto(id: string, minima: number | null, preco: number | null, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const r = await pool.query(
+      `update produtos set desconto_qtd_minima = $2, desconto_qtd_preco = $3 where id = $1 returning id`,
+      [id, minima, preco],
+    );
+    if (!r.rowCount) throw new NotFoundException('Produto não encontrado');
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
+       values ($1,'editar_desconto_qtd','produto',$2,$3)`,
+      [usuarioId, id, JSON.stringify({ descontoQtdMinima: minima, descontoQtdPreco: preco })],
+    );
+    return { ok: true };
+  }
+
   async logsIntegracao(pagina: number) {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(

@@ -13,6 +13,7 @@ interface LinhaProduto {
   preco?: string;
   desconto_qtd_minima?: number;
   desconto_qtd_preco?: string;
+  data_validade?: string;
 }
 
 export function Produtos() {
@@ -22,6 +23,7 @@ export function Produtos() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [minimaEdit, setMinimaEdit] = useState('');
   const [precoEdit, setPrecoEdit] = useState('');
+  const [validadeEdit, setValidadeEdit] = useState('');
 
   const carregar = useCallback(() => {
     const q = busca ? `?busca=${encodeURIComponent(busca)}` : '';
@@ -45,6 +47,7 @@ export function Produtos() {
     setEditandoId(p.id);
     setMinimaEdit(p.desconto_qtd_minima != null ? String(p.desconto_qtd_minima) : '');
     setPrecoEdit(p.desconto_qtd_preco != null ? String(p.desconto_qtd_preco) : '');
+    setValidadeEdit(p.data_validade ?? '');
   }
 
   async function salvarDesconto(id: string) {
@@ -75,6 +78,18 @@ export function Produtos() {
     }
   }
 
+  async function salvarValidade(id: string) {
+    try {
+      await api(`/admin/produtos/${id}/validade`, {
+        method: 'PATCH',
+        body: JSON.stringify({ dataValidade: validadeEdit.trim() || undefined }),
+      });
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+  }
+
   return (
     <>
       <h1>Produtos</h1>
@@ -85,7 +100,7 @@ export function Produtos() {
       <div className="tabela-wrap">
         <table>
           <thead>
-            <tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por quantidade</th><th>Situação</th><th></th></tr>
+            <tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por quantidade</th><th>Validade</th><th>Situação</th><th></th></tr>
           </thead>
           <tbody>
             {dados?.map((p) => (
@@ -116,6 +131,19 @@ export function Produtos() {
                     <button className="btn-mini btn-claro" onClick={() => abrirEdicaoDesconto(p)}>+ Adicionar</button>
                   )}
                 </td>
+                <td>
+                  {editandoId === p.id ? (
+                    <div className="filtros" style={{ flexWrap: 'nowrap' }}>
+                      <input type="date" value={validadeEdit}
+                        onChange={(e) => setValidadeEdit(e.target.value)} style={{ width: 150 }} />
+                      <button className="btn-mini btn-ok" onClick={() => salvarValidade(p.id)}>Salvar</button>
+                    </div>
+                  ) : p.data_validade ? (
+                    <span>{new Date(p.data_validade).toLocaleDateString('pt-BR')}</span>
+                  ) : (
+                    <span style={{ color: 'var(--texto-2)' }}>—</span>
+                  )}
+                </td>
                 <td><span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span></td>
                 <td>
                   <button className={`btn-mini ${p.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(p)}>
@@ -124,7 +152,7 @@ export function Produtos() {
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={9} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={10} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
           </tbody>
         </table>
       </div>

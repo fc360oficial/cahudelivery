@@ -7,6 +7,7 @@ interface Config {
   aprovacao_cadastro?: boolean;
   horario_atendimento?: Record<string, string>;
   limite_estoque_baixo?: number;
+  dias_vencimento_proximo?: number;
 }
 
 export function Configuracoes() {
@@ -58,6 +59,14 @@ export function Configuracoes() {
             onChange={(e) => setCfg({ ...cfg, limite_estoque_baixo: Number(e.target.value) })}
             style={{ marginTop: 8, width: 160 }} />
           <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>0 = selo desativado. Produtos com estoque igual ou menor que esse número mostram "X em estoque" no app.</div>
+        </div>
+
+        <div className="card">
+          <div className="rotulo">Vencimento próximo</div>
+          <input type="number" min="0" value={cfg.dias_vencimento_proximo ?? 0}
+            onChange={(e) => setCfg({ ...cfg, dias_vencimento_proximo: Number(e.target.value) })}
+            style={{ marginTop: 8, width: 160 }} />
+          <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>0 = vitrine desativada. Produtos com validade cadastrada dentro desse número de dias aparecem na vitrine "Vencimento Próximo" do app.</div>
         </div>
 
         <div className="card">

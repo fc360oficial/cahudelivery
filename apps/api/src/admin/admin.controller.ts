@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsIn, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
 import { AdminService } from './admin.service';
@@ -17,6 +17,10 @@ class AtivoDto {
 class DescontoQtdDto {
   @IsOptional() @IsInt() @Min(1) descontoQtdMinima?: number;
   @IsOptional() @IsNumber() @Min(0) descontoQtdPreco?: number;
+}
+
+class ValidadeDto {
+  @IsOptional() @IsDateString() dataValidade?: string;
 }
 
 @Controller('admin')
@@ -72,6 +76,11 @@ export class AdminController {
   @Patch('produtos/:id/desconto-qtd')
   descontoQtd(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: DescontoQtdDto) {
     return this.admin.descontoQtdProduto(id, dto.descontoQtdMinima ?? null, dto.descontoQtdPreco ?? null, req.admin.usuarioId);
+  }
+
+  @Patch('produtos/:id/validade')
+  validade(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ValidadeDto) {
+    return this.admin.validadeProduto(id, dto.dataValidade ?? null, req.admin.usuarioId);
   }
 
   @Get('logs/integracao')

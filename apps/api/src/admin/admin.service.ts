@@ -198,7 +198,7 @@ export class AdminService {
     }
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
-      `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, p.desconto_qtd_minima, p.desconto_qtd_preco,
+      `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade,
               c.nome as categoria, m.nome as marca,
               coalesce(e.quantidade,0) as estoque,
               (select preco from precos pr join tabelas_preco t on t.id = pr.tabela_preco_id and t.padrao
@@ -240,6 +240,21 @@ export class AdminService {
       `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
        values ($1,'editar_desconto_qtd','produto',$2,$3)`,
       [usuarioId, id, JSON.stringify({ descontoQtdMinima: minima, descontoQtdPreco: preco })],
+    );
+    return { ok: true };
+  }
+
+  async validadeProduto(id: string, dataValidade: string | null, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const r = await pool.query(
+      `update produtos set data_validade = $2 where id = $1 returning id`,
+      [id, dataValidade],
+    );
+    if (!r.rowCount) throw new NotFoundException('Produto não encontrado');
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
+       values ($1,'editar_validade','produto',$2,$3)`,
+      [usuarioId, id, JSON.stringify({ dataValidade })],
     );
     return { ok: true };
   }

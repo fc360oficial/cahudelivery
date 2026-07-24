@@ -35,7 +35,7 @@ class ProdutoCard extends StatelessWidget {
               Stack(
                 children: [
                   AspectRatio(
-                    aspectRatio: 1.15,
+                    aspectRatio: 1.0,
                     child: imagemUrl != null
                         ? Image.network(imagemUrl, fit: BoxFit.cover,
                             errorBuilder: (_, e, s) => _semFoto())

@@ -117,6 +117,8 @@ class ProdutoCard extends StatelessWidget {
     final sigla = siglaUnidade(produto);
     final unit = precoUnitario(produto);
     final cor = emPromocao ? Colors.red.shade600 : tema.primary;
+    final descontoQtdMinima = produto['desconto_qtd_minima'] as int?;
+    final descontoQtdPreco = produto['desconto_qtd_preco'];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -144,6 +146,22 @@ class ProdutoCard extends StatelessWidget {
                 '$sigla c/${porEmb.toInt()} ${moeda(produto['preco'])}',
                 style: TextStyle(
                     fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
+              ),
+            ),
+          ),
+        if (descontoQtdMinima != null && descontoQtdPreco != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'a partir de $descontoQtdMinima un: ${moeda(descontoQtdPreco)}',
+                style: TextStyle(
+                    fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.green.shade800),
               ),
             ),
           ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/carrinho_store.dart';
 import '../core/formatadores.dart';
+import '../core/tenant_theme.dart';
 import '../features/catalog/produto_screen.dart';
 
 /// Card de produto usado nas vitrines da Home (largura fixa) e nas grades
@@ -56,6 +57,21 @@ class ProdutoCard extends StatelessWidget {
                                 color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
                       ),
                     ),
+                  if (_estoqueBaixo(produto))
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade700,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text('${asDouble(produto['estoque']).toInt()} em estoque',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                      ),
+                    ),
                 ],
               ),
               Expanded(
@@ -106,6 +122,12 @@ class ProdutoCard extends StatelessWidget {
     final un = p['unidade_venda'] ?? 'UN';
     final porEmb = asDouble(p['qtd_por_embalagem']);
     return porEmb > 1 ? '$un c/ ${porEmb.toInt()}' : '$un';
+  }
+
+  static bool _estoqueBaixo(Map<String, dynamic> produto) {
+    final estoque = asDouble(produto['estoque']);
+    final limite = asDouble(TenantTheme.instance.configuracoes['limite_estoque_baixo']);
+    return estoque > 0 && limite > 0 && estoque <= limite;
   }
 
   /// Bloco de preço organizado: valor por unidade em destaque (o que o

@@ -166,4 +166,34 @@ export class ProfileController {
     );
     return rows;
   }
+
+  @Get('favoritos')
+  async favoritos(@Req() req: ReqCliente) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select produto_id from favoritos where cliente_id = $1`,
+      [req.cliente.clienteId],
+    );
+    return rows.map((r) => r.produto_id);
+  }
+
+  @Post('favoritos/:produtoId')
+  async favoritar(@Req() req: ReqCliente, @Param('produtoId', ParseUUIDPipe) produtoId: string) {
+    const { pool } = tenantCtx();
+    await pool.query(
+      `insert into favoritos (cliente_id, produto_id) values ($1,$2) on conflict do nothing`,
+      [req.cliente.clienteId, produtoId],
+    );
+    return { ok: true };
+  }
+
+  @Delete('favoritos/:produtoId')
+  async desfavoritar(@Req() req: ReqCliente, @Param('produtoId', ParseUUIDPipe) produtoId: string) {
+    const { pool } = tenantCtx();
+    await pool.query(
+      `delete from favoritos where cliente_id = $1 and produto_id = $2`,
+      [req.cliente.clienteId, produtoId],
+    );
+    return { ok: true };
+  }
 }

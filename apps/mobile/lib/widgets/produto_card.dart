@@ -140,7 +140,7 @@ class ProdutoCard extends StatelessWidget {
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
                     color: emPromocao ? Colors.green.shade700 : Colors.black87)),
-            if (emPromocao) ...[
+            if (emPromocao && percentual > 0) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(

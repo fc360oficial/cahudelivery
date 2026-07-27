@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
-import '../../core/favoritos_store.dart';
 import '../../core/formatadores.dart' as fmt;
 import '../../core/tenant_theme.dart';
 import '../../widgets/convite_login.dart';
@@ -73,7 +72,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
     await ApiClient.instance.sair();
     CarrinhoStore.instance.limpar();
     await CarrinhoStore.instance.carregar(); // carrinho novo do device
-    FavoritosStore.instance.limpar();
     if (mounted) setState(() {});
   }
 

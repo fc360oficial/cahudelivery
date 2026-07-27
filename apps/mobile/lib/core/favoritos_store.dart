@@ -6,7 +6,9 @@ import 'api_client.dart';
 /// Salvo no servidor (não local) para sincronizar entre dispositivos.
 /// Visitante nunca tem favoritos — fica com o Set vazio até logar.
 class FavoritosStore extends ChangeNotifier {
-  FavoritosStore._();
+  FavoritosStore._() {
+    ApiClient.instance.addListener(carregar);
+  }
   static final FavoritosStore instance = FavoritosStore._();
 
   Set<String> favoritados = {};

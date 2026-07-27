@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/carrinho_store.dart';
+import '../../core/favoritos_store.dart';
 import '../cart/carrinho_screen.dart';
 import '../catalog/categorias_screen.dart';
 import '../home/home_screen.dart';
@@ -24,6 +25,7 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     CarrinhoStore.instance.carregar();
+    FavoritosStore.instance.carregar();
   }
 
   void irParaAba(int i) => setState(() => _aba = i);

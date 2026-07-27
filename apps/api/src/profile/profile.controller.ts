@@ -196,4 +196,25 @@ export class ProfileController {
     );
     return { ok: true };
   }
+
+  @Get('credito')
+  async credito(@Req() req: ReqCliente) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select 1 from solicitacoes_credito where cliente_id = $1 and status = 'pendente'`,
+      [req.cliente.clienteId],
+    );
+    return { pendente: rows.length > 0 };
+  }
+
+  @Post('credito/solicitar')
+  async solicitarCredito(@Req() req: ReqCliente) {
+    const { pool } = tenantCtx();
+    await pool.query(
+      `insert into solicitacoes_credito (cliente_id) values ($1)
+       on conflict (cliente_id) where status = 'pendente' do nothing`,
+      [req.cliente.clienteId],
+    );
+    return { pendente: true };
+  }
 }

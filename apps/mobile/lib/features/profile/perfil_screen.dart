@@ -7,6 +7,7 @@ import '../../core/tenant_theme.dart';
 import '../../widgets/convite_login.dart';
 import '../../widgets/estados.dart';
 import 'enderecos_screen.dart';
+import 'notas_fiscais_screen.dart';
 import 'notificacoes_screen.dart';
 import 'perfil_dados_screen.dart';
 
@@ -193,6 +194,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             _opcao(Icons.notifications_outlined, 'Notificações', () {
                               Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => const NotificacoesScreen()));
+                            }),
+                            _divisor(),
+                            _opcao(Icons.description_outlined, 'Notas fiscais', () {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const NotasFiscaisScreen()));
                             }),
                             _divisor(),
                             _opcao(Icons.info_outline, 'Sobre o app', _sobre),

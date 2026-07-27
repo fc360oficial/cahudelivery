@@ -236,7 +236,7 @@ class _BotaoFavoritoState extends State<_BotaoFavorito> {
     try {
       await FavoritosStore.instance.alternar(widget.produtoId);
     } catch (e) {
-      if (mounted) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {

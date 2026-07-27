@@ -87,4 +87,14 @@ export class AdminController {
   logs(@Query('pagina') pagina = '1') {
     return this.admin.logsIntegracao(Math.max(1, Number(pagina) || 1));
   }
+
+  @Get('credito-solicitacoes')
+  filaCredito() {
+    return this.admin.filaCredito();
+  }
+
+  @Patch('credito-solicitacoes/:id/atender')
+  atenderCredito(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.atenderCredito(id, req.admin.usuarioId);
+  }
 }

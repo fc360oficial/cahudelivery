@@ -137,6 +137,34 @@ export class AdminService {
     return { ok: true };
   }
 
+  async filaCredito() {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select sc.id, sc.cliente_id, c.nome_fantasia, c.documento, sc.solicitado_em
+         from solicitacoes_credito sc
+         join clientes c on c.id = sc.cliente_id
+        where sc.status = 'pendente'
+        order by sc.solicitado_em asc`,
+    );
+    return rows;
+  }
+
+  async atenderCredito(id: string, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const r = await pool.query(
+      `update solicitacoes_credito set status = 'atendida', atendido_em = now(), atendido_por = $2
+        where id = $1 and status = 'pendente' returning id`,
+      [id, usuarioId],
+    );
+    if (!r.rowCount) throw new NotFoundException('Solicitação não encontrada ou já atendida');
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id)
+       values ($1,'atender_credito','solicitacao_credito',$2)`,
+      [usuarioId, id],
+    );
+    return { ok: true };
+  }
+
   /**
    * Exclui um cliente. Sem pedido nenhum: apaga a linha de verdade (limpa
    * endereços, credenciais, carrinho, dispositivos e inbox antes). Com pedido:

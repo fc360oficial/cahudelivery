@@ -78,6 +78,12 @@ export class OrdersController {
     return this.orders.listar(req.cliente.clienteId, Math.max(1, Number(pagina) || 1));
   }
 
+  @Get('pedidos/notas')
+  @UseGuards(JwtAuthGuard)
+  notas(@Req() req: ReqCliente, @Query('pagina') pagina = '1') {
+    return this.orders.notas(req.cliente.clienteId, Math.max(1, Number(pagina) || 1));
+  }
+
   @Get('pedidos/:id')
   @UseGuards(JwtAuthGuard)
   detalhe(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string) {

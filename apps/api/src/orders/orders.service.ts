@@ -160,6 +160,21 @@ export class OrdersService {
     return { dados: rows, pagina };
   }
 
+  async notas(clienteId: string, pagina: number) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select p.id as pedido_id, p.numero, p.total,
+              n.numero_nf, n.chave_acesso, n.pdf_url, n.emitida_em
+         from pedidos p
+         join pedido_notas n on n.pedido_id = p.id
+        where p.cliente_id = $1
+        order by n.emitida_em desc
+        limit 20 offset $2`,
+      [clienteId, (pagina - 1) * 20],
+    );
+    return { dados: rows, pagina };
+  }
+
   async detalhe(clienteId: string, pedidoId: string) {
     const { pool } = tenantCtx();
     const ped = await pool.query(

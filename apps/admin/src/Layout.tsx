@@ -5,6 +5,7 @@ const LINKS = [
   { para: '/', rotulo: '📊 Dashboard', exato: true },
   { para: '/pedidos', rotulo: '🧾 Pedidos' },
   { para: '/clientes', rotulo: '👥 Clientes' },
+  { para: '/credito', rotulo: '💳 Crédito' },
   { para: '/produtos', rotulo: '📦 Produtos' },
   { para: '/categorias', rotulo: '🗂️ Categorias' },
   { para: '/marcas', rotulo: '🏷️ Marcas' },

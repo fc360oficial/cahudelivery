@@ -15,6 +15,7 @@ import { Pedidos } from './paginas/Pedidos';
 import { Produtos } from './paginas/Produtos';
 import { Promocoes } from './paginas/Promocoes';
 import { Patrocinadores } from './paginas/Patrocinadores';
+import { SolicitacoesCredito } from './paginas/SolicitacoesCredito';
 import { Usuarios } from './paginas/Usuarios';
 
 function Protegido({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,7 @@ const ROTAS: [string, React.ReactNode][] = [
   ['/pedidos', <Pedidos />],
   ['/pedidos/:id', <PedidoDetalhe />],
   ['/clientes', <Clientes />],
+  ['/credito', <SolicitacoesCredito />],
   ['/produtos', <Produtos />],
   ['/categorias', <Categorias />],
   ['/marcas', <Marcas />],

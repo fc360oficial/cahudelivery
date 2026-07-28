@@ -217,4 +217,16 @@ export class ProfileController {
     );
     return { pendente: true };
   }
+
+  @Get('carteira')
+  async carteira(@Req() req: ReqCliente) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select id, valor, motivo, criado_em from carteira_movimentos
+        where cliente_id = $1 order by criado_em desc limit 50`,
+      [req.cliente.clienteId],
+    );
+    const saldo = rows.reduce((s, r) => s + Number(r.valor), 0);
+    return { saldo: Number(saldo.toFixed(2)), movimentos: rows };
+  }
 }

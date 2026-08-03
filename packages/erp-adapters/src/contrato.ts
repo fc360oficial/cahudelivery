@@ -55,6 +55,9 @@ export interface PedidoParaErp {
     quantidade: number;
     precoUnit: number;
   }>;
+  /** Valor já pago via saldo da carteira do Fluxo Commerce — o ERP deve cobrar só o
+   * restante (soma dos itens menos este valor). Ausente/0 = cobra o valor cheio. */
+  valorAbatidoSaldo?: number;
 }
 
 export interface StatusPedidoErp {

@@ -82,6 +82,7 @@ export class OrdersService {
       tipoEntrega?: 'entrega' | 'retirada';
       observacoes?: string;
       condicaoPagamento?: string;
+      usarSaldo?: boolean;
     },
   ) {
     const { pool } = tenantCtx();
@@ -109,9 +110,19 @@ export class OrdersService {
     const client = await pool.connect();
     try {
       await client.query('begin');
+      await client.query('select pg_advisory_xact_lock(hashtext($1))', [clienteId]);
+      let valorSaldoUsado = 0;
+      if (dto.usarSaldo) {
+        const saldoRow = await client.query(
+          `select coalesce(sum(valor),0) as saldo from carteira_movimentos where cliente_id = $1`,
+          [clienteId],
+        );
+        const saldo = Number(saldoRow.rows[0].saldo);
+        valorSaldoUsado = Math.min(saldo, subtotal);
+      }
       const ped = await client.query(
-        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento)
-         values ($1,$2,$3,$4,$5,$5,$6,$7) returning id, numero, status, criado_em`,
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado)
+         values ($1,$2,$3,$4,$5,$5,$6,$7,$8) returning id, numero, status, criado_em`,
         [
           clienteId,
           enderecoJson,
@@ -120,6 +131,7 @@ export class OrdersService {
           subtotal,
           dto.observacoes ?? null,
           dto.formaPagamento === 'boleto' ? (dto.condicaoPagamento ?? 'À vista') : null,
+          valorSaldoUsado,
         ],
       );
       const pedidoId = ped.rows[0].id;
@@ -128,6 +140,13 @@ export class OrdersService {
           `insert into pedido_itens (pedido_id, produto_id, descricao_snapshot, quantidade, preco_unit, total)
            values ($1,$2,$3,$4,$5,$6)`,
           [pedidoId, i.produto_id, i.nome, i.quantidade, i.preco_atual, Number(i.preco_atual) * Number(i.quantidade)],
+        );
+      }
+      if (valorSaldoUsado > 0) {
+        await client.query(
+          `insert into carteira_movimentos (cliente_id, valor, motivo, pedido_id)
+           values ($1, $2, $3, $4)`,
+          [clienteId, -valorSaldoUsado, `Uso no pedido #${ped.rows[0].numero}`, pedidoId],
         );
       }
       await client.query(

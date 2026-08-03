@@ -100,7 +100,8 @@ export class MockErpAdapter implements ErpAdapter {
     const reg = this.pedidos.get(erpPedidoId);
     const st = await this.consultarStatusPedido(erpPedidoId);
     if (!reg || st.status === 'ENVIADO_ERP') return null;
-    const valor = reg.pedido.itens.reduce((s, i) => s + i.quantidade * i.precoUnit, 0);
+    const itensTotal = reg.pedido.itens.reduce((s, i) => s + i.quantidade * i.precoUnit, 0);
+    const valor = Math.max(0, itensTotal - (reg.pedido.valorAbatidoSaldo ?? 0));
     return reg.pedido.formaPagamento === 'pix'
       ? { tipo: 'pix', pixCopiaCola: `00020126MOCK${erpPedidoId}`, valor: Number(valor.toFixed(2)) }
       : { tipo: 'boleto', linhaDigitavel: `23790.MOCK ${erpPedidoId}`, valor: Number(valor.toFixed(2)) };

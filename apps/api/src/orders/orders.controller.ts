@@ -13,7 +13,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { IsIn, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import type { Request } from 'express';
 import { JwtAuthGuard, OptionalAuthGuard, ClienteLogado } from '../auth/jwt.guard';
 import { DonoCarrinho, OrdersService } from './orders.service';
@@ -32,6 +32,7 @@ class CriarPedidoDto {
   @IsOptional() @IsIn(['entrega', 'retirada']) tipoEntrega?: 'entrega' | 'retirada';
   @IsOptional() @IsString() observacoes?: string;
   @IsOptional() @IsString() condicaoPagamento?: string;
+  @IsOptional() @IsBoolean() usarSaldo?: boolean;
 }
 
 @Controller()

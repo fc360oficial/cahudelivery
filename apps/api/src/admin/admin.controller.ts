@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsOptional, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
 import { AdminService } from './admin.service';
@@ -21,6 +21,11 @@ class DescontoQtdDto {
 
 class ValidadeDto {
   @IsOptional() @IsDateString() dataValidade?: string;
+}
+
+class MovimentoCarteiraDto {
+  @IsNumber() valor!: number;
+  @IsString() motivo!: string;
 }
 
 @Controller('admin')
@@ -96,5 +101,15 @@ export class AdminController {
   @Patch('credito-solicitacoes/:id/atender')
   atenderCredito(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
     return this.admin.atenderCredito(id, req.admin.usuarioId);
+  }
+
+  @Get('clientes/:id/carteira')
+  carteiraDoCliente(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.carteiraDoCliente(id);
+  }
+
+  @Post('clientes/:id/carteira')
+  lancarMovimento(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: MovimentoCarteiraDto) {
+    return this.admin.lancarMovimentoCarteira(id, dto.valor, dto.motivo, req.admin.usuarioId);
   }
 }

@@ -296,4 +296,31 @@ export class AdminService {
     );
     return { dados: rows, pagina };
   }
+
+  async carteiraDoCliente(clienteId: string) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select id, valor, motivo, criado_em from carteira_movimentos
+        where cliente_id = $1 order by criado_em desc limit 50`,
+      [clienteId],
+    );
+    const saldo = rows.reduce((s, r) => s + Number(r.valor), 0);
+    return { saldo: Number(saldo.toFixed(2)), movimentos: rows };
+  }
+
+  async lancarMovimentoCarteira(clienteId: string, valor: number, motivo: string, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const cliente = await pool.query(`select 1 from clientes where id = $1`, [clienteId]);
+    if (!cliente.rowCount) throw new NotFoundException('Cliente não encontrado');
+    await pool.query(
+      `insert into carteira_movimentos (cliente_id, valor, motivo, criado_por) values ($1,$2,$3,$4)`,
+      [clienteId, valor, motivo, usuarioId],
+    );
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
+       values ($1,'lancar_movimento_carteira','cliente',$2,$3)`,
+      [usuarioId, clienteId, JSON.stringify({ valor, motivo })],
+    );
+    return { ok: true };
+  }
 }

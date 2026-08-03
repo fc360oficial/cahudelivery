@@ -176,6 +176,8 @@ export class AdminService {
     const cliente = await pool.query(`select id from clientes where id = $1`, [id]);
     if (!cliente.rows[0]) throw new NotFoundException('Cliente não encontrado');
     const temPedido = await pool.query(`select 1 from pedidos where cliente_id = $1 limit 1`, [id]);
+    const temCarteira = await pool.query(`select 1 from carteira_movimentos where cliente_id = $1 limit 1`, [id]);
+    const preservarCliente = temPedido.rowCount || temCarteira.rowCount;
 
     const client = await pool.connect();
     try {
@@ -190,8 +192,10 @@ export class AdminService {
       await client.query(`delete from dispositivos where cliente_id = $1`, [id]);
       await client.query(`delete from notificacao_entregas where cliente_id = $1`, [id]);
       await client.query(`delete from refresh_tokens where sujeito_id = $1 and sujeito = 'cliente'`, [id]);
+      await client.query(`delete from favoritos where cliente_id = $1`, [id]);
+      await client.query(`delete from solicitacoes_credito where cliente_id = $1`, [id]);
 
-      if (temPedido.rowCount) {
+      if (preservarCliente) {
         await client.query(
           `update clientes set status = 'excluido', nome_fantasia = 'Cliente excluído',
                   razao_social = null, telefone = null, email = $2
@@ -204,7 +208,7 @@ export class AdminService {
       await client.query(
         `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
          values ($1,'excluir','cliente',$2,$3)`,
-        [usuarioId, id, JSON.stringify({ removidoDeVerdade: !temPedido.rowCount })],
+        [usuarioId, id, JSON.stringify({ removidoDeVerdade: !preservarCliente })],
       );
       await client.query('commit');
     } catch (e) {
@@ -213,7 +217,7 @@ export class AdminService {
     } finally {
       client.release();
     }
-    return { ok: true, removidoDeVerdade: !temPedido.rowCount };
+    return { ok: true, removidoDeVerdade: !preservarCliente };
   }
 
   async produtos(f: { busca?: string; pagina: number }) {

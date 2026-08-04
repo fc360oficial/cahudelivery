@@ -6,6 +6,7 @@ import '../../core/formatadores.dart' as fmt;
 import '../../core/tenant_theme.dart';
 import '../../widgets/convite_login.dart';
 import '../../widgets/estados.dart';
+import 'carteira_screen.dart';
 import 'credito_screen.dart';
 import 'enderecos_screen.dart';
 import 'notas_fiscais_screen.dart';
@@ -205,6 +206,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             _opcao(Icons.speed_outlined, 'Crédito', () {
                               Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => const CreditoScreen()));
+                            }),
+                            _divisor(),
+                            _opcao(Icons.account_balance_wallet_outlined, 'Carteira', () {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const CarteiraScreen()));
                             }),
                             _divisor(),
                             _opcao(Icons.info_outline, 'Sobre o app', _sobre),

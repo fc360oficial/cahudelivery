@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fmtMoeda } from '../api';
+import { api, fmtMoeda, upload } from '../api';
 
 interface LinhaProduto {
   id: string;
@@ -14,6 +14,7 @@ interface LinhaProduto {
   desconto_qtd_minima?: number;
   desconto_qtd_preco?: string;
   data_validade?: string;
+  imagem_url?: string;
 }
 
 export function Produtos() {
@@ -24,6 +25,7 @@ export function Produtos() {
   const [minimaEdit, setMinimaEdit] = useState('');
   const [precoEdit, setPrecoEdit] = useState('');
   const [validadeEdit, setValidadeEdit] = useState('');
+  const [subindoId, setSubindoId] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
     const q = busca ? `?busca=${encodeURIComponent(busca)}` : '';
@@ -33,6 +35,34 @@ export function Produtos() {
   }, [busca]);
 
   useEffect(carregar, [carregar]);
+
+  async function escolherFoto(id: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+    setSubindoId(id);
+    try {
+      const url = await upload(arquivo);
+      await api(`/admin/produtos/${id}/imagem`, { method: 'PUT', body: JSON.stringify({ url }) });
+      setErro(null);
+      carregar();
+    } catch (err) {
+      setErro((err as Error).message);
+    } finally {
+      setSubindoId(null);
+      e.target.value = '';
+    }
+  }
+
+  async function removerFoto(id: string) {
+    if (!confirm('Remover a foto deste produto?')) return;
+    try {
+      await api(`/admin/produtos/${id}/imagem`, { method: 'DELETE' });
+      setErro(null);
+      carregar();
+    } catch (err) {
+      setErro((err as Error).message);
+    }
+  }
 
   async function alternar(p: LinhaProduto) {
     try {
@@ -101,11 +131,35 @@ export function Produtos() {
       <div className="tabela-wrap">
         <table>
           <thead>
-            <tr><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por quantidade</th><th>Validade</th><th>Situação</th><th></th></tr>
+            <tr><th>Foto</th><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por quantidade</th><th>Validade</th><th>Situação</th><th></th></tr>
           </thead>
           <tbody>
             {dados?.map((p) => (
               <tr key={p.id}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <label style={{ cursor: subindoId === p.id ? 'default' : 'pointer' }}>
+                      {p.imagem_url ? (
+                        <img src={p.imagem_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+                      ) : (
+                        <div style={{
+                          width: 40, height: 40, borderRadius: 6, background: 'var(--fundo)',
+                          border: '1px dashed var(--borda)', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', color: 'var(--texto-2)', fontSize: 10,
+                        }}>
+                          {subindoId === p.id ? '…' : 'foto'}
+                        </div>
+                      )}
+                      <input type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={(e) => escolherFoto(p.id, e)} disabled={subindoId === p.id}
+                        style={{ display: 'none' }} />
+                    </label>
+                    {p.imagem_url && (
+                      <button type="button" className="btn-mini btn-perigo" title="Remover foto"
+                        onClick={() => removerFoto(p.id)}>×</button>
+                    )}
+                  </div>
+                </td>
                 <td className="mono">{p.sku}</td>
                 <td><strong>{p.nome}</strong>{p.marca ? <span style={{ color: 'var(--texto-2)' }}> · {p.marca}</span> : null}</td>
                 <td>{p.categoria ?? '—'}</td>
@@ -153,10 +207,13 @@ export function Produtos() {
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={10} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={11} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
           </tbody>
         </table>
       </div>
+      <small style={{ color: 'var(--texto-2)', display: 'block', marginTop: 8 }}>
+        Foto quadrada, ideal 800×800, até 5MB (PNG/JPG/WEBP).
+      </small>
     </>
   );
 }

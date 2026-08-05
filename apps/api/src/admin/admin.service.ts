@@ -328,4 +328,29 @@ export class AdminService {
     );
     return { ok: true };
   }
+
+  async indicacoes(pagina: number) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select ind.nome_fantasia as indicador, ind.documento as indicador_documento,
+              c.nome_fantasia as indicado, c.documento as indicado_documento,
+              c.criado_em, c.indicacao_creditada_em
+         from clientes c join clientes ind on ind.id = c.indicado_por_cliente_id
+        where c.indicado_por_cliente_id is not null
+        order by c.criado_em desc limit 25 offset $1`,
+      [(pagina - 1) * 25],
+    );
+    return {
+      dados: rows.map((r) => ({
+        indicador: r.indicador,
+        indicador_documento: r.indicador_documento,
+        indicado: r.indicado,
+        indicado_documento: r.indicado_documento,
+        status: r.indicacao_creditada_em ? 'creditado' : 'pendente',
+        criado_em: r.criado_em,
+        creditado_em: r.indicacao_creditada_em,
+      })),
+      pagina,
+    };
+  }
 }

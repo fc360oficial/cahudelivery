@@ -112,4 +112,9 @@ export class AdminController {
   lancarMovimento(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: MovimentoCarteiraDto) {
     return this.admin.lancarMovimentoCarteira(id, dto.valor, dto.motivo, req.admin.usuarioId);
   }
+
+  @Get('indicacoes')
+  indicacoes(@Query('pagina') pagina = '1') {
+    return this.admin.indicacoes(Math.max(1, Number(pagina) || 1));
+  }
 }

@@ -6,6 +6,7 @@ const LINKS = [
   { para: '/pedidos', rotulo: '🧾 Pedidos' },
   { para: '/clientes', rotulo: '👥 Clientes' },
   { para: '/credito', rotulo: '💳 Crédito' },
+  { para: '/indicacoes', rotulo: '🎁 Indique e Ganhe' },
   { para: '/carteira', rotulo: '💰 Carteira' },
   { para: '/produtos', rotulo: '📦 Produtos' },
   { para: '/categorias', rotulo: '🗂️ Categorias' },

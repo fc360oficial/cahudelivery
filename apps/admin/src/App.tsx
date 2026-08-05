@@ -8,6 +8,7 @@ import { Clientes } from './paginas/Clientes';
 import { Configuracoes } from './paginas/Configuracoes';
 import { Dashboard } from './paginas/Dashboard';
 import { IndicaLanding } from './paginas/IndicaLanding';
+import { Indicacoes } from './paginas/Indicacoes';
 import { Login } from './paginas/Login';
 import { Logs } from './paginas/Logs';
 import { Marcas } from './paginas/Marcas';
@@ -30,6 +31,7 @@ const ROTAS: [string, React.ReactNode][] = [
   ['/pedidos/:id', <PedidoDetalhe />],
   ['/clientes', <Clientes />],
   ['/credito', <SolicitacoesCredito />],
+  ['/indicacoes', <Indicacoes />],
   ['/carteira', <Carteira />],
   ['/produtos', <Produtos />],
   ['/categorias', <Categorias />],

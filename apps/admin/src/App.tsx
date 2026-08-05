@@ -7,6 +7,7 @@ import { Categorias } from './paginas/Categorias';
 import { Clientes } from './paginas/Clientes';
 import { Configuracoes } from './paginas/Configuracoes';
 import { Dashboard } from './paginas/Dashboard';
+import { IndicaLanding } from './paginas/IndicaLanding';
 import { Login } from './paginas/Login';
 import { Logs } from './paginas/Logs';
 import { Marcas } from './paginas/Marcas';
@@ -47,6 +48,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/indica/:codigo" element={<IndicaLanding />} />
         {ROTAS.map(([caminho, el]) => (
           <Route key={caminho} path={caminho} element={<Protegido>{el}</Protegido>} />
         ))}

@@ -213,11 +213,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => const CarteiraScreen()));
                             }),
-                            _divisor(),
-                            _opcao(Icons.card_giftcard_outlined, 'Indique e ganhe', () {
-                              Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => const IndicacoesScreen()));
-                            }),
+                            if (TenantTheme.instance.configuracoes['indicacoes_ativas'] == true) ...[
+                              _divisor(),
+                              _opcao(Icons.card_giftcard_outlined, 'Indique e ganhe', () {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => const IndicacoesScreen()));
+                              }),
+                            ],
                             _divisor(),
                             _opcao(Icons.info_outline, 'Sobre o app', _sobre),
                           ],

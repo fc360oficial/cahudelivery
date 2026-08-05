@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../../core/tenant_theme.dart';
 import '../shell/home_shell.dart';
 
 /// Cadastro do cliente da distribuidora (POST /v1/auth/registrar).
@@ -166,12 +167,14 @@ class _CadastroScreenState extends State<CadastroScreen> {
               decoration: const InputDecoration(labelText: 'Senha (mín. 6 caracteres)'),
               validator: (v) => (v ?? '').length >= 6 ? null : 'Mínimo de 6 caracteres',
             ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _codigoIndicacao,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(labelText: 'Código de indicação (opcional)'),
-            ),
+            if (TenantTheme.instance.configuracoes['indicacoes_ativas'] == true) ...[
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _codigoIndicacao,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(labelText: 'Código de indicação (opcional)'),
+              ),
+            ],
             const SizedBox(height: 22),
             FilledButton(
               onPressed: _enviando ? null : _cadastrar,

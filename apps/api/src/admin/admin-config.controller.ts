@@ -38,7 +38,7 @@ class ConfiguracoesDto {
   @IsObject() valores!: Record<string, unknown>;
 }
 
-const CHAVES_PERMITIDAS = ['pedido_minimo', 'formas_pagamento', 'aprovacao_cadastro', 'horario_atendimento', 'limite_estoque_baixo', 'dias_vencimento_proximo'];
+const CHAVES_PERMITIDAS = ['pedido_minimo', 'formas_pagamento', 'aprovacao_cadastro', 'horario_atendimento', 'limite_estoque_baixo', 'dias_vencimento_proximo', 'indicacoes_ativas'];
 
 @Controller('admin')
 @UseGuards(AdminGuard)

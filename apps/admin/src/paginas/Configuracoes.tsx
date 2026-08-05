@@ -8,6 +8,7 @@ interface Config {
   horario_atendimento?: Record<string, string>;
   limite_estoque_baixo?: number;
   dias_vencimento_proximo?: number;
+  indicacoes_ativas?: boolean;
 }
 
 export function Configuracoes() {
@@ -90,6 +91,19 @@ export function Configuracoes() {
               Aprovação automática
             </button>
           </div>
+        </div>
+
+        <div className="card">
+          <div className="rotulo">Programa de indicação (Indique e Ganhe)</div>
+          <div className="filtros" style={{ marginTop: 8, marginBottom: 0 }}>
+            <button type="button" className={`pill-filtro ${cfg.indicacoes_ativas ? 'ativo' : ''}`} onClick={() => setCfg({ ...cfg, indicacoes_ativas: true })}>
+              Ativo
+            </button>
+            <button type="button" className={`pill-filtro ${!cfg.indicacoes_ativas ? 'ativo' : ''}`} onClick={() => setCfg({ ...cfg, indicacoes_ativas: false })}>
+              Desativado
+            </button>
+          </div>
+          <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>Desativado = esconde "Indique e ganhe" e o campo de código no cadastro do app. A fila aqui na retaguarda continua visível.</div>
         </div>
 
         <div className="card">

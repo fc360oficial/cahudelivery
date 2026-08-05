@@ -9,6 +9,7 @@ import '../../widgets/estados.dart';
 import 'carteira_screen.dart';
 import 'credito_screen.dart';
 import 'enderecos_screen.dart';
+import 'indicacoes_screen.dart';
 import 'notas_fiscais_screen.dart';
 import 'notificacoes_screen.dart';
 import 'perfil_dados_screen.dart';
@@ -211,6 +212,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
                             _opcao(Icons.account_balance_wallet_outlined, 'Carteira', () {
                               Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => const CarteiraScreen()));
+                            }),
+                            _divisor(),
+                            _opcao(Icons.card_giftcard_outlined, 'Indique e ganhe', () {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const IndicacoesScreen()));
                             }),
                             _divisor(),
                             _opcao(Icons.info_outline, 'Sobre o app', _sobre),

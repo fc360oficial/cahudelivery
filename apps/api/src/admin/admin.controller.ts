@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsDateString, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
 import { AdminService } from './admin.service';
@@ -21,6 +21,10 @@ class DescontoQtdDto {
 
 class ValidadeDto {
   @IsOptional() @IsDateString() dataValidade?: string;
+}
+
+class ImagemProdutoDto {
+  @IsNotEmpty() @IsString() url!: string;
 }
 
 class MovimentoCarteiraDto {
@@ -86,6 +90,16 @@ export class AdminController {
   @Patch('produtos/:id/validade')
   validade(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ValidadeDto) {
     return this.admin.validadeProduto(id, dto.dataValidade ?? null, req.admin.usuarioId);
+  }
+
+  @Put('produtos/:id/imagem')
+  definirImagemProduto(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ImagemProdutoDto) {
+    return this.admin.definirImagemProduto(id, dto.url, req.admin.usuarioId);
+  }
+
+  @Delete('produtos/:id/imagem')
+  removerImagemProduto(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.removerImagemProduto(id, req.admin.usuarioId);
   }
 
   @Get('logs/integracao')

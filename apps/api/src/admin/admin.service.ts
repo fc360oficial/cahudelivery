@@ -235,7 +235,8 @@ export class AdminService {
               c.nome as categoria, m.nome as marca,
               coalesce(e.quantidade,0) as estoque,
               (select preco from precos pr join tabelas_preco t on t.id = pr.tabela_preco_id and t.padrao
-                where pr.produto_id = p.id) as preco
+                where pr.produto_id = p.id) as preco,
+              (select url from produto_imagens where produto_id = p.id order by ordem asc limit 1) as imagem_url
          from produtos p
          left join categorias c on c.id = p.categoria_id
          left join marcas m on m.id = p.marca_id
@@ -288,6 +289,48 @@ export class AdminService {
       `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
        values ($1,'editar_validade','produto',$2,$3)`,
       [usuarioId, id, JSON.stringify({ dataValidade })],
+    );
+    return { ok: true };
+  }
+
+  async definirImagemProduto(produtoId: string, url: string, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const produto = await pool.query(`select 1 from produtos where id = $1`, [produtoId]);
+    if (!produto.rowCount) throw new NotFoundException('Produto não encontrado');
+    const capa = await pool.query(
+      `select id from produto_imagens where produto_id = $1 order by ordem asc limit 1`,
+      [produtoId],
+    );
+    if (capa.rowCount) {
+      await pool.query(`update produto_imagens set url = $2 where id = $1`, [capa.rows[0].id, url]);
+    } else {
+      await pool.query(
+        `insert into produto_imagens (produto_id, url, ordem, origem) values ($1, $2, 0, 'retaguarda')`,
+        [produtoId, url],
+      );
+    }
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
+       values ($1,'definir_imagem_produto','produto',$2,$3)`,
+      [usuarioId, produtoId, JSON.stringify({ url })],
+    );
+    return { ok: true };
+  }
+
+  async removerImagemProduto(produtoId: string, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const produto = await pool.query(`select 1 from produtos where id = $1`, [produtoId]);
+    if (!produto.rowCount) throw new NotFoundException('Produto não encontrado');
+    await pool.query(
+      `delete from produto_imagens where id = (
+         select id from produto_imagens where produto_id = $1 order by ordem asc limit 1
+       )`,
+      [produtoId],
+    );
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
+       values ($1,'remover_imagem_produto','produto',$2,$3)`,
+      [usuarioId, produtoId, JSON.stringify({})],
     );
     return { ok: true };
   }

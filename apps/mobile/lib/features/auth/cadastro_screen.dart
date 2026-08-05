@@ -35,12 +35,13 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _email = TextEditingController();
   final _telefone = TextEditingController();
   final _senha = TextEditingController();
+  final _codigoIndicacao = TextEditingController();
   String? _categoria;
   bool _enviando = false;
 
   @override
   void dispose() {
-    for (final c in [_documento, _nomeFantasia, _razaoSocial, _email, _telefone, _senha]) {
+    for (final c in [_documento, _nomeFantasia, _razaoSocial, _email, _telefone, _senha, _codigoIndicacao]) {
       c.dispose();
     }
     super.dispose();
@@ -59,6 +60,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
         if (_telefone.text.trim().isNotEmpty) 'telefone': _telefone.text.trim(),
         if (_categoria != null) 'categoria': _categoria,
         'senha': _senha.text,
+        if (_codigoIndicacao.text.trim().isNotEmpty) 'codigoIndicacao': _codigoIndicacao.text.trim(),
       }) as Map<String, dynamic>;
       await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
       if (!mounted) return;
@@ -163,6 +165,12 @@ class _CadastroScreenState extends State<CadastroScreen> {
               obscureText: true,
               decoration: const InputDecoration(labelText: 'Senha (mín. 6 caracteres)'),
               validator: (v) => (v ?? '').length >= 6 ? null : 'Mínimo de 6 caracteres',
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _codigoIndicacao,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'Código de indicação (opcional)'),
             ),
             const SizedBox(height: 22),
             FilledButton(

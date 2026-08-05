@@ -19,7 +19,7 @@ class AppBuildConfig {
   }
 
   /// Nome exibido antes do tema remoto carregar (fallback embutido do flavor).
-  static const appNome = String.fromEnvironment('APP_NOME', defaultValue: 'CAHU Delivery');
+  static const appNome = String.fromEnvironment('APP_NOME', defaultValue: 'Cahu');
 
   /// Logo embutido do flavor (fallback quando o tema remoto não tem logo_url).
   static const logoAsset =

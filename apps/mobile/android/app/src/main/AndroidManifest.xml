@@ -3,7 +3,7 @@
     <!-- usesCleartextTraffic: API de dev/teste roda em http:// na rede local.
          Em produção (API atrás de HTTPS) isso pode voltar a false. -->
     <application
-        android:label="CAHU Delivery"
+        android:label="Cahu"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">

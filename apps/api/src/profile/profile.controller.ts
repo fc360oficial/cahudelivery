@@ -229,4 +229,26 @@ export class ProfileController {
     const saldo = rows.reduce((s, r) => s + Number(r.valor), 0);
     return { saldo: Number(saldo.toFixed(2)), movimentos: rows };
   }
+
+  @Get('indicacoes')
+  async indicacoes(@Req() req: ReqCliente) {
+    const { pool } = tenantCtx();
+    const cli = await pool.query(`select codigo_indicacao from clientes where id = $1`, [req.cliente.clienteId]);
+    const { rows } = await pool.query(
+      `select nome_fantasia as nome, criado_em, indicacao_creditada_em
+         from clientes where indicado_por_cliente_id = $1 order by criado_em desc`,
+      [req.cliente.clienteId],
+    );
+    const base = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
+    return {
+      codigo: cli.rows[0].codigo_indicacao,
+      link: `${base}/indica/${cli.rows[0].codigo_indicacao}`,
+      indicacoes: rows.map((r) => ({
+        nome: r.nome,
+        status: r.indicacao_creditada_em ? 'creditado' : 'pendente',
+        criado_em: r.criado_em,
+        creditado_em: r.indicacao_creditada_em,
+      })),
+    };
+  }
 }

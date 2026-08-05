@@ -177,7 +177,8 @@ export class AdminService {
     if (!cliente.rows[0]) throw new NotFoundException('Cliente não encontrado');
     const temPedido = await pool.query(`select 1 from pedidos where cliente_id = $1 limit 1`, [id]);
     const temCarteira = await pool.query(`select 1 from carteira_movimentos where cliente_id = $1 limit 1`, [id]);
-    const preservarCliente = temPedido.rowCount || temCarteira.rowCount;
+    const temIndicados = await pool.query(`select 1 from clientes where indicado_por_cliente_id = $1 limit 1`, [id]);
+    const preservarCliente = temPedido.rowCount || temCarteira.rowCount || temIndicados.rowCount;
 
     const client = await pool.connect();
     try {

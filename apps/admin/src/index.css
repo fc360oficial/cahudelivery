@@ -46,7 +46,7 @@ button { font: inherit; cursor: pointer; }
   background: var(--acento); border-radius: 12px; padding: 16px;
   display: grid; place-items: center; margin-bottom: 20px;
 }
-.login-logo img { height: 96px; max-width: 100%; object-fit: contain; }
+.login-logo img { height: 62px; max-width: 100%; object-fit: contain; }
 .sidebar nav { padding: 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .sidebar nav a {
   padding: 9px 12px; border-radius: 8px; font-weight: 500; display: flex; gap: 10px; align-items: center;

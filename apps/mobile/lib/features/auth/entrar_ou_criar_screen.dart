@@ -29,7 +29,7 @@ class EntrarOuCriarScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.asset(AppBuildConfig.logoAsset, height: 90,
+                  Image.asset(AppBuildConfig.logoAsset, height: 130,
                       errorBuilder: (_, e, s) => Text(t.appNome,
                           textAlign: TextAlign.center,
                           style: const TextStyle(

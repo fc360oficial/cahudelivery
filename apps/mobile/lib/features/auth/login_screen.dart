@@ -65,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Logo do flavor; sem asset, cai no nome do app em texto.
                   Image.asset(
                     AppBuildConfig.logoAsset,
-                    height: 160,
+                    height: 120,
                     errorBuilder: (_, e, s) => Text(
                       t.appNome,
                       textAlign: TextAlign.center,

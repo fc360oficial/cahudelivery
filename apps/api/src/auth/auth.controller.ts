@@ -11,6 +11,7 @@ class RegistrarDto {
   @IsOptional() @IsString() telefone?: string;
   @IsOptional() @IsString() categoria?: string;
   @MinLength(6) senha!: string;
+  @IsOptional() @IsString() codigoIndicacao?: string;
 }
 
 class LoginDto {

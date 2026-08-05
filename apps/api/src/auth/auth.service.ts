@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
@@ -25,6 +25,7 @@ export class AuthService {
       telefone?: string;
       categoria?: string;
       senha: string;
+      codigoIndicacao?: string;
     },
     deviceId?: string,
   ) {
@@ -39,9 +40,18 @@ export class AuthService {
         dados.email.toLowerCase(),
       ]);
       if (dup.rowCount) throw new ConflictException('Documento ou e-mail já cadastrado');
+      let indicadoPorClienteId: string | null = null;
+      if (dados.codigoIndicacao) {
+        const ind = await client.query(`select id from clientes where codigo_indicacao = $1`, [
+          dados.codigoIndicacao.trim().toUpperCase(),
+        ]);
+        if (!ind.rows[0]) throw new BadRequestException('Código de indicação inválido');
+        indicadoPorClienteId = ind.rows[0].id;
+      }
+      const codigoIndicacao = await this.gerarCodigoIndicacao(client);
       const { rows } = await client.query(
-        `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, telefone, categoria)
-         values ($1,$2,$3,$4,$5,$6,$7) returning id, status`,
+        `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, telefone, categoria, codigo_indicacao, indicado_por_cliente_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id, status`,
         [
           dados.tipo,
           doc,
@@ -50,6 +60,8 @@ export class AuthService {
           dados.email.toLowerCase(),
           dados.telefone ?? null,
           dados.categoria ?? null,
+          codigoIndicacao,
+          indicadoPorClienteId,
         ],
       );
       await client.query(`insert into cliente_credenciais (cliente_id, senha_hash) values ($1,$2)`, [
@@ -67,6 +79,18 @@ export class AuthService {
     await this.reivindicarCarrinho(novo.id, deviceId);
     const tokens = await this.emitirTokens(novo.id, tenantCtx().tenant.slug);
     return { clienteId: novo.id, status: novo.status, ...tokens };
+  }
+
+  /** 6 caracteres, sem 0/O/1/I (evita confusão visual) — retry em caso de colisão rara. */
+  private async gerarCodigoIndicacao(client: import('pg').PoolClient): Promise<string> {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (let tentativa = 0; tentativa < 5; tentativa++) {
+      let codigo = '';
+      for (let i = 0; i < 6; i++) codigo += chars[Math.floor(Math.random() * chars.length)];
+      const existe = await client.query(`select 1 from clientes where codigo_indicacao = $1`, [codigo]);
+      if (!existe.rowCount) return codigo;
+    }
+    throw new Error('Não foi possível gerar código de indicação único');
   }
 
   async login(identificador: string, senha: string, deviceId?: string): Promise<TokenPair & { status: string }> {

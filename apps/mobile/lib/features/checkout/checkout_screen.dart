@@ -28,11 +28,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _condicaoPagamento;
   final _observacoes = TextEditingController();
   bool _confirmando = false;
+  double _saldo = 0;
+  bool _usarSaldo = false;
 
   @override
   void initState() {
     super.initState();
     _carregarEnderecos();
+    _carregarSaldo();
+  }
+
+  Future<void> _carregarSaldo() async {
+    try {
+      final r = await ApiClient.instance.get('/carteira') as Map<String, dynamic>;
+      if (mounted) setState(() => _saldo = asDouble(r['saldo']));
+    } catch (_) {
+      // Saldo é auxiliar no checkout — se falhar, segue sem a opção (fica 0).
+    }
   }
 
   @override
@@ -83,6 +95,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         if (_pagamento == 'boleto' && _condicaoPagamento != null)
           'condicaoPagamento': _condicaoPagamento,
         if (_observacoes.text.trim().isNotEmpty) 'observacoes': _observacoes.text.trim(),
+        if (_usarSaldo) 'usarSaldo': true,
       }) as Map<String, dynamic>;
       CarrinhoStore.instance.limpar();
       if (!mounted) return;
@@ -378,12 +391,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
     }
 
+    final subtotal = CarrinhoStore.instance.subtotal;
+    final aplicado = _usarSaldo ? (_saldo < subtotal ? _saldo : subtotal) : 0.0;
+    final restante = subtotal - aplicado;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         const Text('Como pagar?',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
         const SizedBox(height: 12),
+        if (_saldo > 0)
+          Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: CheckboxListTile(
+              value: _usarSaldo,
+              onChanged: (v) => setState(() => _usarSaldo = v ?? false),
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text('Usar meu saldo (${moeda(_saldo)} disponível)',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              subtitle: _usarSaldo
+                  ? Text(
+                      '${moeda(aplicado)} serão abatidos do saldo · restam ${moeda(restante)} para pagar',
+                      style: const TextStyle(fontSize: 12.5))
+                  : null,
+            ),
+          ),
         opcao('pix', Icons.qr_code_2, 'PIX',
             'Código copia-e-cola liberado após o faturamento'),
         opcao('boleto', Icons.receipt_outlined, 'Boleto',

@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { sessao } from './api';
 import { Layout } from './Layout';
 import { Banners } from './paginas/Banners';
+import { Carteira } from './paginas/Carteira';
 import { Categorias } from './paginas/Categorias';
 import { Clientes } from './paginas/Clientes';
 import { Configuracoes } from './paginas/Configuracoes';
@@ -28,6 +29,7 @@ const ROTAS: [string, React.ReactNode][] = [
   ['/pedidos/:id', <PedidoDetalhe />],
   ['/clientes', <Clientes />],
   ['/credito', <SolicitacoesCredito />],
+  ['/carteira', <Carteira />],
   ['/produtos', <Produtos />],
   ['/categorias', <Categorias />],
   ['/marcas', <Marcas />],

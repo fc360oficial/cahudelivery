@@ -86,6 +86,12 @@ export class OrdersService {
     },
   ) {
     const { pool } = tenantCtx();
+    const cliente = await pool.query(`select status from clientes where id = $1`, [clienteId]);
+    if (cliente.rows[0]?.status === 'pendente') {
+      throw new BadRequestException(
+        'Seu cadastro ainda está em análise. Entre em contato com a distribuidora para agilizar a aprovação antes de fechar pedidos.',
+      );
+    }
     const tipoEntrega = dto.tipoEntrega ?? 'entrega';
     const { itens, subtotal } = await this.carrinho({ clienteId });
     if (!itens.length) throw new BadRequestException('Carrinho vazio');

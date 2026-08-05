@@ -144,10 +144,35 @@ class CarrinhoScreen extends StatelessWidget {
                                     await CarrinhoStore.instance
                                         .carregar(); // carrinho já mesclado pela API
                                   }
-                                  if (context.mounted) {
-                                    Navigator.of(context).push(MaterialPageRoute(
-                                        builder: (_) => const CheckoutScreen()));
+                                  if (!context.mounted) return;
+                                  bool pendente = false;
+                                  try {
+                                    final perfil = await ApiClient.instance.get('/perfil')
+                                        as Map<String, dynamic>;
+                                    pendente = perfil['status'] == 'pendente';
+                                  } catch (_) {
+                                    // Falha ao checar status não deve travar quem já está
+                                    // aprovado — o backend segue como garantia final.
                                   }
+                                  if (!context.mounted) return;
+                                  if (pendente) {
+                                    showDialog<void>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Cadastro em análise'),
+                                        content: const Text(
+                                            'Seu cadastro ainda está sendo analisado pela distribuidora. Entre em contato para agilizar a aprovação antes de fechar pedidos.'),
+                                        actions: [
+                                          FilledButton(
+                                              onPressed: () => Navigator.of(ctx).pop(),
+                                              child: const Text('Entendi')),
+                                        ],
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (_) => const CheckoutScreen()));
                                 }
                               : null,
                           child: const Text('Finalizar pedido'),

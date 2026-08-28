@@ -108,6 +108,24 @@ class ProdutoCard extends StatelessWidget {
     return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}';
   }
 
+  /// Só mostra o selo dentro da janela configurada (`dias_vencimento_proximo`,
+  /// mesma regra usada na vitrine "Vencimento Próximo" da Home) — sem config,
+  /// não mostra. Produto já vencido ganha rótulo "Vencido" em vez da data.
+  static Widget? _seloValidade(String? dataValidade) {
+    if (dataValidade == null) return null;
+    final validade = DateTime.tryParse(dataValidade);
+    if (validade == null) return null;
+    final diasLimiteRaw = TenantTheme.instance.configuracoes['dias_vencimento_proximo'];
+    if (diasLimiteRaw == null) return null;
+    final diasLimite = asDouble(diasLimiteRaw).toInt();
+    final diasRestantes = validade.difference(DateTime.now()).inDays;
+    if (diasRestantes < 0) {
+      return _selo('Vencido', Colors.red.shade50, Colors.red.shade700);
+    }
+    if (diasRestantes > diasLimite) return null;
+    return _selo('Val. ${_formatarData(dataValidade)}', Colors.red.shade50, Colors.red.shade700);
+  }
+
   static bool _estoqueBaixo(Map<String, dynamic> produto) {
     final estoque = asDouble(produto['estoque']);
     final limite = asDouble(TenantTheme.instance.configuracoes['limite_estoque_baixo']);
@@ -187,9 +205,8 @@ class ProdutoCard extends StatelessWidget {
       selos.add(_selo('${asDouble(produto['estoque']).toInt()} em estoque',
           Colors.orange.shade50, Colors.orange.shade800));
     }
-    if (dataValidade != null) {
-      selos.add(_selo('Val. ${_formatarData(dataValidade)}', Colors.red.shade50, Colors.red.shade700));
-    }
+    final seloValidade = _seloValidade(dataValidade);
+    if (seloValidade != null) selos.add(seloValidade);
     if (selos.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: selos);
   }

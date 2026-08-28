@@ -549,12 +549,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     ),
                   ),
                 const Divider(height: 16),
+                if (_usarSaldo && _saldo > 0) ...[
+                  Row(
+                    children: [
+                      const Expanded(
+                          child: Text('Subtotal', style: TextStyle(fontSize: 13.5))),
+                      Text(moeda(store.subtotal), style: const TextStyle(fontSize: 13.5)),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                            child: Text('Saldo usado',
+                                style: TextStyle(fontSize: 13.5, color: Colors.green.shade700))),
+                        Text(
+                            '- ${moeda(_saldo < store.subtotal ? _saldo : store.subtotal)}',
+                            style: TextStyle(fontSize: 13.5, color: Colors.green.shade700)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Row(
                   children: [
                     const Expanded(
                         child: Text('Total',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
-                    Text(moeda(store.subtotal),
+                    Text(
+                        moeda(_usarSaldo
+                            ? store.subtotal -
+                                (_saldo < store.subtotal ? _saldo : store.subtotal)
+                            : store.subtotal),
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,

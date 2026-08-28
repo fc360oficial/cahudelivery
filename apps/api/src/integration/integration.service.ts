@@ -16,6 +16,7 @@ class DevMockAdapter implements ErpAdapter {
     suportaPix: true,
     suportaBoleto: true,
     suportaSyncIncremental: true,
+    suportaPull: false,
   };
   private pedidos = new Map<string, { pedido: PedidoParaErp; em: number }>();
 

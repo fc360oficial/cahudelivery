@@ -30,6 +30,7 @@ export class MockErpAdapter implements ErpAdapter {
     suportaPix: true,
     suportaBoleto: true,
     suportaSyncIncremental: true,
+    suportaPull: false,
   };
 
   private pedidos = new Map<string, PedidoMock>();

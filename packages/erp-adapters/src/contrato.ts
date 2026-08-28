@@ -97,6 +97,7 @@ export interface ErpCapacidades {
   suportaPix: boolean;
   suportaBoleto: boolean;
   suportaSyncIncremental: boolean;
+  suportaPull: boolean; // true = o ERP consulta pedidos (GET), não recebe push
 }
 
 export interface ErpAdapter {

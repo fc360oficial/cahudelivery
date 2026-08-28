@@ -108,8 +108,8 @@ export class AdminController {
   }
 
   @Get('credito-solicitacoes')
-  filaCredito() {
-    return this.admin.filaCredito();
+  filaCredito(@Query('pagina') pagina = '1') {
+    return this.admin.filaCredito(Math.max(1, Number(pagina) || 1));
   }
 
   @Patch('credito-solicitacoes/:id/atender')

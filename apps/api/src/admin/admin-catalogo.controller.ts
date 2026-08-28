@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { AdminGuard } from './admin.guard';
@@ -40,7 +40,7 @@ class PromocaoDto {
   @IsNotEmpty() inicioEm!: string;
   @IsNotEmpty() fimEm!: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
-  @IsArray() @Type(() => PromocaoProdutoDto) produtos!: PromocaoProdutoDto[];
+  @IsArray() @ValidateNested({ each: true }) @Type(() => PromocaoProdutoDto) produtos!: PromocaoProdutoDto[];
 }
 
 class BannerDto {

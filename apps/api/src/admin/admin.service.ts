@@ -137,16 +137,17 @@ export class AdminService {
     return { ok: true };
   }
 
-  async filaCredito() {
+  async filaCredito(pagina: number) {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
       `select sc.id, sc.cliente_id, c.nome_fantasia, c.documento, sc.solicitado_em
          from solicitacoes_credito sc
          join clientes c on c.id = sc.cliente_id
         where sc.status = 'pendente'
-        order by sc.solicitado_em asc`,
+        order by sc.solicitado_em asc limit 25 offset $1`,
+      [(pagina - 1) * 25],
     );
-    return rows;
+    return { dados: rows, pagina };
   }
 
   async atenderCredito(id: string, usuarioId: string) {
@@ -295,25 +296,37 @@ export class AdminService {
 
   async definirImagemProduto(produtoId: string, url: string, usuarioId: string) {
     const { pool } = tenantCtx();
-    const produto = await pool.query(`select 1 from produtos where id = $1`, [produtoId]);
-    if (!produto.rowCount) throw new NotFoundException('Produto não encontrado');
-    const capa = await pool.query(
-      `select id from produto_imagens where produto_id = $1 order by ordem asc limit 1`,
-      [produtoId],
-    );
-    if (capa.rowCount) {
-      await pool.query(`update produto_imagens set url = $2 where id = $1`, [capa.rows[0].id, url]);
-    } else {
-      await pool.query(
-        `insert into produto_imagens (produto_id, url, ordem, origem) values ($1, $2, 0, 'retaguarda')`,
-        [produtoId, url],
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      // Serializa por produto: evita 2 uploads simultâneos criarem 2 linhas de capa (ordem=0).
+      await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [produtoId]);
+      const produto = await client.query(`select 1 from produtos where id = $1`, [produtoId]);
+      if (!produto.rowCount) throw new NotFoundException('Produto não encontrado');
+      const capa = await client.query(
+        `select id from produto_imagens where produto_id = $1 order by ordem asc limit 1`,
+        [produtoId],
       );
+      if (capa.rowCount) {
+        await client.query(`update produto_imagens set url = $2 where id = $1`, [capa.rows[0].id, url]);
+      } else {
+        await client.query(
+          `insert into produto_imagens (produto_id, url, ordem, origem) values ($1, $2, 0, 'retaguarda')`,
+          [produtoId, url],
+        );
+      }
+      await client.query(
+        `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
+         values ($1,'definir_imagem_produto','produto',$2,$3)`,
+        [usuarioId, produtoId, JSON.stringify({ url })],
+      );
+      await client.query('commit');
+    } catch (e) {
+      await client.query('rollback');
+      throw e;
+    } finally {
+      client.release();
     }
-    await pool.query(
-      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
-       values ($1,'definir_imagem_produto','produto',$2,$3)`,
-      [usuarioId, produtoId, JSON.stringify({ url })],
-    );
     return { ok: true };
   }
 

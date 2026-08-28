@@ -14,8 +14,8 @@ export function SolicitacoesCredito() {
   const [erro, setErro] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
-    api<Solicitacao[]>('/admin/credito-solicitacoes')
-      .then(setDados)
+    api<{ dados: Solicitacao[] }>('/admin/credito-solicitacoes')
+      .then((r) => setDados(r.dados))
       .catch((e) => setErro(e.message));
   }, []);
 

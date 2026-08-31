@@ -15,4 +15,9 @@ export class DlinksPedidosController {
   recebido(@Body() dto: CodigosDto) {
     return this.service.marcarRecebido(dto.codigos);
   }
+
+  @Post('pedidos/cancelado')
+  cancelado(@Body() dto: CodigosDto) {
+    return this.service.marcarCancelado(dto.codigos);
+  }
 }

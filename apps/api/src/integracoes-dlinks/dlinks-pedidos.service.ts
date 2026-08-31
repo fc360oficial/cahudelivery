@@ -85,4 +85,37 @@ export class DlinksPedidosService {
     }
     return { processados, ignorados };
   }
+
+  async marcarCancelado(codigos: string[]): Promise<ResultadoLote> {
+    const { pool } = tenantCtx();
+    const processados: string[] = [];
+    const ignorados: ResultadoLote['ignorados'] = [];
+    for (const codigo of codigos) {
+      try {
+        const atual = await pool.query(`select status from pedidos where id = $1`, [codigo]);
+        if (!atual.rowCount) {
+          ignorados.push({ codigo, motivo: 'nao_encontrado' });
+          continue;
+        }
+        if (atual.rows[0].status === 'ENTREGUE') {
+          ignorados.push({ codigo, motivo: 'status_invalido' });
+          continue;
+        }
+        await pool.query(`update pedidos set status = 'CANCELADO' where id = $1`, [codigo]);
+        await pool.query(
+          `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO','Cancelado pelo Dlinks','erp')`,
+          [codigo],
+        );
+        await pool.query(
+          `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_cancelado','erp_para_fluxo',$1,true)`,
+          [codigo],
+        );
+        processados.push(codigo);
+      } catch (e) {
+        this.log.error(`marcarCancelado falhou pro codigo ${codigo}: ${e}`);
+        ignorados.push({ codigo, motivo: 'erro_interno' });
+      }
+    }
+    return { processados, ignorados };
+  }
 }

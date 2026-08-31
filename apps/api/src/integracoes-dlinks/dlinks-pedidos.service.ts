@@ -35,8 +35,8 @@ export class DlinksPedidosService {
                  from pedido_itens i join produtos pr on pr.id = i.produto_id
                 where i.pedido_id = p.id) as itens
          from pedidos p join clientes c on c.id = p.cliente_id
-        where p.criado_em >= ($1::date) at time zone 'America/Recife'
-          and p.criado_em < ($2::date + 1) at time zone 'America/Recife'
+        where p.criado_em >= ($1::date)::timestamp at time zone 'America/Recife'
+          and p.criado_em < ($2::date + 1)::timestamp at time zone 'America/Recife'
         order by p.criado_em`,
       [dataInicial, dataFinal],
     );

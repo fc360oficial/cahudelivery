@@ -160,6 +160,36 @@ Seguindo o padrão do resto do projeto: curl real contra API + Postgres locais.
   soma tentativa de `enviarPedido()` (nenhuma chamada), fica em RECEBIDO, outbox
   marca processado.
 
+## Pré-requisitos de operação (achados da revisão final de branch, 30/08/2026)
+
+Não são bugs de código — são restrições de sequenciamento que ficam registradas
+aqui pra não serem esquecidas quando a Fase 4e estiver pronta:
+
+1. **Nunca habilitar `suportaPull: true` num tenant antes da Fase 4e existir.**
+   Enquanto `suportaPull` for `true` sem o inbound de `/pedidos-faturados`
+   (Fase 4e) implementado, os pedidos desse tenant nunca saem de
+   `ENVIADO_ERP` no `sincronizarStatus()` (ele só olha pedidos com
+   `erp_pedido_id` preenchido, que o fluxo pull nunca seta) — sem
+   `FATURADO`/`EM_SEPARACAO`/`ENTREGUE`, sem nota fiscal, sem cobrança, e o
+   crédito de R$100 do Indica CAHU (que só dispara na transição pra
+   `FATURADO`) nunca é creditado.
+2. **Não emitir a apikey de produção pro Dlinks antes do adaptador real
+   (`suportaPull: true`) estar no ar.** Enquanto o adaptador em uso for o
+   mock (`suportaPull: false`), o fluxo de push antigo (`OutboxWorker`
+   chamando `enviarPedido`) continua rodando em paralelo ao que os endpoints
+   desta fase expõem — não há conflito hoje porque ninguém chama os
+   endpoints ainda, mas a apikey de produção só deve ser entregue ao Dlinks
+   quando o adaptador real estiver de fato configurado como pull, pra evitar
+   os dois mecanismos disputando o mesmo pedido.
+3. **Rotacionar a apikey de desenvolvimento antes de gerar a de produção.**
+   O procedimento usado pra gerar a apikey de teste (Task 2 do plano de
+   implementação) imprime a chave em texto puro num arquivo de relatório
+   (`.superpowers/sdd/task-2-report.md`, git-ignorado, não vaza pro repo —
+   mas o repo inteiro vive dentro do OneDrive, que sincroniza pra nuvem). Ao
+   gerar a chave real do Dlinks, usar o mesmo script só pra calcular o hash
+   e nunca deixar o valor em texto puro tocar um arquivo — repassar direto
+   pro gerenciador de senhas ou pro canal de handoff com o Dlinks.
+
 ## Fora de escopo (fica para sub-fases futuras)
 
 - Sincronização de catálogo, clientes, formas de pagamento (4b/4c/4d) — dependem de

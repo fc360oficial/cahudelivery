@@ -50,4 +50,32 @@ export class DlinksPedidosService {
       })),
     };
   }
+
+  async marcarRecebido(codigos: string[]): Promise<ResultadoLote> {
+    const { pool } = tenantCtx();
+    const processados: string[] = [];
+    const ignorados: ResultadoLote['ignorados'] = [];
+    for (const codigo of codigos) {
+      const atual = await pool.query(`select status from pedidos where id = $1`, [codigo]);
+      if (!atual.rowCount) {
+        ignorados.push({ codigo, motivo: 'nao_encontrado' });
+        continue;
+      }
+      if (atual.rows[0].status !== 'RECEBIDO') {
+        ignorados.push({ codigo, motivo: 'status_invalido' });
+        continue;
+      }
+      await pool.query(`update pedidos set status = 'ENVIADO_ERP' where id = $1`, [codigo]);
+      await pool.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'ENVIADO_ERP','Confirmado pelo Dlinks','erp')`,
+        [codigo],
+      );
+      await pool.query(
+        `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_recebido','erp_para_fluxo',$1,true)`,
+        [codigo],
+      );
+      processados.push(codigo);
+    }
+    return { processados, ignorados };
+  }
 }

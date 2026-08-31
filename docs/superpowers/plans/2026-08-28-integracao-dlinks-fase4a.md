@@ -484,9 +484,23 @@ git commit -m "feat(api): POST /integracoes/dlinks/pedidos/recebido"
 - Consumes: `CodigosDto` (Task 4), `ResultadoLote` (Task 3).
 - Produces: `DlinksPedidosService.marcarCancelado(codigos: string[]): Promise<ResultadoLote>`.
 
-- [ ] **Step 1: Adicionar `marcarCancelado` ao service**
+- [ ] **Step 1: Adicionar `marcarCancelado` ao service (com isolamento de erro por código)**
 
-Em `apps/api/src/integracoes-dlinks/dlinks-pedidos.service.ts`, adicionar:
+**Atualização (pós-revisão da Task 4):** a Task 4 nasceu sem isolar erro por item no
+loop (se uma query falhasse no meio do lote, a request inteira quebrava e os
+códigos já processados antes do erro ficavam sem retorno pro Dlinks) — corrigido
+lá com um fix pós-review seguindo o padrão já usado em
+`outbox.worker.ts::sincronizarStatus` (try/catch por item, log de erro, `motivo:
+'erro_interno'` em vez de deixar a exceção subir). Esta task já nasce com esse
+padrão, sem precisar de correção depois.
+
+Antes deste step, conferir se `ResultadoLote['ignorados'][number]['motivo']` já
+foi ampliado pelo fix da Task 4 para `'nao_encontrado' | 'status_invalido' |
+'erro_interno'` — se sim, não precisa mexer no tipo de novo.
+
+Em `apps/api/src/integracoes-dlinks/dlinks-pedidos.service.ts`, adicionar (a
+classe já deve ter `private readonly log = new Logger('DlinksPedidosService');`
+do fix da Task 4 — reaproveitar, não duplicar):
 
 ```typescript
   async marcarCancelado(codigos: string[]): Promise<ResultadoLote> {
@@ -494,25 +508,30 @@ Em `apps/api/src/integracoes-dlinks/dlinks-pedidos.service.ts`, adicionar:
     const processados: string[] = [];
     const ignorados: ResultadoLote['ignorados'] = [];
     for (const codigo of codigos) {
-      const atual = await pool.query(`select status from pedidos where id = $1`, [codigo]);
-      if (!atual.rowCount) {
-        ignorados.push({ codigo, motivo: 'nao_encontrado' });
-        continue;
+      try {
+        const atual = await pool.query(`select status from pedidos where id = $1`, [codigo]);
+        if (!atual.rowCount) {
+          ignorados.push({ codigo, motivo: 'nao_encontrado' });
+          continue;
+        }
+        if (atual.rows[0].status === 'ENTREGUE') {
+          ignorados.push({ codigo, motivo: 'status_invalido' });
+          continue;
+        }
+        await pool.query(`update pedidos set status = 'CANCELADO' where id = $1`, [codigo]);
+        await pool.query(
+          `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO','Cancelado pelo Dlinks','erp')`,
+          [codigo],
+        );
+        await pool.query(
+          `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_cancelado','erp_para_fluxo',$1,true)`,
+          [codigo],
+        );
+        processados.push(codigo);
+      } catch (e) {
+        this.log.error(`marcarCancelado falhou pro codigo ${codigo}: ${e}`);
+        ignorados.push({ codigo, motivo: 'erro_interno' });
       }
-      if (atual.rows[0].status === 'ENTREGUE') {
-        ignorados.push({ codigo, motivo: 'status_invalido' });
-        continue;
-      }
-      await pool.query(`update pedidos set status = 'CANCELADO' where id = $1`, [codigo]);
-      await pool.query(
-        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO','Cancelado pelo Dlinks','erp')`,
-        [codigo],
-      );
-      await pool.query(
-        `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_cancelado','erp_para_fluxo',$1,true)`,
-        [codigo],
-      );
-      processados.push(codigo);
     }
     return { processados, ignorados };
   }

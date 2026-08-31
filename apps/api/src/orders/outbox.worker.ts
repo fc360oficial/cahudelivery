@@ -52,6 +52,12 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
           where o.processado_em is null and o.evento = 'pedido_criado' order by o.criado_em limit 10`,
       );
       for (const ev of rows) {
+        if (adapter.capacidades.suportaPull) {
+          // Adaptador pull (ex.: Dlinks): não empurramos, o pedido fica em
+          // RECEBIDO até o ERP confirmar via POST /integracoes/dlinks/pedidos/recebido.
+          await pool.query(`update sync_outbox set processado_em = now() where id = $1`, [ev.id]);
+          continue;
+        }
         const ini = Date.now();
         try {
           const ped = await pool.query(

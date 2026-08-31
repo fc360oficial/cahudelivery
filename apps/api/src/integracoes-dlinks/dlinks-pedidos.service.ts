@@ -3,6 +3,7 @@ import { tenantCtx } from '../tenancy/tenant-context';
 
 export interface PedidoDlinks {
   codigo: string;
+  numero: number;
   criadoEm: string;
   cliente: { documento: string; erpClienteId: string | null };
   tipoEntrega: string;
@@ -25,7 +26,7 @@ export class DlinksPedidosService {
   async listar(dataInicial: string, dataFinal: string): Promise<{ pedidos: PedidoDlinks[] }> {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select p.id, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
+      `select p.id, p.numero, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
               p.endereco_snapshot_json, p.valor_saldo_usado,
               c.documento, c.erp_cliente_id,
               (select json_agg(json_build_object(
@@ -34,13 +35,16 @@ export class DlinksPedidosService {
                  from pedido_itens i join produtos pr on pr.id = i.produto_id
                 where i.pedido_id = p.id) as itens
          from pedidos p join clientes c on c.id = p.cliente_id
-        where p.criado_em::date between $1 and $2
+        where p.criado_em >= ($1::date) at time zone 'America/Recife'
+          and p.criado_em < ($2::date + 1) at time zone 'America/Recife'
         order by p.criado_em`,
       [dataInicial, dataFinal],
     );
     return {
       pedidos: rows.map((r) => ({
         codigo: r.id,
+        // pedidos.numero é bigint — node-pg devolve string, converter pro Dlinks receber número
+        numero: Number(r.numero),
         criadoEm: r.criado_em,
         cliente: { documento: r.documento, erpClienteId: r.erp_cliente_id },
         tipoEntrega: r.tipo_entrega,
@@ -54,66 +58,86 @@ export class DlinksPedidosService {
   }
 
   async marcarRecebido(codigos: string[]): Promise<ResultadoLote> {
-    const { pool } = tenantCtx();
-    const processados: string[] = [];
-    const ignorados: ResultadoLote['ignorados'] = [];
-    for (const codigo of codigos) {
-      try {
-        const atual = await pool.query(`select status from pedidos where id = $1`, [codigo]);
-        if (!atual.rowCount) {
-          ignorados.push({ codigo, motivo: 'nao_encontrado' });
-          continue;
-        }
-        if (atual.rows[0].status !== 'RECEBIDO') {
-          ignorados.push({ codigo, motivo: 'status_invalido' });
-          continue;
-        }
-        await pool.query(`update pedidos set status = 'ENVIADO_ERP' where id = $1`, [codigo]);
-        await pool.query(
-          `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'ENVIADO_ERP','Confirmado pelo Dlinks','erp')`,
-          [codigo],
-        );
-        await pool.query(
-          `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_recebido','erp_para_fluxo',$1,true)`,
-          [codigo],
-        );
-        processados.push(codigo);
-      } catch (e) {
-        this.log.error(`marcarRecebido ${codigo}: ${e}`);
-        ignorados.push({ codigo, motivo: 'erro_interno' });
-      }
-    }
-    return { processados, ignorados };
+    return this.transicionar(codigos, {
+      statusPermitido: (status) => status === 'RECEBIDO',
+      novoStatus: 'ENVIADO_ERP',
+      detalhe: 'Confirmado pelo Dlinks',
+      operacao: 'pedido_recebido',
+    });
   }
 
   async marcarCancelado(codigos: string[]): Promise<ResultadoLote> {
+    return this.transicionar(codigos, {
+      statusPermitido: (status) => status !== 'ENTREGUE' && status !== 'CANCELADO',
+      novoStatus: 'CANCELADO',
+      detalhe: 'Cancelado pelo Dlinks',
+      operacao: 'pedido_cancelado',
+      estornarSaldo: true,
+    });
+  }
+
+  /**
+   * Aplica a transição de status de cada código dentro de uma transação com
+   * `select ... for update`: o lock serializa chamadas concorrentes pro mesmo
+   * pedido e mantém status + evento + estorno + log atômicos.
+   */
+  private async transicionar(
+    codigos: string[],
+    opts: {
+      statusPermitido: (statusAtual: string) => boolean;
+      novoStatus: string;
+      detalhe: string;
+      operacao: string;
+      estornarSaldo?: boolean;
+    },
+  ): Promise<ResultadoLote> {
     const { pool } = tenantCtx();
     const processados: string[] = [];
     const ignorados: ResultadoLote['ignorados'] = [];
     for (const codigo of codigos) {
+      const client = await pool.connect();
       try {
-        const atual = await pool.query(`select status from pedidos where id = $1`, [codigo]);
+        await client.query('begin');
+        const atual = await client.query(
+          `select status, cliente_id, valor_saldo_usado from pedidos where id = $1 for update`,
+          [codigo],
+        );
         if (!atual.rowCount) {
+          await client.query('rollback');
           ignorados.push({ codigo, motivo: 'nao_encontrado' });
           continue;
         }
-        if (atual.rows[0].status === 'ENTREGUE') {
+        if (!opts.statusPermitido(atual.rows[0].status)) {
+          await client.query('rollback');
           ignorados.push({ codigo, motivo: 'status_invalido' });
           continue;
         }
-        await pool.query(`update pedidos set status = 'CANCELADO' where id = $1`, [codigo]);
-        await pool.query(
-          `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO','Cancelado pelo Dlinks','erp')`,
-          [codigo],
+        await client.query(`update pedidos set status = $2 where id = $1`, [codigo, opts.novoStatus]);
+        await client.query(
+          `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'erp')`,
+          [codigo, opts.novoStatus, opts.detalhe],
         );
-        await pool.query(
-          `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_cancelado','erp_para_fluxo',$1,true)`,
-          [codigo],
+        if (opts.estornarSaldo) {
+          const valorSaldo = Number(atual.rows[0].valor_saldo_usado) || 0;
+          if (valorSaldo > 0) {
+            await client.query(
+              `insert into carteira_movimentos (cliente_id, valor, motivo) values ($1,$2,'Estorno: pedido cancelado pelo ERP')`,
+              [atual.rows[0].cliente_id, valorSaldo],
+            );
+          }
+        }
+        await client.query(
+          `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ($1,'erp_para_fluxo',$2,true)`,
+          [opts.operacao, codigo],
         );
+        await client.query('commit');
         processados.push(codigo);
       } catch (e) {
-        this.log.error(`marcarCancelado falhou pro codigo ${codigo}: ${e}`);
+        await client.query('rollback').catch(() => {});
+        this.log.error(`${opts.operacao} falhou pro codigo ${codigo}: ${e}`);
         ignorados.push({ codigo, motivo: 'erro_interno' });
+      } finally {
+        client.release();
       }
     }
     return { processados, ignorados };

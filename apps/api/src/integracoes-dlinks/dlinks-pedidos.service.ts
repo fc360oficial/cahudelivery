@@ -121,8 +121,8 @@ export class DlinksPedidosService {
           const valorSaldo = Number(atual.rows[0].valor_saldo_usado) || 0;
           if (valorSaldo > 0) {
             await client.query(
-              `insert into carteira_movimentos (cliente_id, valor, motivo) values ($1,$2,'Estorno: pedido cancelado pelo ERP')`,
-              [atual.rows[0].cliente_id, valorSaldo],
+              `insert into carteira_movimentos (cliente_id, valor, motivo, pedido_id) values ($1,$2,'Estorno: pedido cancelado pelo ERP',$3)`,
+              [atual.rows[0].cliente_id, valorSaldo, codigo],
             );
           }
         }

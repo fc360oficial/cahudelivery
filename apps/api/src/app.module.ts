@@ -5,13 +5,14 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { DatabaseModule } from './database/database.module';
+import { DlinksModule } from './integracoes-dlinks/dlinks.module';
 import { IntegrationModule } from './integration/integration.module';
 import { OrdersModule } from './orders/orders.module';
 import { ProfileModule } from './profile/profile.module';
 import { TenancyMiddleware } from './tenancy/tenant-context';
 
 @Module({
-  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -18,6 +18,8 @@ import { TenancyMiddleware } from './tenancy/tenant-context';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(TenancyMiddleware).forRoutes('*');
+    // Rotas do Dlinks resolvem o tenant pela apikey (DlinksAuthMiddleware),
+    // nunca pelo header X-Tenant — excluir aqui torna isso estrutural.
+    consumer.apply(TenancyMiddleware).exclude('integracoes/dlinks/(.*)').forRoutes('*');
   }
 }

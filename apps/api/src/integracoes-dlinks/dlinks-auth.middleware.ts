@@ -19,7 +19,7 @@ export class DlinksAuthMiddleware implements NestMiddleware {
     const { rows } = await this.db.controlPool().query(
       `select t.slug from integracao_credenciais ic
          join tenants t on t.id = ic.tenant_id
-        where ic.apikey_hash = $1 and ic.ativo = true`,
+        where ic.apikey_hash = $1 and ic.ativo = true and ic.adaptador = 'dlinks'`,
       [hash],
     );
     if (!rows[0]) throw new UnauthorizedException('apikey inválida');

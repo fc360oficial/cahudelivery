@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { creditarIndicacao } from '../orders/creditar-indicacao';
+import { PedidoFaturadoDto } from './pedido-faturado.dto';
 
 export interface PedidoDlinks {
   codigo: string;
@@ -90,7 +91,8 @@ export class DlinksPedidosService {
    * /pedidos/cancelado (estorno de saldo incluso). FATURADO credita a
    * indicação, se houver.
    */
-  async marcarFaturado(pedidoCodigo: string, statusErp: string): Promise<ResultadoLote> {
+  async marcarFaturado(dto: PedidoFaturadoDto): Promise<ResultadoLote> {
+    const { pedido_codigo: pedidoCodigo, status: statusErp, valores, itens } = dto;
     if (statusErp === 'CANCELADO') {
       return this.marcarCancelado([pedidoCodigo]);
     }
@@ -107,7 +109,19 @@ export class DlinksPedidosService {
       novoStatus: 'FATURADO',
       detalhe: 'Faturado pelo Dlinks',
       operacao: 'pedido_faturado',
-      aposCommit: (client, codigo) => creditarIndicacao(client, codigo),
+      aposCommit: async (client, codigo) => {
+        await creditarIndicacao(client, codigo);
+        if (valores) {
+          await client.query(
+            `insert into pedido_faturamentos (pedido_id, subtotal, desconto, total, itens_json)
+             values ($1, $2, $3, $4, $5)
+             on conflict (pedido_id) do update set
+               subtotal = excluded.subtotal, desconto = excluded.desconto,
+               total = excluded.total, itens_json = excluded.itens_json, faturado_em = now()`,
+            [codigo, valores.subtotal, valores.desconto ?? 0, valores.total, JSON.stringify(itens ?? [])],
+          );
+        }
+      },
     });
   }
 

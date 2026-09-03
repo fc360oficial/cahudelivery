@@ -28,6 +28,6 @@ export class DlinksPedidosController {
   @Post('pedidos-faturados')
   @HttpCode(200)
   faturado(@Body() dto: PedidoFaturadoDto) {
-    return this.service.marcarFaturado(dto.pedido_codigo, dto.status);
+    return this.service.marcarFaturado(dto);
   }
 }

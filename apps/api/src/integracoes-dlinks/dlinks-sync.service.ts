@@ -8,6 +8,7 @@ import { PrecoDto } from './preco.dto';
 import { ClienteDto } from './cliente.dto';
 import { FormaPagamentoDto } from './forma-pagamento.dto';
 import { CondicaoPagamentoDto } from './condicao-pagamento.dto';
+import { TituloDto } from './titulo.dto';
 
 const slug = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -226,6 +227,32 @@ export class DlinksSyncService {
       processados++;
     }
     await this.registrarLog('sync_condicoes_pagamento', `${processados} condição(ões), ${ignorados.length} ignorada(s)`, ignorados.length === 0);
+    return { processados, ignorados };
+  }
+
+  async syncTitulos(itens: TituloDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    const ignorados: ResultadoSync['ignorados'] = [];
+    for (const item of itens) {
+      const cliente = await pool.query(`select id from clientes where erp_cliente_id = $1`, [item.cliente_codigo]);
+      if (!cliente.rowCount) {
+        ignorados.push({ item, motivo: 'cliente_nao_encontrado' });
+        continue;
+      }
+      await pool.query(
+        `insert into titulos_cliente (cliente_id, erp_titulo_id, valor, vencimento, status)
+         values ($1, $2, $3, $4, $5)
+         on conflict (erp_titulo_id) do update set
+           valor = excluded.valor,
+           vencimento = excluded.vencimento,
+           status = excluded.status,
+           atualizado_em = now()`,
+        [cliente.rows[0].id, item.numero_titulo, item.valor, item.vencimento, item.status],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_titulos', `${processados} título(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
     return { processados, ignorados };
   }
 }

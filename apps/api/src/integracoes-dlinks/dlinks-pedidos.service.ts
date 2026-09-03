@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { creditarIndicacao } from '../orders/creditar-indicacao';
 
 export interface PedidoDlinks {
   codigo: string;
@@ -83,6 +84,34 @@ export class DlinksPedidosService {
   }
 
   /**
+   * POST /pedidos-faturados: ABERTO/EM_FATURAMENTO ainda não têm status
+   * nosso correspondente (o pedido já está em ENVIADO_ERP) — só registramos
+   * no log de integração. CANCELADO reaproveita o mesmo caminho de
+   * /pedidos/cancelado (estorno de saldo incluso). FATURADO credita a
+   * indicação, se houver.
+   */
+  async marcarFaturado(pedidoCodigo: string, statusErp: string): Promise<ResultadoLote> {
+    if (statusErp === 'CANCELADO') {
+      return this.marcarCancelado([pedidoCodigo]);
+    }
+    if (statusErp !== 'FATURADO') {
+      const { pool } = tenantCtx();
+      await pool.query(
+        `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_faturado_status','erp_para_fluxo',$1,true)`,
+        [`${pedidoCodigo}: ${statusErp}`],
+      );
+      return { processados: [pedidoCodigo], ignorados: [] };
+    }
+    return this.transicionar([pedidoCodigo], {
+      statusPermitido: (status) => status !== 'FATURADO' && status !== 'CANCELADO' && status !== 'ENTREGUE',
+      novoStatus: 'FATURADO',
+      detalhe: 'Faturado pelo Dlinks',
+      operacao: 'pedido_faturado',
+      aposCommit: (client, codigo) => creditarIndicacao(client, codigo),
+    });
+  }
+
+  /**
    * Aplica a transição de status de cada código dentro de uma transação com
    * `select ... for update`: o lock serializa chamadas concorrentes pro mesmo
    * pedido e mantém status + evento + estorno + log atômicos.
@@ -95,6 +124,7 @@ export class DlinksPedidosService {
       detalhe: string;
       operacao: string;
       estornarSaldo?: boolean;
+      aposCommit?: (client: import('pg').PoolClient, codigo: string) => Promise<void>;
     },
   ): Promise<ResultadoLote> {
     const { pool } = tenantCtx();
@@ -137,6 +167,7 @@ export class DlinksPedidosService {
           [opts.operacao, codigo],
         );
         await client.query('commit');
+        if (opts.aposCommit) await opts.aposCommit(client, codigo);
         processados.push(codigo);
       } catch (e) {
         await client.query('rollback').catch(() => {});

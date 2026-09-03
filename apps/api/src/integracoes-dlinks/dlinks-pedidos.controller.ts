@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import { CodigosDto } from './codigos.dto';
 import { DlinksPedidosService } from './dlinks-pedidos.service';
 import { ListarPedidosDto } from './listar-pedidos.dto';
+import { PedidoFaturadoDto } from './pedido-faturado.dto';
 
 @Controller('integracoes/dlinks')
 export class DlinksPedidosController {
@@ -22,5 +23,11 @@ export class DlinksPedidosController {
   @HttpCode(200)
   cancelado(@Body() dto: CodigosDto) {
     return this.service.marcarCancelado(dto.codigos);
+  }
+
+  @Post('pedidos-faturados')
+  @HttpCode(200)
+  faturado(@Body() dto: PedidoFaturadoDto) {
+    return this.service.marcarFaturado(dto.pedido_codigo, dto.status);
   }
 }

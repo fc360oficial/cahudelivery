@@ -8,6 +8,7 @@ import { PrecoDto } from './preco.dto';
 import { ClienteDto } from './cliente.dto';
 import { FormaPagamentoDto } from './forma-pagamento.dto';
 import { CondicaoPagamentoDto } from './condicao-pagamento.dto';
+import { TituloDto } from './titulo.dto';
 
 @Controller('integracoes/dlinks')
 export class DlinksSyncController {
@@ -59,5 +60,11 @@ export class DlinksSyncController {
   @HttpCode(200)
   condicoesPagamento(@Body() body: CondicaoPagamentoDto) {
     return this.service.syncCondicoesPagamento([body]);
+  }
+
+  @Post('titulos')
+  @HttpCode(200)
+  titulos(@Body() body: TituloDto) {
+    return this.service.syncTitulos([body]);
   }
 }

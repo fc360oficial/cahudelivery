@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { CobrancaErp, ErpAdapter, PedidoParaErp } from '@fluxo/erp-adapters';
+import type { CobrancaErp, ErpAdapter, PedidoParaErp, StatusPedidoErp } from '@fluxo/erp-adapters';
 
 /**
  * Mock de desenvolvimento (runtime local da API).
@@ -67,6 +67,57 @@ class DevMockAdapter implements ErpAdapter {
   }
 }
 
+/**
+ * Adaptador real do Dlinks (Fase 4a-4e): modelo pull, não push. O núcleo só
+ * precisa saber que este ERP não é chamado de fora — todo o trabalho real
+ * acontece nos controllers de `integracoes-dlinks` (GET /pedidos, POST
+ * /recebido, /cancelado, /pedidos-faturados, e o sync de catálogo/clientes).
+ * `suportaPull: true` faz o OutboxWorker.processarOutbox nunca chamar
+ * enviarPedido (o pedido fica em RECEBIDO até o Dlinks confirmar) e faz
+ * sincronizarStatus nunca pegar esses pedidos (erp_pedido_id nunca é
+ * setado por este adaptador) — sem isso os dois caminhos (polling do mock
+ * e push real do Dlinks) brigavam pelo mesmo pedido.
+ */
+class DlinksPullAdapter implements ErpAdapter {
+  readonly nome = 'dlinks';
+  readonly capacidades = {
+    suportaWebhook: false,
+    suportaPrecoPorCliente: true,
+    suportaPix: true,
+    suportaBoleto: true,
+    suportaSyncIncremental: true,
+    suportaPull: true,
+  };
+
+  async syncProdutos() {
+    return [];
+  }
+  async syncPrecos() {
+    return [];
+  }
+  async syncEstoque() {
+    return [];
+  }
+  async syncClientes() {
+    return [];
+  }
+  async enviarPedido(): Promise<{ erpPedidoId: string }> {
+    throw new Error('DlinksPullAdapter não envia pedido — o Dlinks consulta via GET /pedidos');
+  }
+  async consultarStatusPedido(): Promise<StatusPedidoErp> {
+    throw new Error('DlinksPullAdapter não é consultado — status chega via POST /pedidos-faturados');
+  }
+  async obterNotaFiscal() {
+    return null;
+  }
+  async obterCobranca() {
+    return null;
+  }
+  async testarConexao() {
+    return { ok: true, mensagem: 'dlinks (pull) ok' };
+  }
+}
+
 /** Registry de adaptadores por tenant (instância dedicada — mocks têm estado). */
 @Injectable()
 export class IntegrationService {
@@ -75,7 +126,8 @@ export class IntegrationService {
   getAdapter(slug: string): ErpAdapter {
     let a = this.adapters.get(slug);
     if (!a) {
-      a = new DevMockAdapter(); // Fase 4: instanciar por integracao_config.adaptador ('dlinks')
+      // TODO: mover pra integracao_config.adaptador por tenant quando houver 2º cliente
+      a = slug === 'cahu' ? new DlinksPullAdapter() : new DevMockAdapter();
       this.adapters.set(slug, a);
     }
     return a;

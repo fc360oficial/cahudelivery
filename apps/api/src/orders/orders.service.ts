@@ -103,6 +103,23 @@ export class OrdersService {
     const minimo = Number(cfg.rows[0]?.valor_json?.valor ?? 0);
     if (subtotal < minimo) throw new BadRequestException(`Pedido mínimo: R$ ${minimo.toFixed(2)}`);
 
+    if (dto.formaPagamento === 'boleto') {
+      const cred = await pool.query(`select limite_credito from clientes where id = $1`, [clienteId]);
+      const limite = cred.rows[0]?.limite_credito;
+      // limite_credito só existe depois que o Dlinks sincroniza o cliente (POST /clientes) — sem
+      // isso ainda, não há dado do ERP pra validar, então não bloqueia (comportamento atual mantido).
+      if (limite != null) {
+        const aberto = await pool.query(
+          `select coalesce(sum(valor),0) as total from titulos_cliente where cliente_id = $1 and status = 'ABERTO'`,
+          [clienteId],
+        );
+        const disponivel = Number(limite) - Number(aberto.rows[0].total);
+        if (subtotal > disponivel) {
+          throw new BadRequestException(`Limite de crédito insuficiente. Disponível: R$ ${disponivel.toFixed(2)}`);
+        }
+      }
+    }
+
     let enderecoJson: string | null = null;
     if (tipoEntrega === 'entrega') {
       const end = await pool.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [

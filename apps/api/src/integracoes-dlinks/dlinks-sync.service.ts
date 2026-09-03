@@ -1,0 +1,138 @@
+import { Injectable } from '@nestjs/common';
+import { tenantCtx } from '../tenancy/tenant-context';
+import { GrupoDto } from './grupo.dto';
+import { FornecedorDto } from './fornecedor.dto';
+import { ProdutoSyncDto } from './produto-sync.dto';
+import { TabelaPrecoDto } from './tabela-preco.dto';
+import { PrecoDto } from './preco.dto';
+
+const slug = (s: string) =>
+  s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+export interface ResultadoSync {
+  processados: number;
+  ignorados: Array<{ item: unknown; motivo: string }>;
+}
+
+@Injectable()
+export class DlinksSyncService {
+  private async registrarLog(operacao: string, resumo: string, sucesso: boolean) {
+    const { pool } = tenantCtx();
+    await pool.query(
+      `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ($1,'erp_para_fluxo',$2,$3)`,
+      [operacao, resumo, sucesso],
+    );
+  }
+
+  async syncGrupos(itens: GrupoDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    for (const item of itens) {
+      await pool.query(
+        `insert into categorias (nome, slug, erp_categoria_id)
+         values ($1, $2, $3)
+         on conflict (erp_categoria_id) do update set nome = excluded.nome`,
+        [item.descricao, `${slug(item.descricao)}-${item.codigo}`, item.codigo],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_grupos', `${processados} grupo(s)`, true);
+    return { processados, ignorados: [] };
+  }
+
+  async syncFornecedores(itens: FornecedorDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    for (const item of itens) {
+      await pool.query(
+        `insert into marcas (nome, erp_marca_id)
+         values ($1, $2)
+         on conflict (erp_marca_id) do update set nome = excluded.nome`,
+        [item.razao_social, item.codigo],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_fornecedores', `${processados} fornecedor(es)`, true);
+    return { processados, ignorados: [] };
+  }
+
+  async syncTabelasPreco(itens: TabelaPrecoDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    for (const item of itens) {
+      await pool.query(
+        `insert into tabelas_preco (nome, erp_tabela_id)
+         values ($1, $2)
+         on conflict (erp_tabela_id) do update set nome = excluded.nome`,
+        [item.descricao, item.id],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_tabelas_preco', `${processados} tabela(s)`, true);
+    return { processados, ignorados: [] };
+  }
+
+  async syncProdutos(itens: ProdutoSyncDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    const ignorados: ResultadoSync['ignorados'] = [];
+    for (const item of itens) {
+      const { rows } = await pool.query(
+        `insert into produtos (sku, ean, nome, marca_id, categoria_id, unidade_venda, qtd_por_embalagem, erp_produto_id, atualizado_erp_em)
+         values (
+           $1, $1, $2,
+           (select id from marcas where erp_marca_id = $3),
+           (select id from categorias where erp_categoria_id = $4),
+           $5, coalesce($6, 1), $1, now()
+         )
+         on conflict (erp_produto_id) do update set
+           nome = excluded.nome,
+           marca_id = excluded.marca_id,
+           categoria_id = excluded.categoria_id,
+           unidade_venda = excluded.unidade_venda,
+           qtd_por_embalagem = excluded.qtd_por_embalagem,
+           atualizado_erp_em = now()
+         returning id`,
+        [item.codigo, item.descricao, item.fornecedor_codigo, item.grupo_codigo, item.unidade, item.multiplo_venda],
+      );
+      const produtoId = rows[0].id;
+      if (item.estoque != null) {
+        await pool.query(
+          `insert into estoques (produto_id, quantidade) values ($1, $2)
+           on conflict (produto_id) do update set quantidade = excluded.quantidade, atualizado_em = now()`,
+          [produtoId, item.estoque],
+        );
+      }
+      processados++;
+    }
+    await this.registrarLog('sync_produtos', `${processados} produto(s)`, true);
+    return { processados, ignorados };
+  }
+
+  async syncPrecos(itens: PrecoDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    const ignorados: ResultadoSync['ignorados'] = [];
+    for (const item of itens) {
+      const produto = await pool.query(`select id from produtos where erp_produto_id = $1`, [item.produto_codigo]);
+      const tabela = await pool.query(`select id from tabelas_preco where erp_tabela_id = $1`, [item.tabela_id]);
+      if (!produto.rowCount || !tabela.rowCount) {
+        ignorados.push({ item, motivo: !produto.rowCount ? 'produto_nao_encontrado' : 'tabela_nao_encontrada' });
+        continue;
+      }
+      await pool.query(
+        `insert into precos (produto_id, tabela_preco_id, preco, percentual_max_desconto, percentual_max_acrescimo)
+         values ($1, $2, $3, $4, $5)
+         on conflict (produto_id, tabela_preco_id) do update set
+           preco = excluded.preco,
+           percentual_max_desconto = excluded.percentual_max_desconto,
+           percentual_max_acrescimo = excluded.percentual_max_acrescimo,
+           atualizado_em = now()`,
+        [produto.rows[0].id, tabela.rows[0].id, item.valor, item.percentual_max_desconto ?? null, item.percentual_max_acrescimo ?? null],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_precos', `${processados} preço(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    return { processados, ignorados };
+  }
+}

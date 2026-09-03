@@ -6,6 +6,8 @@ import { ProdutoSyncDto } from './produto-sync.dto';
 import { TabelaPrecoDto } from './tabela-preco.dto';
 import { PrecoDto } from './preco.dto';
 import { ClienteDto } from './cliente.dto';
+import { FormaPagamentoDto } from './forma-pagamento.dto';
+import { CondicaoPagamentoDto } from './condicao-pagamento.dto';
 
 const slug = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -186,6 +188,44 @@ export class DlinksSyncService {
       }
     }
     await this.registrarLog('sync_clientes', `${processados} cliente(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    return { processados, ignorados };
+  }
+
+  async syncFormasPagamento(itens: FormaPagamentoDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    for (const item of itens) {
+      await pool.query(
+        `insert into formas_pagamento_erp (erp_forma_pagamento_id, descricao)
+         values ($1, $2)
+         on conflict (erp_forma_pagamento_id) do update set descricao = excluded.descricao`,
+        [item.codigo, item.descricao],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_formas_pagamento', `${processados} forma(s)`, true);
+    return { processados, ignorados: [] };
+  }
+
+  async syncCondicoesPagamento(itens: CondicaoPagamentoDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    const ignorados: ResultadoSync['ignorados'] = [];
+    for (const item of itens) {
+      const forma = await pool.query(`select id from formas_pagamento_erp where erp_forma_pagamento_id = $1`, [item.forma_pagamento_codigo]);
+      if (!forma.rowCount) {
+        ignorados.push({ item, motivo: 'forma_pagamento_nao_encontrada' });
+        continue;
+      }
+      await pool.query(
+        `insert into condicoes_pagamento_erp (erp_condicao_id, descricao, forma_pagamento_id)
+         values ($1, $2, $3)
+         on conflict (erp_condicao_id) do update set descricao = excluded.descricao, forma_pagamento_id = excluded.forma_pagamento_id`,
+        [item.codigo, item.descricao, forma.rows[0].id],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_condicoes_pagamento', `${processados} condição(ões), ${ignorados.length} ignorada(s)`, ignorados.length === 0);
     return { processados, ignorados };
   }
 }

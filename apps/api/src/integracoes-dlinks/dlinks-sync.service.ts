@@ -5,6 +5,7 @@ import { FornecedorDto } from './fornecedor.dto';
 import { ProdutoSyncDto } from './produto-sync.dto';
 import { TabelaPrecoDto } from './tabela-preco.dto';
 import { PrecoDto } from './preco.dto';
+import { ClienteDto } from './cliente.dto';
 
 const slug = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -133,6 +134,58 @@ export class DlinksSyncService {
       processados++;
     }
     await this.registrarLog('sync_precos', `${processados} preço(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    return { processados, ignorados };
+  }
+
+  /**
+   * Cliente é identificado pelo `documento` (não pelo erp_cliente_id): um
+   * cliente pode já existir por ter se cadastrado sozinho no app antes do
+   * Dlinks empurrar o cadastro dele — nesse caso a linha existente é
+   * atualizada, não duplicada. O endereço só é gravado na criação, pra não
+   * sobrescrever um endereço que o cliente já tenha editado no app.
+   */
+  async syncClientes(itens: ClienteDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    let processados = 0;
+    const ignorados: ResultadoSync['ignorados'] = [];
+    for (const item of itens) {
+      const documento = item.cnpj_cpf.replace(/\D/g, '');
+      const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
+      try {
+        const { rows } = await pool.query(
+          `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto)
+           values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7)
+           on conflict (documento) do update set
+             razao_social = excluded.razao_social,
+             erp_cliente_id = excluded.erp_cliente_id,
+             limite_credito = excluded.limite_credito,
+             saldo_titulos_aberto = excluded.saldo_titulos_aberto
+           returning id, (xmax = 0) as inserido`,
+          [tipo, documento, item.razao_social, item.email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null],
+        );
+        const { id: clienteId, inserido } = rows[0];
+        if (inserido) {
+          await pool.query(
+            `insert into cliente_enderecos (cliente_id, cep, logradouro, numero, complemento, bairro, cidade, uf, padrao)
+             values ($1, $2, $3, $4, $5, $6, $7, $8, true)`,
+            [
+              clienteId,
+              item.endereco.cep,
+              item.endereco.logradouro,
+              item.endereco.numero,
+              item.endereco.complemento ?? null,
+              item.endereco.bairro,
+              item.endereco.cidade,
+              item.endereco.uf,
+            ],
+          );
+        }
+        processados++;
+      } catch (e) {
+        ignorados.push({ item, motivo: e instanceof Error ? e.message : 'erro_desconhecido' });
+      }
+    }
+    await this.registrarLog('sync_clientes', `${processados} cliente(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
     return { processados, ignorados };
   }
 }

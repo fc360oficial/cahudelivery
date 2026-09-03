@@ -5,6 +5,7 @@ import { FornecedorDto } from './fornecedor.dto';
 import { ProdutoSyncDto } from './produto-sync.dto';
 import { TabelaPrecoDto } from './tabela-preco.dto';
 import { PrecoDto } from './preco.dto';
+import { ClienteDto } from './cliente.dto';
 
 @Controller('integracoes/dlinks')
 export class DlinksSyncController {
@@ -38,5 +39,11 @@ export class DlinksSyncController {
   @HttpCode(200)
   precos(@Body() body: PrecoDto) {
     return this.service.syncPrecos([body]);
+  }
+
+  @Post('clientes')
+  @HttpCode(200)
+  clientes(@Body() body: ClienteDto) {
+    return this.service.syncClientes([body]);
   }
 }

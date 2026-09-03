@@ -153,8 +153,8 @@ export class DlinksSyncService {
       const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
       try {
         const { rows } = await pool.query(
-          `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto)
-           values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7)
+          `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao)
+           values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7, upper(substring(md5(random()::text) from 1 for 6)))
            on conflict (documento) do update set
              razao_social = excluded.razao_social,
              erp_cliente_id = excluded.erp_cliente_id,

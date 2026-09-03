@@ -25,6 +25,7 @@ export class DlinksPedidosService {
 
   async listar(dataInicial: string, dataFinal: string): Promise<{ pedidos: PedidoDlinks[] }> {
     const { pool } = tenantCtx();
+    const inicio = Date.now();
     const { rows } = await pool.query(
       `select p.id, p.numero, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
               p.endereco_snapshot_json, p.valor_saldo_usado,
@@ -39,6 +40,11 @@ export class DlinksPedidosService {
           and p.criado_em < ($2::date + 1)::timestamp at time zone 'America/Recife'
         order by p.criado_em`,
       [dataInicial, dataFinal],
+    );
+    await pool.query(
+      `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
+       values ('consulta_pedidos','erp_para_fluxo',$1,$2,true,$3)`,
+      [`${dataInicial} a ${dataFinal}`, `${rows.length} pedido(s)`, Date.now() - inicio],
     );
     return {
       pedidos: rows.map((r) => ({

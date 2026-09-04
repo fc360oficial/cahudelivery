@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { CobrancaErp, ErpAdapter, PedidoParaErp, StatusPedidoErp } from '@fluxo/erp-adapters';
+import { DatabaseService } from '../database/database.service';
 
 /**
  * Mock de desenvolvimento (runtime local da API).
@@ -123,11 +124,13 @@ class DlinksPullAdapter implements ErpAdapter {
 export class IntegrationService {
   private adapters = new Map<string, ErpAdapter>();
 
-  getAdapter(slug: string): ErpAdapter {
+  constructor(private readonly db: DatabaseService) {}
+
+  async getAdapter(slug: string): Promise<ErpAdapter> {
     let a = this.adapters.get(slug);
     if (!a) {
-      // TODO: mover pra integracao_config.adaptador por tenant quando houver 2º cliente
-      a = slug === 'cahu' ? new DlinksPullAdapter() : new DevMockAdapter();
+      const tenant = await this.db.getTenant(slug);
+      a = tenant.adaptadorErp === 'dlinks' ? new DlinksPullAdapter() : new DevMockAdapter();
       this.adapters.set(slug, a);
     }
     return a;

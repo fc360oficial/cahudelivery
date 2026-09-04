@@ -6,6 +6,7 @@ export interface TenantInfo {
   slug: string;
   nomeFantasia: string;
   appNome: string;
+  adaptadorErp: string;
 }
 
 /**
@@ -38,7 +39,7 @@ export class DatabaseService implements OnModuleDestroy {
     const cached = this.tenantInfo.get(slug);
     if (cached) return cached;
     const { rows } = await this.control.query(
-      `select t.id, t.slug, t.nome_fantasia, t.app_nome
+      `select t.id, t.slug, t.nome_fantasia, t.app_nome, t.adaptador_erp
          from tenants t where t.slug = $1 and t.status = 'ativo'`,
       [slug],
     );
@@ -48,6 +49,7 @@ export class DatabaseService implements OnModuleDestroy {
       slug: rows[0].slug,
       nomeFantasia: rows[0].nome_fantasia,
       appNome: rows[0].app_nome,
+      adaptadorErp: rows[0].adaptador_erp,
     };
     this.tenantInfo.set(slug, info);
     return info;

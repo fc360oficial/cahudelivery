@@ -47,7 +47,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
   private async processarOutbox() {
     for (const slug of await this.db.listActiveTenantSlugs()) {
       const pool = await this.db.getTenantPool(slug);
-      const adapter = this.erp.getAdapter(slug);
+      const adapter = await this.erp.getAdapter(slug);
       const { rows } = await pool.query(
         `select o.id, o.agregado_id, o.tentativas from sync_outbox o
           where o.processado_em is null and o.evento = 'pedido_criado' order by o.criado_em limit 10`,
@@ -115,7 +115,7 @@ export class OutboxWorker implements OnModuleInit, OnModuleDestroy {
   private async sincronizarStatus() {
     for (const slug of await this.db.listActiveTenantSlugs()) {
       const pool = await this.db.getTenantPool(slug);
-      const adapter = this.erp.getAdapter(slug);
+      const adapter = await this.erp.getAdapter(slug);
       const { rows } = await pool.query(
         `select id, erp_pedido_id, status, forma_pagamento from pedidos
           where erp_pedido_id is not null and status in ('ENVIADO_ERP','FATURADO','EM_SEPARACAO','SAIU_ENTREGA') limit 50`,

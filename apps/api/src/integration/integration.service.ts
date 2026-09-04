@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { CobrancaErp, ErpAdapter, PedidoParaErp, StatusPedidoErp } from '@fluxo/erp-adapters';
+import type { CobrancaErp, ErpAdapter, NotaFiscalErp, PedidoParaErp, StatusPedidoErp } from '@fluxo/erp-adapters';
 import { DatabaseService } from '../database/database.service';
 
 /**
@@ -108,11 +108,11 @@ class DlinksPullAdapter implements ErpAdapter {
   async consultarStatusPedido(): Promise<StatusPedidoErp> {
     throw new Error('DlinksPullAdapter não é consultado — status chega via POST /pedidos-faturados');
   }
-  async obterNotaFiscal() {
-    return null;
+  async obterNotaFiscal(): Promise<NotaFiscalErp | null> {
+    throw new Error('DlinksPullAdapter não recebe NF do Dlinks ainda — endpoint pendente de confirmação (ver pergunta 7 do handoff Dlinks)');
   }
-  async obterCobranca() {
-    return null;
+  async obterCobranca(): Promise<CobrancaErp | null> {
+    throw new Error('DlinksPullAdapter não recebe cobrança do Dlinks ainda — endpoint pendente de confirmação (ver pergunta 7 do handoff Dlinks)');
   }
   async testarConexao() {
     return { ok: true, mensagem: 'dlinks (pull) ok' };

@@ -148,25 +148,40 @@ export class DlinksSyncService {
    * sobrescrever um endereço que o cliente já tenha editado no app.
    *
    * `email` é opcional no contrato enviado ao Dlinks, mas a coluna é not null
-   * unique: sem email, grava um placeholder derivado do documento. Um email
-   * real enviado depois substitui o que estiver gravado; a ausência nunca apaga.
+   * unique (é o login do app): sem email grava um placeholder derivado do
+   * documento. Um email real só substitui placeholder — nunca o email de quem
+   * já se cadastrou no app. No ERP vários clientes compartilham o mesmo email
+   * (contador, dono de várias lojas); quando ele já pertence a outro cliente,
+   * mantém o placeholder em vez de falhar.
    */
   async syncClientes(itens: ClienteDto[]): Promise<ResultadoSync> {
     const { pool } = tenantCtx();
     let processados = 0;
+    let emailsDuplicados = 0;
     const ignorados: ResultadoSync['ignorados'] = [];
     for (const item of itens) {
       const documento = item.cnpj_cpf.replace(/\D/g, '');
       const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
-      const emailInformado = item.email ?? item.Email ?? null;
-      const email = emailInformado ?? `${documento}@sem-email.dlinks.local`;
+      const placeholder = `${documento}@sem-email.dlinks.local`;
+      let emailInformado = item.email ?? item.Email ?? null;
       try {
+        if (emailInformado) {
+          const { rowCount } = await pool.query(
+            `select 1 from clientes where email = $1 and documento <> $2 limit 1`,
+            [emailInformado, documento],
+          );
+          if (rowCount) {
+            emailsDuplicados++;
+            emailInformado = null;
+          }
+        }
+        const email = emailInformado ?? placeholder;
         const { rows } = await pool.query(
           `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao)
            values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7, upper(substring(md5(random()::text) from 1 for 6)))
            on conflict (documento) do update set
              razao_social = excluded.razao_social,
-             email = case when $8 then excluded.email else clientes.email end,
+             email = case when $8 and clientes.email like '%@sem-email.dlinks.local' then excluded.email else clientes.email end,
              erp_cliente_id = excluded.erp_cliente_id,
              limite_credito = excluded.limite_credito,
              saldo_titulos_aberto = excluded.saldo_titulos_aberto
@@ -199,9 +214,10 @@ export class DlinksSyncService {
       .slice(0, 3)
       .map((i) => `${(i.item as ClienteDto).cnpj_cpf}: ${i.motivo}`)
       .join(' | ');
+    const duplicados = emailsDuplicados ? `, ${emailsDuplicados} com email já usado por outro cliente (mantido placeholder)` : '';
     await this.registrarLog(
       'sync_clientes',
-      `${processados} cliente(s), ${ignorados.length} ignorado(s)${motivos ? ` — ${motivos}` : ''}`,
+      `${processados} cliente(s), ${ignorados.length} ignorado(s)${duplicados}${motivos ? ` — ${motivos}` : ''}`,
       ignorados.length === 0,
     );
     return { processados, ignorados };

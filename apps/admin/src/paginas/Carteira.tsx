@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, fmtData } from '../api';
+import { api, fmtData, fmtDocumento } from '../api';
 
 interface ClienteBusca {
   id: string;
@@ -92,7 +92,7 @@ export function Carteira() {
               {resultados.map((c) => (
                 <tr key={c.id}>
                   <td>{c.nome_fantasia}</td>
-                  <td className="mono">{c.documento}</td>
+                  <td className="mono">{fmtDocumento(c.documento)}</td>
                   <td><button className="btn-mini" onClick={() => selecionar(c)}>Selecionar</button></td>
                 </tr>
               ))}

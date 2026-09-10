@@ -158,7 +158,8 @@ export class DlinksSyncService {
     for (const item of itens) {
       const documento = item.cnpj_cpf.replace(/\D/g, '');
       const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
-      const email = item.email ?? `${documento}@sem-email.dlinks.local`;
+      const emailInformado = item.email ?? item.Email ?? null;
+      const email = emailInformado ?? `${documento}@sem-email.dlinks.local`;
       try {
         const { rows } = await pool.query(
           `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao)
@@ -170,7 +171,7 @@ export class DlinksSyncService {
              limite_credito = excluded.limite_credito,
              saldo_titulos_aberto = excluded.saldo_titulos_aberto
            returning id, (xmax = 0) as inserido`,
-          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, item.email != null],
+          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, emailInformado != null],
         );
         const { id: clienteId, inserido } = rows[0];
         if (inserido) {

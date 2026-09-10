@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fmtData } from '../api';
+import { api, fmtData, fmtDocumento } from '../api';
 
 interface Solicitacao {
   id: string;
@@ -43,7 +43,7 @@ export function SolicitacoesCredito() {
             {dados?.map((s) => (
               <tr key={s.id}>
                 <td><strong>{s.nome_fantasia}</strong></td>
-                <td className="mono">{s.documento}</td>
+                <td className="mono">{fmtDocumento(s.documento)}</td>
                 <td>{fmtData(s.solicitado_em)}</td>
                 <td>
                   <button className="btn-mini btn-ok" onClick={() => atender(s.id)}>Marcar como atendida</button>

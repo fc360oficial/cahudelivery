@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, fmtData, fmtMoeda, STATUS_LABEL } from '../api';
+import { api, fmtData, fmtDocumento, fmtMoeda, STATUS_LABEL } from '../api';
 
 interface Detalhe {
   id: string;
@@ -100,7 +100,7 @@ export function PedidoDetalhe() {
             <div className="rotulo">Cliente</div>
             <div style={{ marginTop: 8 }}>
               <strong>{p.cliente}</strong>
-              <div className="mono">{p.documento}</div>
+              <div className="mono">{fmtDocumento(p.documento)}</div>
               <div>{p.email}</div>
               {p.telefone && <div>{p.telefone}</div>}
             </div>

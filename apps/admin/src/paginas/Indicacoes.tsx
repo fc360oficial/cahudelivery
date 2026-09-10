@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, fmtData } from '../api';
+import { api, fmtData, fmtDocumento } from '../api';
 
 interface Indicacao {
   indicador: string;
@@ -35,11 +35,11 @@ export function Indicacoes() {
               <tr key={idx}>
                 <td>
                   <strong>{i.indicador}</strong>
-                  <div className="mono" style={{ fontSize: 12 }}>{i.indicador_documento}</div>
+                  <div className="mono" style={{ fontSize: 12 }}>{fmtDocumento(i.indicador_documento)}</div>
                 </td>
                 <td>
                   <strong>{i.indicado}</strong>
-                  <div className="mono" style={{ fontSize: 12 }}>{i.indicado_documento}</div>
+                  <div className="mono" style={{ fontSize: 12 }}>{fmtDocumento(i.indicado_documento)}</div>
                 </td>
                 <td><span className={`badge ${i.status}`}>{i.status === 'creditado' ? 'Creditado' : 'Aguardando'}</span></td>
                 <td>{fmtData(i.criado_em)}</td>

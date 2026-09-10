@@ -39,6 +39,11 @@ export class ClienteDto {
   @IsEmail()
   email?: string;
 
+  // O Dlinks envia a chave como "Email" (maiúsculo); o contrato documenta "email".
+  @IsOptional()
+  @IsEmail()
+  Email?: string;
+
   @ValidateNested()
   @Type(() => EnderecoDlinksDto)
   endereco!: EnderecoDlinksDto;

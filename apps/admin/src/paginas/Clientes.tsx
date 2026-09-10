@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, fmtData } from '../api';
+import { api, fmtData, fmtDocumento } from '../api';
 
 interface LinhaCliente {
   id: string;
@@ -75,7 +75,7 @@ export function Clientes() {
             {dados?.map((c) => (
               <tr key={c.id}>
                 <td><strong>{c.nome_fantasia}</strong></td>
-                <td className="mono">{c.documento}</td>
+                <td className="mono">{fmtDocumento(c.documento)}</td>
                 <td>{c.email}{c.telefone ? ` · ${c.telefone}` : ''}</td>
                 <td>{c.pedidos}</td>
                 <td><span className={`badge ${c.status}`}>{c.status}</span></td>

@@ -150,7 +150,9 @@ export class DlinksSyncService {
    *
    * Email é só contato (pode repetir, pode faltar). O Dlinks manda a chave
    * como "Email"; o contrato documenta "email" — aceitamos as duas. Ausente
-   * nunca apaga um email já gravado. Cliente novo ganha a senha provisória.
+   * nunca apaga um email já gravado. Todo cliente sem credencial ganha a
+   * senha provisória (autocurável entre syncs); senha existente nunca é
+   * tocada.
    */
   async syncClientes(itens: ClienteDto[]): Promise<ResultadoSync> {
     const { pool } = tenantCtx();
@@ -189,13 +191,15 @@ export class DlinksSyncService {
               item.endereco.uf,
             ],
           );
-          await pool.query(
-            `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
-             values ($1, $2, true)
-             on conflict (cliente_id) do nothing`,
-            [clienteId, await hashSenhaProvisoria()],
-          );
         }
+        // Fora do `if (inserido)` de propósito: se a credencial falhou numa sync
+        // anterior, a próxima sync cria; `do nothing` nunca sobrescreve senha existente.
+        await pool.query(
+          `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
+           values ($1, $2, true)
+           on conflict (cliente_id) do nothing`,
+          [clienteId, await hashSenhaProvisoria()],
+        );
         processados++;
       } catch (e) {
         ignorados.push({ item, motivo: e instanceof Error ? e.message : 'erro_desconhecido' });

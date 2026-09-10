@@ -7,7 +7,7 @@ interface LinhaCliente {
   tipo: string;
   documento: string;
   nome_fantasia: string;
-  email: string;
+  email: string | null;
   telefone?: string;
   status: 'pendente' | 'aprovado' | 'bloqueado' | 'excluido';
   criado_em: string;

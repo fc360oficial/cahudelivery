@@ -57,7 +57,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
         'documento': _documento.text.replaceAll(RegExp(r'\D'), ''),
         'nomeFantasia': _nomeFantasia.text.trim(),
         if (_razaoSocial.text.trim().isNotEmpty) 'razaoSocial': _razaoSocial.text.trim(),
-        'email': _email.text.trim(),
+        if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
         if (_telefone.text.trim().isNotEmpty) 'telefone': _telefone.text.trim(),
         if (_categoria != null) 'categoria': _categoria,
         'senha': _senha.text,
@@ -77,6 +77,21 @@ class _CadastroScreenState extends State<CadastroScreen> {
             MaterialPageRoute(builder: (_) => const HomeShell()), (_) => false);
       }
     } on ApiException catch (e) {
+      if (e.codigo == 'CLIENTE_JA_EXISTE_PRIMEIRO_ACESSO' && mounted) {
+        final irLogin = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Você já é cliente'),
+            content: Text(e.message),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Fechar')),
+              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Ir para Entrar')),
+            ],
+          ),
+        );
+        if (irLogin == true && mounted) Navigator.of(context).pop(false);
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
@@ -140,9 +155,11 @@ class _CadastroScreenState extends State<CadastroScreen> {
             TextFormField(
               controller: _email,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'E-mail'),
-              validator: (v) =>
-                  (v ?? '').contains('@') && (v ?? '').contains('.') ? null : 'E-mail inválido',
+              decoration: const InputDecoration(labelText: 'E-mail (opcional)'),
+              validator: (v) => (v ?? '').trim().isEmpty ||
+                      ((v ?? '').contains('@') && (v ?? '').contains('.'))
+                  ? null
+                  : 'E-mail inválido',
             ),
             const SizedBox(height: 14),
             TextFormField(

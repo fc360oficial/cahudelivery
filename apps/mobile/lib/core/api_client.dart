@@ -8,9 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config.dart';
 
 class ApiException implements Exception {
-  ApiException(this.statusCode, this.message);
+  ApiException(this.statusCode, this.message, {this.codigo});
   final int statusCode;
   final String message;
+  final String? codigo;
   @override
   String toString() => message;
 }
@@ -104,7 +105,7 @@ class ApiClient extends ChangeNotifier {
       final msg = decoded is Map
           ? (decoded['message'] is List ? (decoded['message'] as List).join('\n') : '${decoded['message']}')
           : 'Erro ${res.statusCode}';
-      throw ApiException(res.statusCode, msg);
+      throw ApiException(res.statusCode, msg, codigo: decoded is Map ? decoded['codigo'] as String? : null);
     }
     return decoded;
   }

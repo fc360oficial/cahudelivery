@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { SENHA_PROVISORIA } from './senha-provisoria';
 
 export interface TokenPair {
   accessToken: string;
@@ -93,23 +94,41 @@ export class AuthService {
     throw new Error('Não foi possível gerar código de indicação único');
   }
 
-  async login(identificador: string, senha: string, deviceId?: string): Promise<TokenPair & { status: string }> {
+  async login(
+    identificador: string,
+    senha: string,
+    deviceId?: string,
+  ): Promise<TokenPair & { status: string; senhaProvisoria: boolean }> {
     const { pool, tenant } = tenantCtx();
     const doc = identificador.replace(/\D/g, '');
     const { rows } = await pool.query(
-      `select c.id, c.status, cc.senha_hash
+      `select c.id, c.status, cc.senha_hash, cc.senha_provisoria
          from clientes c join cliente_credenciais cc on cc.cliente_id = c.id
-        where c.email = $1 or c.documento = $2`,
-      [identificador.toLowerCase(), doc.length ? doc : identificador],
+        where c.documento = $1`,
+      [doc],
     );
     const reg = rows[0];
     if (!reg || !(await argon2.verify(reg.senha_hash, senha))) {
-      throw new UnauthorizedException('Credenciais inválidas');
+      throw new UnauthorizedException('CNPJ/CPF ou senha inválidos');
     }
     if (reg.status === 'bloqueado' || reg.status === 'excluido') throw new UnauthorizedException('Cadastro bloqueado');
     await pool.query(`update cliente_credenciais set ultimo_login_em = now() where cliente_id = $1`, [reg.id]);
     await this.reivindicarCarrinho(reg.id, deviceId);
-    return { ...(await this.emitirTokens(reg.id, tenant.slug)), status: reg.status };
+    return { ...(await this.emitirTokens(reg.id, tenant.slug)), status: reg.status, senhaProvisoria: reg.senha_provisoria };
+  }
+
+  async definirSenha(clienteId: string, senhaAtual: string, novaSenha: string) {
+    const { pool } = tenantCtx();
+    if (novaSenha === SENHA_PROVISORIA) throw new BadRequestException('Escolha uma senha diferente da senha inicial');
+    const { rows } = await pool.query(`select senha_hash from cliente_credenciais where cliente_id = $1`, [clienteId]);
+    if (!rows[0] || !(await argon2.verify(rows[0].senha_hash, senhaAtual))) {
+      throw new UnauthorizedException('Senha atual incorreta');
+    }
+    await pool.query(
+      `update cliente_credenciais set senha_hash = $2, senha_provisoria = false where cliente_id = $1`,
+      [clienteId, await argon2.hash(novaSenha)],
+    );
+    return { ok: true };
   }
 
   async refresh(refreshToken: string): Promise<TokenPair> {

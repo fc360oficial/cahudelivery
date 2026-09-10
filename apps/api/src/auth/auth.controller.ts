@@ -1,6 +1,10 @@
-import { Body, Controller, Headers, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Headers, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
 import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard, ClienteLogado } from './jwt.guard';
+
+type ReqCliente = Request & { cliente: ClienteLogado };
 
 class RegistrarDto {
   @IsIn(['CPF', 'CNPJ']) tipo!: 'CPF' | 'CNPJ';
@@ -15,8 +19,13 @@ class RegistrarDto {
 }
 
 class LoginDto {
-  @IsNotEmpty() identificador!: string; // e-mail ou documento
+  @IsNotEmpty() identificador!: string; // CNPJ ou CPF (só dígitos são considerados)
   @IsNotEmpty() senha!: string;
+}
+
+class SenhaDto {
+  @IsNotEmpty() senhaAtual!: string;
+  @MinLength(6) novaSenha!: string;
 }
 
 class RefreshDto {
@@ -42,5 +51,12 @@ export class AuthController {
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {
     return this.auth.refresh(dto.refreshToken);
+  }
+
+  @Post('senha')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  senha(@Req() req: ReqCliente, @Body() dto: SenhaDto) {
+    return this.auth.definirSenha(req.cliente.clienteId, dto.senhaAtual, dto.novaSenha);
   }
 }

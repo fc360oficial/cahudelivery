@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { hashSenhaProvisoria } from '../auth/senha-provisoria';
 import { tenantCtx } from '../tenancy/tenant-context';
 
 @Injectable()
@@ -133,6 +134,24 @@ export class AdminService {
       `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
        values ($1,'mudar_status','cliente',$2,$3)`,
       [usuarioId, id, JSON.stringify({ status })],
+    );
+    return { ok: true };
+  }
+
+  async redefinirSenhaCliente(id: string, usuarioId: string) {
+    const { pool } = tenantCtx();
+    const r = await pool.query(
+      `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
+       select id, $2, true from clientes where id = $1
+       on conflict (cliente_id) do update set senha_hash = excluded.senha_hash, senha_provisoria = true
+       returning cliente_id`,
+      [id, await hashSenhaProvisoria()],
+    );
+    if (!r.rowCount) throw new NotFoundException('Cliente não encontrado');
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id)
+       values ($1,'redefinir_senha','cliente',$2)`,
+      [usuarioId, id],
     );
     return { ok: true };
   }

@@ -54,6 +54,16 @@ export function Clientes() {
     }
   }
 
+  async function redefinirSenha(c: LinhaCliente) {
+    if (!confirm(`Redefinir a senha de acesso de ${c.nome_fantasia}? O cliente passa a entrar com o CNPJ/CPF e a senha inicial 123456, e será obrigado a criar uma nova no próximo acesso.`)) return;
+    try {
+      await api(`/admin/clientes/${c.id}/redefinir-senha`, { method: 'POST' });
+      alert(`Senha redefinida. Informe ao cliente: entrar com o CNPJ/CPF e a senha 123456.`);
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+  }
+
   return (
     <>
       <h1>Clientes</h1>
@@ -76,7 +86,7 @@ export function Clientes() {
               <tr key={c.id}>
                 <td><strong>{c.nome_fantasia}</strong></td>
                 <td className="mono">{fmtDocumento(c.documento)}</td>
-                <td>{c.email}{c.telefone ? ` · ${c.telefone}` : ''}</td>
+                <td>{c.email ?? '—'}{c.telefone ? ` · ${c.telefone}` : ''}</td>
                 <td>{c.pedidos}</td>
                 <td><span className={`badge ${c.status}`}>{c.status}</span></td>
                 <td>{fmtData(c.criado_em)}</td>
@@ -89,6 +99,7 @@ export function Clientes() {
                       {c.status !== 'bloqueado' && (
                         <button className="btn-mini btn-perigo" onClick={() => mudar(c.id, 'bloqueado')}>Bloquear</button>
                       )}{' '}
+                      <button className="btn-mini" onClick={() => redefinirSenha(c)}>Redefinir senha</button>{' '}
                       <button className="btn-mini btn-perigo" onClick={() => excluir(c)}>Excluir</button>
                     </>
                   )}

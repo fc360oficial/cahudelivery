@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
@@ -70,6 +70,13 @@ export class AdminController {
   @Delete('clientes/:id')
   excluirCliente(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
     return this.admin.excluirCliente(id, req.admin.usuarioId);
+  }
+
+  @Post('clientes/:id/redefinir-senha')
+  @HttpCode(200)
+  redefinirSenha(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
+    return this.admin.redefinirSenhaCliente(id, req.admin.usuarioId);
   }
 
   @Get('produtos')

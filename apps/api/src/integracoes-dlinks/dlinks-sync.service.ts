@@ -195,7 +195,15 @@ export class DlinksSyncService {
         ignorados.push({ item, motivo: e instanceof Error ? e.message : 'erro_desconhecido' });
       }
     }
-    await this.registrarLog('sync_clientes', `${processados} cliente(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    const motivos = ignorados
+      .slice(0, 3)
+      .map((i) => `${(i.item as ClienteDto).cnpj_cpf}: ${i.motivo}`)
+      .join(' | ');
+    await this.registrarLog(
+      'sync_clientes',
+      `${processados} cliente(s), ${ignorados.length} ignorado(s)${motivos ? ` — ${motivos}` : ''}`,
+      ignorados.length === 0,
+    );
     return { processados, ignorados };
   }
 

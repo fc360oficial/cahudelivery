@@ -146,6 +146,10 @@ export class DlinksSyncService {
    * Dlinks empurrar o cadastro dele — nesse caso a linha existente é
    * atualizada, não duplicada. O endereço só é gravado na criação, pra não
    * sobrescrever um endereço que o cliente já tenha editado no app.
+   *
+   * `email` é opcional no contrato enviado ao Dlinks, mas a coluna é not null
+   * unique: sem email, grava um placeholder derivado do documento. Um email
+   * real enviado depois substitui o que estiver gravado; a ausência nunca apaga.
    */
   async syncClientes(itens: ClienteDto[]): Promise<ResultadoSync> {
     const { pool } = tenantCtx();
@@ -154,17 +158,19 @@ export class DlinksSyncService {
     for (const item of itens) {
       const documento = item.cnpj_cpf.replace(/\D/g, '');
       const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
+      const email = item.email ?? `${documento}@sem-email.dlinks.local`;
       try {
         const { rows } = await pool.query(
           `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao)
            values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7, upper(substring(md5(random()::text) from 1 for 6)))
            on conflict (documento) do update set
              razao_social = excluded.razao_social,
+             email = case when $8 then excluded.email else clientes.email end,
              erp_cliente_id = excluded.erp_cliente_id,
              limite_credito = excluded.limite_credito,
              saldo_titulos_aberto = excluded.saldo_titulos_aberto
            returning id, (xmax = 0) as inserido`,
-          [tipo, documento, item.razao_social, item.email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null],
+          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, item.email != null],
         );
         const { id: clienteId, inserido } = rows[0];
         if (inserido) {

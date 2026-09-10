@@ -35,8 +35,9 @@ export class ClienteDto {
   @IsString()
   cnpj_cpf!: string;
 
+  @IsOptional()
   @IsEmail()
-  email!: string;
+  email?: string;
 
   @ValidateNested()
   @Type(() => EnderecoDlinksDto)

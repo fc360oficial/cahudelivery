@@ -9,6 +9,7 @@ import { ClienteDto } from './cliente.dto';
 import { FormaPagamentoDto } from './forma-pagamento.dto';
 import { CondicaoPagamentoDto } from './condicao-pagamento.dto';
 import { TituloDto } from './titulo.dto';
+import { hashSenhaProvisoria } from '../auth/senha-provisoria';
 
 const slug = (s: string) =>
   s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -147,46 +148,30 @@ export class DlinksSyncService {
    * atualizada, não duplicada. O endereço só é gravado na criação, pra não
    * sobrescrever um endereço que o cliente já tenha editado no app.
    *
-   * `email` é opcional no contrato enviado ao Dlinks, mas a coluna é not null
-   * unique (é o login do app): sem email grava um placeholder derivado do
-   * documento. Um email real só substitui placeholder — nunca o email de quem
-   * já se cadastrou no app. No ERP vários clientes compartilham o mesmo email
-   * (contador, dono de várias lojas); quando ele já pertence a outro cliente,
-   * mantém o placeholder em vez de falhar.
+   * Email é só contato (pode repetir, pode faltar). O Dlinks manda a chave
+   * como "Email"; o contrato documenta "email" — aceitamos as duas. Ausente
+   * nunca apaga um email já gravado. Cliente novo ganha a senha provisória.
    */
   async syncClientes(itens: ClienteDto[]): Promise<ResultadoSync> {
     const { pool } = tenantCtx();
     let processados = 0;
-    let emailsDuplicados = 0;
     const ignorados: ResultadoSync['ignorados'] = [];
     for (const item of itens) {
       const documento = item.cnpj_cpf.replace(/\D/g, '');
       const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
-      const placeholder = `${documento}@sem-email.dlinks.local`;
-      let emailInformado = item.email ?? item.Email ?? null;
+      const email = (item.email ?? item.Email ?? null)?.trim().toLowerCase() || null;
       try {
-        if (emailInformado) {
-          const { rowCount } = await pool.query(
-            `select 1 from clientes where email = $1 and documento <> $2 limit 1`,
-            [emailInformado, documento],
-          );
-          if (rowCount) {
-            emailsDuplicados++;
-            emailInformado = null;
-          }
-        }
-        const email = emailInformado ?? placeholder;
         const { rows } = await pool.query(
           `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao)
            values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7, upper(substring(md5(random()::text) from 1 for 6)))
            on conflict (documento) do update set
              razao_social = excluded.razao_social,
-             email = case when $8 and clientes.email like '%@sem-email.dlinks.local' then excluded.email else clientes.email end,
+             email = coalesce(excluded.email, clientes.email),
              erp_cliente_id = excluded.erp_cliente_id,
              limite_credito = excluded.limite_credito,
              saldo_titulos_aberto = excluded.saldo_titulos_aberto
            returning id, (xmax = 0) as inserido`,
-          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, emailInformado != null],
+          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null],
         );
         const { id: clienteId, inserido } = rows[0];
         if (inserido) {
@@ -204,6 +189,12 @@ export class DlinksSyncService {
               item.endereco.uf,
             ],
           );
+          await pool.query(
+            `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
+             values ($1, $2, true)
+             on conflict (cliente_id) do nothing`,
+            [clienteId, await hashSenhaProvisoria()],
+          );
         }
         processados++;
       } catch (e) {
@@ -214,10 +205,9 @@ export class DlinksSyncService {
       .slice(0, 3)
       .map((i) => `${(i.item as ClienteDto).cnpj_cpf}: ${i.motivo}`)
       .join(' | ');
-    const duplicados = emailsDuplicados ? `, ${emailsDuplicados} com email já usado por outro cliente (mantido placeholder)` : '';
     await this.registrarLog(
       'sync_clientes',
-      `${processados} cliente(s), ${ignorados.length} ignorado(s)${duplicados}${motivos ? ` — ${motivos}` : ''}`,
+      `${processados} cliente(s), ${ignorados.length} ignorado(s)${motivos ? ` — ${motivos}` : ''}`,
       ignorados.length === 0,
     );
     return { processados, ignorados };

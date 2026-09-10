@@ -3,7 +3,9 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'core/api_client.dart';
 import 'core/tenant_theme.dart';
+import 'features/auth/nova_senha_screen.dart';
 import 'features/shell/home_shell.dart';
+import 'features/splash/video_splash_screen.dart';
 
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +17,21 @@ Future<void> main() async {
   await TenantTheme.instance
       .carregar()
       .timeout(const Duration(seconds: 6), onTimeout: () {});
-  runApp(const FluxoCommerceApp(inicio: HomeShell()));
+  // Sessão salva com senha ainda provisória (app fechado antes de trocar):
+  // força a troca antes de liberar o app, mesmo sem passar pelo login agora.
+  final precisaTrocarSenha =
+      ApiClient.instance.logado && ApiClient.instance.senhaProvisoria;
+  runApp(FluxoCommerceApp(
+    inicio: precisaTrocarSenha
+        ? Builder(
+            builder: (context) => NovaSenhaScreen(
+              aoConcluir: () => Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const HomeShell()),
+              ),
+            ),
+          )
+        : const HomeShell(),
+  ));
   FlutterNativeSplash.remove();
 }
 

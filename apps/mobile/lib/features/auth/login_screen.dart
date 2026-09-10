@@ -5,8 +5,9 @@ import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
 import '../shell/home_shell.dart';
 import 'cadastro_screen.dart';
+import 'nova_senha_screen.dart';
 
-/// Login do cliente da distribuidora (e-mail ou CNPJ/CPF + senha).
+/// Login do cliente da distribuidora (CNPJ/CPF + senha).
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.retornarAoLogar = false});
   final bool retornarAoLogar;
@@ -28,18 +29,28 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final r = await ApiClient.instance.post('/auth/login', {
-        'identificador': _identificador.text.trim(),
+        'identificador': _identificador.text.replaceAll(RegExp(r'\D'), ''),
         'senha': _senha.text,
       }) as Map<String, dynamic>;
       await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
+      await ApiClient.instance.marcarSenhaProvisoria(r['senhaProvisoria'] == true);
       if (!mounted) return;
-      if (widget.retornarAoLogar) {
-        Navigator.of(context).pop(true);
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeShell()),
-        );
+      void seguir() {
+        if (widget.retornarAoLogar) {
+          Navigator.of(context).pop(true);
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeShell()),
+          );
+        }
       }
+      if (r['senhaProvisoria'] == true) {
+        await Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => NovaSenhaScreen(aoConcluir: () => Navigator.of(context).pop())),
+        );
+        if (!mounted) return;
+      }
+      seguir();
     } on ApiException catch (e) {
       setState(() => _erro = e.message);
     } catch (_) {
@@ -83,8 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 30),
                   TextField(
                     controller: _identificador,
-                    decoration: const InputDecoration(labelText: 'E-mail ou CNPJ/CPF'),
-                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(labelText: 'CNPJ ou CPF'),
+                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 14),
                   TextField(
@@ -125,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       builder: (ctx) => AlertDialog(
                         title: const Text('Esqueci minha senha'),
                         content: const Text(
-                            'Fale com a distribuidora para redefinir sua senha de acesso.'),
+                            'Peça à distribuidora para redefinir sua senha. Você entra com o CNPJ/CPF e a senha inicial 123456 e cria uma nova.'),
                         actions: [
                           FilledButton(
                               onPressed: () => Navigator.of(ctx).pop(),

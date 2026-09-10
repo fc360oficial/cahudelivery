@@ -193,13 +193,16 @@ export class DlinksSyncService {
           );
         }
         // Fora do `if (inserido)` de propósito: se a credencial falhou numa sync
-        // anterior, a próxima sync cria; `do nothing` nunca sobrescreve senha existente.
-        await pool.query(
-          `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
-           values ($1, $2, true)
-           on conflict (cliente_id) do nothing`,
-          [clienteId, await hashSenhaProvisoria()],
-        );
+        // anterior, a próxima sync cria. Nunca sobrescreve senha existente.
+        const credencial = await pool.query(`select 1 from cliente_credenciais where cliente_id = $1`, [clienteId]);
+        if (!credencial.rowCount) {
+          await pool.query(
+            `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
+             values ($1, $2, true)
+             on conflict (cliente_id) do nothing`,
+            [clienteId, await hashSenhaProvisoria()],
+          );
+        }
         processados++;
       } catch (e) {
         ignorados.push({ item, motivo: e instanceof Error ? e.message : 'erro_desconhecido' });

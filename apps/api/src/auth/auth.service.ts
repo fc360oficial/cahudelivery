@@ -22,7 +22,7 @@ export class AuthService {
       documento: string;
       nomeFantasia: string;
       razaoSocial?: string;
-      email: string;
+      email?: string;
       telefone?: string;
       categoria?: string;
       senha: string;
@@ -36,11 +36,22 @@ export class AuthService {
     let novo: { id: string; status: string };
     try {
       await client.query('begin');
-      const dup = await client.query(`select 1 from clientes where documento = $1 or email = $2`, [
-        doc,
-        dados.email.toLowerCase(),
-      ]);
-      if (dup.rowCount) throw new ConflictException('Documento ou e-mail já cadastrado');
+      const dup = await client.query(
+        `select cc.senha_provisoria
+           from clientes c left join cliente_credenciais cc on cc.cliente_id = c.id
+          where c.documento = $1`,
+        [doc],
+      );
+      if (dup.rowCount) {
+        const provisoria = dup.rows[0].senha_provisoria === true;
+        throw new ConflictException({
+          statusCode: 409,
+          message: provisoria
+            ? 'Você já é cliente CAHU. Entre com seu CNPJ/CPF e a senha inicial 123456.'
+            : 'Já existe cadastro para este CNPJ/CPF. Use Entrar.',
+          codigo: provisoria ? 'CLIENTE_JA_EXISTE_PRIMEIRO_ACESSO' : 'CLIENTE_JA_EXISTE',
+        });
+      }
       let indicadoPorClienteId: string | null = null;
       if (dados.codigoIndicacao) {
         const ind = await client.query(`select id from clientes where codigo_indicacao = $1`, [
@@ -58,7 +69,7 @@ export class AuthService {
           doc,
           dados.razaoSocial ?? null,
           dados.nomeFantasia,
-          dados.email.toLowerCase(),
+          dados.email?.trim().toLowerCase() || null,
           dados.telefone ?? null,
           dados.categoria ?? null,
           codigoIndicacao,

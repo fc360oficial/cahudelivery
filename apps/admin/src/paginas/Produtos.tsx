@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, fmtMoeda, upload } from '../api';
+import { Paginacao } from '../Paginacao';
 
 interface LinhaProduto {
   id: string;
@@ -19,6 +20,7 @@ interface LinhaProduto {
 
 export function Produtos() {
   const [busca, setBusca] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaProduto[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -27,12 +29,16 @@ export function Produtos() {
   const [validadeEdit, setValidadeEdit] = useState('');
   const [subindoId, setSubindoId] = useState<string | null>(null);
 
+  useEffect(() => setPagina(1), [busca]);
+
   const carregar = useCallback(() => {
-    const q = busca ? `?busca=${encodeURIComponent(busca)}` : '';
-    api<{ dados: LinhaProduto[] }>(`/admin/produtos${q}`)
+    const q = new URLSearchParams();
+    if (busca) q.set('busca', busca);
+    q.set('pagina', String(pagina));
+    api<{ dados: LinhaProduto[] }>(`/admin/produtos?${q}`)
       .then((r) => setDados(r.dados))
       .catch((e) => setErro(e.message));
-  }, [busca]);
+  }, [busca, pagina]);
 
   useEffect(carregar, [carregar]);
 
@@ -211,6 +217,7 @@ export function Produtos() {
           </tbody>
         </table>
       </div>
+      {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} onMudar={setPagina} />}
       <small style={{ color: 'var(--texto-2)', display: 'block', marginTop: 8 }}>
         Foto quadrada, ideal 800×800, até 5MB (PNG/JPG/WEBP).
       </small>

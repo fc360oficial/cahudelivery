@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, fmtData, fmtDocumento } from '../api';
+import { Paginacao } from '../Paginacao';
 
 interface LinhaCliente {
   id: string;
@@ -18,17 +19,21 @@ export function Clientes() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? '';
   const [busca, setBusca] = useState('');
+  const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaCliente[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => setPagina(1), [status, busca]);
 
   const carregar = useCallback(() => {
     const q = new URLSearchParams();
     if (status) q.set('status', status);
     if (busca) q.set('busca', busca);
+    q.set('pagina', String(pagina));
     api<{ dados: LinhaCliente[] }>(`/admin/clientes?${q}`)
       .then((r) => setDados(r.dados))
       .catch((e) => setErro(e.message));
-  }, [status, busca]);
+  }, [status, busca, pagina]);
 
   useEffect(carregar, [carregar]);
 
@@ -110,6 +115,7 @@ export function Clientes() {
           </tbody>
         </table>
       </div>
+      {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} onMudar={setPagina} />}
     </>
   );
 }

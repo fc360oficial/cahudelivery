@@ -11,8 +11,8 @@ export interface FiltroProdutos {
   limite: number;
 }
 
-/** Colunas + preço resolvido (promoção vigente vence a tabela) + estoque. */
-const SELECT_PRODUTO = `
+/** Colunas + preço resolvido (promoção vigente vence a tabela) + estoque. Sem filtro de estoque (usado no detalhe). */
+const SELECT_PRODUTO_BASE = `
   select p.id, p.sku, p.ean, p.nome, p.descricao, p.unidade_venda, p.qtd_por_embalagem,
          p.qtd_minima, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade, m.nome as marca, c.nome as categoria, c.id as categoria_id,
          coalesce(e.quantidade, 0) as estoque,
@@ -34,6 +34,10 @@ const SELECT_PRODUTO = `
        order by pp.preco_promocional asc limit 1
     ) promo on true
    where p.ativo`;
+
+/** Só produtos com estoque > 0: é o que o app lista (home, categorias, busca, promoções). */
+const COM_ESTOQUE = ` and coalesce(e.quantidade, 0) > 0`;
+const SELECT_PRODUTO = `${SELECT_PRODUTO_BASE}${COM_ESTOQUE}`;
 
 @Injectable()
 export class CatalogService {
@@ -88,7 +92,10 @@ export class CatalogService {
       // Categorias que têm produto ativo, na ordem cadastrada — vira "prateleira" na home.
       pool.query(
         `select c.id, c.nome from categorias c
-          where c.ativo and exists (select 1 from produtos p where p.categoria_id = c.id and p.ativo)
+          where c.ativo and exists (
+            select 1 from produtos p
+              join estoques e on e.produto_id = p.id and e.quantidade > 0
+             where p.categoria_id = c.id and p.ativo)
           order by c.ordem, c.nome`,
       ),
       // Vitrines patrocinadas (indústria/fabricante) — produtos escolhidos manualmente,
@@ -105,7 +112,7 @@ export class CatalogService {
                   ) order by pp.ordem)
                    from patrocinador_produtos pp
                    join produtos p on p.id = pp.produto_id and p.ativo
-                   left join estoques e on e.produto_id = p.id
+                   join estoques e on e.produto_id = p.id and e.quantidade > 0
                    left join precos pr on pr.produto_id = p.id and pr.tabela_preco_id = $1
                    left join lateral (
                      select ppo.preco_promocional from promocao_produtos ppo
@@ -208,7 +215,12 @@ export class CatalogService {
   async categorias() {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, pai_id, nome, slug, imagem_url, ordem from categorias where ativo order by ordem, nome`,
+      `select c.id, c.pai_id, c.nome, c.slug, c.imagem_url, c.ordem from categorias c
+        where c.ativo and exists (
+          select 1 from produtos p
+            join estoques e on e.produto_id = p.id and e.quantidade > 0
+           where p.categoria_id = c.id and p.ativo)
+        order by c.ordem, c.nome`,
     );
     return rows;
   }
@@ -245,7 +257,7 @@ export class CatalogService {
   async produto(id: string, clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
-    const { rows } = await pool.query(`${SELECT_PRODUTO} and p.id = $2`, [tabela, id]);
+    const { rows } = await pool.query(`${SELECT_PRODUTO_BASE} and p.id = $2`, [tabela, id]);
     if (!rows[0]) throw new NotFoundException('Produto não encontrado');
     return rows[0];
   }

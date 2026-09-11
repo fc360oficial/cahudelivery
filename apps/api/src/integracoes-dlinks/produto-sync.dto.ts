@@ -1,4 +1,4 @@
-import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 
 const UNIDADES = ['UN', 'CX', 'FD', 'PC', 'KG'] as const;
 
@@ -25,4 +25,9 @@ export class ProdutoSyncDto {
 
   @IsIn(UNIDADES)
   unidade!: (typeof UNIDADES)[number];
+
+  /** Opcional: false = produto desativado no ERP, some do app. Omitido = ativo. */
+  @IsOptional()
+  @IsBoolean()
+  ativo?: boolean;
 }

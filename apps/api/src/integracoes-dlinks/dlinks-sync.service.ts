@@ -83,12 +83,12 @@ export class DlinksSyncService {
     const ignorados: ResultadoSync['ignorados'] = [];
     for (const item of itens) {
       const { rows } = await pool.query(
-        `insert into produtos (sku, ean, nome, marca_id, categoria_id, unidade_venda, qtd_por_embalagem, erp_produto_id, atualizado_erp_em)
+        `insert into produtos (sku, ean, nome, marca_id, categoria_id, unidade_venda, qtd_por_embalagem, erp_produto_id, atualizado_erp_em, ativo)
          values (
            $1, $1, $2,
            (select id from marcas where erp_marca_id = $3),
            (select id from categorias where erp_categoria_id = $4),
-           $5, coalesce($6::numeric, 1), $1, now()
+           $5, coalesce($6::numeric, 1), $1, now(), coalesce($7::boolean, true)
          )
          on conflict (erp_produto_id) do update set
            nome = excluded.nome,
@@ -96,9 +96,10 @@ export class DlinksSyncService {
            categoria_id = excluded.categoria_id,
            unidade_venda = excluded.unidade_venda,
            qtd_por_embalagem = excluded.qtd_por_embalagem,
+           ativo = coalesce($7::boolean, produtos.ativo),
            atualizado_erp_em = now()
          returning id`,
-        [item.codigo, item.descricao, item.fornecedor_codigo, item.grupo_codigo, item.unidade, item.multiplo_venda],
+        [item.codigo, item.descricao, item.fornecedor_codigo, item.grupo_codigo, item.unidade, item.multiplo_venda, item.ativo ?? null],
       );
       const produtoId = rows[0].id;
       if (item.estoque != null) {

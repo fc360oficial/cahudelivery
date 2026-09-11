@@ -44,6 +44,13 @@ describe('ListaOuItemPipe', () => {
     }
   });
 
+  it('ProdutoSyncDto aceita ativo opcional booleano', async () => {
+    const out = await pipe.transform([{ ...item, ativo: false }, item]);
+    expect(out[0].ativo).toBe(false);
+    expect(out[1].ativo).toBeUndefined();
+    await expect(pipe.transform({ ...item, ativo: 'nao' })).rejects.toThrow(BadRequestException);
+  });
+
   it('PrecoDto rejeita tabela_id vazio', async () => {
     const p = new ListaOuItemPipe(PrecoDto);
     await expect(p.transform([{ produto_codigo: '789', tabela_id: '', valor: 1 }])).rejects.toMatchObject({

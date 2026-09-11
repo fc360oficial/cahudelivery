@@ -1,11 +1,11 @@
 {
-    "name": "fluxo_commerce_app",
-    "short_name": "fluxo_commerce_app",
+    "name": "CAHU Delivery",
+    "short_name": "Cahu",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFD500",
+    "theme_color": "#FFD500",
+    "description": "CAHU Delivery — pedidos para o seu negócio",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

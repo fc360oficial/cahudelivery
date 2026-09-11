@@ -38,6 +38,7 @@ dependencies:
   http: ^1.6.0
   shared_preferences: ^2.5.5
   url_launcher: ^6.3.1
+  video_player: ^2.9.2
 
 dev_dependencies:
   flutter_test:
@@ -63,12 +64,14 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/video/
     - assets/logo/
 
 # Ícone do app (flavor CAHU) — rodar: dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
+  remove_alpha_ios: true
   image_path: "assets/icone/icone.png"
   adaptive_icon_background: "#FFD500"
   adaptive_icon_foreground: "assets/icone/icone_adaptive.png"

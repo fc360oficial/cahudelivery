@@ -1,0 +1,50 @@
+# Build iOS do CAHU Delivery na nuvem (Codemagic) e envio pro TestFlight.
+# Não precisa de Mac. Pré-requisitos (ver "08 - Aplicativo iPhone/01-TESTFLIGHT.md"):
+#   1. Conta Apple Developer com o app criado no App Store Connect (bundle id br.com.cahudelivery.app).
+#   2. Chave da API do App Store Connect cadastrada no Codemagic como integração "app_store_connect"
+#      (Teams > Integrations > App Store Connect), nome: cahu_asc.
+#   3. Repositório GitHub fc360oficial/cahudelivery conectado no Codemagic.
+workflows:
+  ios-testflight:
+    name: iOS → TestFlight (CAHU)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    working_directory: apps/mobile
+    integrations:
+      app_store_connect: cahu_asc
+    environment:
+      flutter: stable
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: br.com.cahudelivery.app
+      vars:
+        APP_URL: https://cahudelivery.duckdns.org/v1
+        TENANT: cahu
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'ios-*'
+    scripts:
+      - name: Dependências
+        script: flutter pub get
+      - name: Assinatura automática (perfil de distribuição)
+        script: xcode-project use-profiles
+      - name: Testes
+        script: flutter test
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --dart-define=TENANT=$TENANT \
+            --dart-define=API_URL=$APP_URL \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Testadores CAHU

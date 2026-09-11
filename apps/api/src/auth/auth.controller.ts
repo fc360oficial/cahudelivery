@@ -1,5 +1,5 @@
 import { Body, Controller, Headers, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, MinLength, ValidateNested } from 'class-validator';
+import { IsDefined, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -25,7 +25,7 @@ class RegistrarDto {
   @IsOptional() @IsString() razaoSocial?: string;
   @IsOptional() @IsEmail() email?: string;
   @IsNotEmpty() telefone!: string;
-  @ValidateNested() @Type(() => EnderecoCadastroDto) endereco!: EnderecoCadastroDto;
+  @IsDefined() @ValidateNested() @Type(() => EnderecoCadastroDto) endereco!: EnderecoCadastroDto;
   @IsOptional() @IsString() categoria?: string;
   @MinLength(6) senha!: string;
   @IsOptional() @IsString() codigoIndicacao?: string;

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/campo_senha.dart';
 
 import '../../core/api_client.dart';
 import '../../core/config.dart';
@@ -28,12 +29,22 @@ class _LoginScreenState extends State<LoginScreen> {
       _erro = null;
     });
     try {
-      final r = await ApiClient.instance.post('/auth/login', {
-        'identificador': _identificador.text.replaceAll(RegExp(r'\D'), ''),
-        'senha': _senha.text,
-      }) as Map<String, dynamic>;
-      await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
-      await ApiClient.instance.marcarSenhaProvisoria(r['senhaProvisoria'] == true);
+      final r =
+          await ApiClient.instance.post('/auth/login', {
+                'identificador': _identificador.text.replaceAll(
+                  RegExp(r'\D'),
+                  '',
+                ),
+                'senha': _senha.text,
+              })
+              as Map<String, dynamic>;
+      await ApiClient.instance.salvarTokens(
+        r['accessToken'],
+        r['refreshToken'],
+      );
+      await ApiClient.instance.marcarSenhaProvisoria(
+        r['senhaProvisoria'] == true,
+      );
       if (!mounted) return;
       void seguir() {
         if (widget.retornarAoLogar) {
@@ -44,9 +55,13 @@ class _LoginScreenState extends State<LoginScreen> {
           );
         }
       }
+
       if (r['senhaProvisoria'] == true) {
         await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => NovaSenhaScreen(aoConcluir: () => Navigator.of(context).pop())),
+          MaterialPageRoute(
+            builder: (_) =>
+                NovaSenhaScreen(aoConcluir: () => Navigator.of(context).pop()),
+          ),
         );
         if (!mounted) return;
       }
@@ -81,7 +96,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       t.appNome,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          fontSize: 30, fontWeight: FontWeight.bold, color: t.corPrimaria),
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        color: t.corPrimaria,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -89,7 +107,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     t.appNome,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700, color: t.corPrimaria),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: t.corPrimaria,
+                    ),
                   ),
                   const SizedBox(height: 30),
                   TextField(
@@ -98,11 +119,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 14),
-                  TextField(
+                  CampoSenha(
                     controller: _senha,
-                    decoration: const InputDecoration(labelText: 'Senha'),
-                    obscureText: true,
-                    onSubmitted: (_) => _entrar(),
+                    labelText: 'Senha',
+                    onFieldSubmitted: (_) => _entrar(),
                   ),
                   if (_erro != null) ...[
                     const SizedBox(height: 14),
@@ -112,7 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   FilledButton(
                     onPressed: _carregando ? null : _entrar,
                     child: _carregando
-                        ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          )
                         : const Text('Entrar'),
                   ),
                   const SizedBox(height: 14),
@@ -120,8 +144,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: () async {
                       final ok = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(
-                            builder: (_) => CadastroScreen(
-                                retornarAoLogar: widget.retornarAoLogar)),
+                          builder: (_) => CadastroScreen(
+                            retornarAoLogar: widget.retornarAoLogar,
+                          ),
+                        ),
                       );
                       if (ok == true && context.mounted) {
                         Navigator.of(context).pop(true);
@@ -135,11 +161,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       builder: (ctx) => AlertDialog(
                         title: const Text('Esqueci minha senha'),
                         content: const Text(
-                            'Peça à distribuidora para redefinir sua senha. Você entra com o CNPJ/CPF e a senha inicial 123456 e cria uma nova.'),
+                          'Peça à distribuidora para redefinir sua senha. Você entra com o CNPJ/CPF e a senha inicial 123456 e cria uma nova.',
+                        ),
                         actions: [
                           FilledButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              child: const Text('Entendi')),
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Entendi'),
+                          ),
                         ],
                       ),
                     ),

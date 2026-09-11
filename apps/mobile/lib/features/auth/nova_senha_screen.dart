@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/campo_senha.dart';
 
 import '../../core/api_client.dart';
 import '../shell/home_shell.dart';
@@ -67,56 +68,68 @@ class _NovaSenhaScreenState extends State<NovaSenhaScreen> {
     return PopScope(
       canPop: false,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Crie sua nova senha'), automaticallyImplyLeading: false),
-        body: Form(
-          key: _form,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              const Text(
-                'Você entrou com a senha inicial. Por segurança, crie agora a sua senha para os próximos acessos.',
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: _nova,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Nova senha (mín. 6 caracteres)'),
-                validator: (v) {
-                  if ((v ?? '').length < 6) return 'Mínimo de 6 caracteres';
-                  if (v == '123456') return 'Escolha uma senha diferente da inicial';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _confirma,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Confirme a nova senha'),
-                validator: (v) => v == _nova.text ? null : 'As senhas não conferem',
-                onFieldSubmitted: (_) => _salvar(),
-              ),
-              if (_erro != null) ...[
+        appBar: AppBar(
+          title: const Text('Crie sua nova senha'),
+          automaticallyImplyLeading: false,
+        ),
+        body: SafeArea(
+          child: Form(
+            key: _form,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              children: [
+                const Text(
+                  'Você entrou com a senha inicial. Por segurança, crie agora a sua senha para os próximos acessos.',
+                ),
+                const SizedBox(height: 20),
+                CampoSenha(
+                  controller: _nova,
+                  labelText: 'Nova senha (mín. 6 caracteres)',
+                  textInputAction: TextInputAction.next,
+                  validator: (v) {
+                    if ((v ?? '').length < 6) return 'Mínimo de 6 caracteres';
+                    if (v == '123456')
+                      return 'Escolha uma senha diferente da inicial';
+                    return null;
+                  },
+                ),
                 const SizedBox(height: 14),
-                Text(_erro!, style: const TextStyle(color: Colors.red)),
+                CampoSenha(
+                  controller: _confirma,
+                  labelText: 'Confirme a nova senha',
+                  validator: (v) =>
+                      v == _nova.text ? null : 'As senhas não conferem',
+                  onFieldSubmitted: (_) => _salvar(),
+                ),
+                if (_erro != null) ...[
+                  const SizedBox(height: 14),
+                  Text(_erro!, style: const TextStyle(color: Colors.red)),
+                ],
+                const SizedBox(height: 22),
+                FilledButton(
+                  onPressed: _enviando ? null : _salvar,
+                  child: _enviando
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      : const Text('Salvar e continuar'),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Se você já criou sua senha antes, saia e entre de novo com ela.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+                ),
+                TextButton(
+                  onPressed: _enviando ? null : _sair,
+                  child: const Text('Sair da conta'),
+                ),
               ],
-              const SizedBox(height: 22),
-              FilledButton(
-                onPressed: _enviando ? null : _salvar,
-                child: _enviando
-                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
-                    : const Text('Salvar e continuar'),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Se você já criou sua senha antes, saia e entre de novo com ela.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
-              ),
-              TextButton(
-                onPressed: _enviando ? null : _sair,
-                child: const Text('Sair da conta'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

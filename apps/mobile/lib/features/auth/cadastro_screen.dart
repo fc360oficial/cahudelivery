@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../widgets/campo_senha.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/api_client.dart';
@@ -54,8 +55,20 @@ class _CadastroScreenState extends State<CadastroScreen> {
   @override
   void dispose() {
     for (final c in [
-      _documento, _nomeFantasia, _razaoSocial, _email, _telefone, _senha, _codigoIndicacao,
-      _cep, _logradouro, _numero, _complemento, _bairro, _cidade, _uf,
+      _documento,
+      _nomeFantasia,
+      _razaoSocial,
+      _email,
+      _telefone,
+      _senha,
+      _codigoIndicacao,
+      _cep,
+      _logradouro,
+      _numero,
+      _complemento,
+      _bairro,
+      _cidade,
+      _uf,
     ]) {
       c.dispose();
     }
@@ -88,38 +101,52 @@ class _CadastroScreenState extends State<CadastroScreen> {
     if (!_form.currentState!.validate()) return;
     setState(() => _enviando = true);
     try {
-      final r = await ApiClient.instance.post('/auth/registrar', {
-        'tipo': _tipo,
-        'documento': _documento.text.replaceAll(RegExp(r'\D'), ''),
-        'nomeFantasia': _nomeFantasia.text.trim(),
-        if (_razaoSocial.text.trim().isNotEmpty) 'razaoSocial': _razaoSocial.text.trim(),
-        if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
-        'telefone': _telefone.text.trim(),
-        'endereco': {
-          'cep': _cep.text.replaceAll(RegExp(r'\D'), ''),
-          'logradouro': _logradouro.text.trim(),
-          'numero': _numero.text.trim(),
-          if (_complemento.text.trim().isNotEmpty) 'complemento': _complemento.text.trim(),
-          'bairro': _bairro.text.trim(),
-          'cidade': _cidade.text.trim(),
-          'uf': _uf.text.trim().toUpperCase(),
-        },
-        if (_categoria != null) 'categoria': _categoria,
-        'senha': _senha.text,
-        if (_codigoIndicacao.text.trim().isNotEmpty) 'codigoIndicacao': _codigoIndicacao.text.trim(),
-      }) as Map<String, dynamic>;
-      await ApiClient.instance.salvarTokens(r['accessToken'], r['refreshToken']);
+      final r =
+          await ApiClient.instance.post('/auth/registrar', {
+                'tipo': _tipo,
+                'documento': _documento.text.replaceAll(RegExp(r'\D'), ''),
+                'nomeFantasia': _nomeFantasia.text.trim(),
+                if (_razaoSocial.text.trim().isNotEmpty)
+                  'razaoSocial': _razaoSocial.text.trim(),
+                if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
+                'telefone': _telefone.text.trim(),
+                'endereco': {
+                  'cep': _cep.text.replaceAll(RegExp(r'\D'), ''),
+                  'logradouro': _logradouro.text.trim(),
+                  'numero': _numero.text.trim(),
+                  if (_complemento.text.trim().isNotEmpty)
+                    'complemento': _complemento.text.trim(),
+                  'bairro': _bairro.text.trim(),
+                  'cidade': _cidade.text.trim(),
+                  'uf': _uf.text.trim().toUpperCase(),
+                },
+                if (_categoria != null) 'categoria': _categoria,
+                'senha': _senha.text,
+                if (_codigoIndicacao.text.trim().isNotEmpty)
+                  'codigoIndicacao': _codigoIndicacao.text.trim(),
+              })
+              as Map<String, dynamic>;
+      await ApiClient.instance.salvarTokens(
+        r['accessToken'],
+        r['refreshToken'],
+      );
       if (!mounted) return;
       if (r['status'] != 'aprovado' && r['status'] != 'ativo') {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
             content: Text(
-                'Cadastro em análise pela distribuidora — você já pode navegar e montar pedidos.')));
+              'Cadastro em análise pela distribuidora — você já pode navegar e montar pedidos.',
+            ),
+          ),
+        );
       }
       if (widget.retornarAoLogar) {
         Navigator.of(context).pop(true);
       } else {
         Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const HomeShell()), (_) => false);
+          MaterialPageRoute(builder: (_) => const HomeShell()),
+          (_) => false,
+        );
       }
     } on ApiException catch (e) {
       if (e.codigo == 'CLIENTE_JA_EXISTE_PRIMEIRO_ACESSO' && mounted) {
@@ -129,8 +156,14 @@ class _CadastroScreenState extends State<CadastroScreen> {
             title: const Text('Você já é cliente'),
             content: Text(e.message),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Fechar')),
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Ir para Entrar')),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Fechar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Ir para Entrar'),
+              ),
             ],
           ),
         );
@@ -138,12 +171,15 @@ class _CadastroScreenState extends State<CadastroScreen> {
         return;
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Sem conexão — tente novamente')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sem conexão — tente novamente')),
+        );
       }
     } finally {
       if (mounted) setState(() => _enviando = false);
@@ -158,167 +194,214 @@ class _CadastroScreenState extends State<CadastroScreen> {
     final ehCnpj = _tipo == 'CNPJ';
     return Scaffold(
       appBar: AppBar(title: const Text('Criar minha conta')),
-      body: Form(
-        key: _form,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'CNPJ', label: Text('Empresa (CNPJ)')),
-                ButtonSegment(value: 'CPF', label: Text('Pessoa física (CPF)')),
+      body: SafeArea(
+        child: Form(
+          key: _form,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'CNPJ', label: Text('Empresa (CNPJ)')),
+                  ButtonSegment(
+                    value: 'CPF',
+                    label: Text('Pessoa física (CPF)'),
+                  ),
+                ],
+                selected: {_tipo},
+                onSelectionChanged: (s) => setState(() => _tipo = s.first),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _documento,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(labelText: ehCnpj ? 'CNPJ' : 'CPF'),
+                validator: (v) {
+                  final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                  final esperado = ehCnpj ? 14 : 11;
+                  return d.length == esperado
+                      ? null
+                      : '${ehCnpj ? 'CNPJ' : 'CPF'} inválido';
+                },
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _nomeFantasia,
+                decoration: InputDecoration(
+                  labelText: ehCnpj ? 'Nome fantasia' : 'Nome do negócio',
+                ),
+                validator: _obrigatorio,
+              ),
+              if (ehCnpj) ...[
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _razaoSocial,
+                  decoration: const InputDecoration(
+                    labelText: 'Razão social (opcional)',
+                  ),
+                ),
               ],
-              selected: {_tipo},
-              onSelectionChanged: (s) => setState(() => _tipo = s.first),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _documento,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: ehCnpj ? 'CNPJ' : 'CPF'),
-              validator: (v) {
-                final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
-                final esperado = ehCnpj ? 14 : 11;
-                return d.length == esperado ? null : '${ehCnpj ? 'CNPJ' : 'CPF'} inválido';
-              },
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _nomeFantasia,
-              decoration: InputDecoration(
-                  labelText: ehCnpj ? 'Nome fantasia' : 'Nome do negócio'),
-              validator: _obrigatorio,
-            ),
-            if (ehCnpj) ...[
               const SizedBox(height: 14),
               TextFormField(
-                controller: _razaoSocial,
-                decoration: const InputDecoration(labelText: 'Razão social (opcional)'),
-              ),
-            ],
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'E-mail (opcional)'),
-              validator: (v) => (v ?? '').trim().isEmpty ||
-                      ((v ?? '').contains('@') && (v ?? '').contains('.'))
-                  ? null
-                  : 'E-mail inválido',
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _telefone,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(labelText: 'Telefone / WhatsApp'),
-              validator: (v) =>
-                  (v ?? '').replaceAll(RegExp(r'\D'), '').length >= 10 ? null : 'Informe o telefone com DDD',
-            ),
-            const SizedBox(height: 22),
-            const Text('Endereço', style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _cep,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'CEP',
-                suffixIcon: _buscandoCep
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
-                    : null,
-              ),
-              onChanged: (v) {
-                if (v.replaceAll(RegExp(r'\D'), '').length == 8) _buscarCep();
-              },
-              validator: (v) => (v ?? '').replaceAll(RegExp(r'\D'), '').length == 8 ? null : 'CEP inválido',
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _logradouro,
-              decoration: const InputDecoration(labelText: 'Rua / Avenida'),
-              validator: _obrigatorio,
-            ),
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _numero,
-                  decoration: const InputDecoration(labelText: 'Número'),
-                  validator: _obrigatorio,
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'E-mail (opcional)',
                 ),
+                validator: (v) =>
+                    (v ?? '').trim().isEmpty ||
+                        ((v ?? '').contains('@') && (v ?? '').contains('.'))
+                    ? null
+                    : 'E-mail inválido',
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: TextFormField(
-                  controller: _complemento,
-                  decoration: const InputDecoration(labelText: 'Complemento (opcional)'),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _telefone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Telefone / WhatsApp',
                 ),
+                validator: (v) =>
+                    (v ?? '').replaceAll(RegExp(r'\D'), '').length >= 10
+                    ? null
+                    : 'Informe o telefone com DDD',
               ),
-            ]),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _bairro,
-              decoration: const InputDecoration(labelText: 'Bairro'),
-              validator: _obrigatorio,
-            ),
-            const SizedBox(height: 14),
-            Row(children: [
-              Expanded(
-                flex: 3,
-                child: TextFormField(
-                  controller: _cidade,
-                  decoration: const InputDecoration(labelText: 'Cidade'),
-                  validator: _obrigatorio,
+              const SizedBox(height: 22),
+              const Text(
+                'Endereço',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _cep,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'CEP',
+                  suffixIcon: _buscandoCep
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : null,
                 ),
+                onChanged: (v) {
+                  if (v.replaceAll(RegExp(r'\D'), '').length == 8) _buscarCep();
+                },
+                validator: (v) =>
+                    (v ?? '').replaceAll(RegExp(r'\D'), '').length == 8
+                    ? null
+                    : 'CEP inválido',
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextFormField(
-                  controller: _uf,
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _logradouro,
+                decoration: const InputDecoration(labelText: 'Rua / Avenida'),
+                validator: _obrigatorio,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _numero,
+                      decoration: const InputDecoration(labelText: 'Número'),
+                      validator: _obrigatorio,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: _complemento,
+                      decoration: const InputDecoration(
+                        labelText: 'Complemento (opcional)',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
+                controller: _bairro,
+                decoration: const InputDecoration(labelText: 'Bairro'),
+                validator: _obrigatorio,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: TextFormField(
+                      controller: _cidade,
+                      decoration: const InputDecoration(labelText: 'Cidade'),
+                      validator: _obrigatorio,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _uf,
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'UF',
+                        counterText: '',
+                      ),
+                      validator: (v) =>
+                          (v ?? '').trim().length == 2 ? null : 'UF',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                initialValue: _categoria,
+                decoration: const InputDecoration(
+                  labelText: 'Categoria do estabelecimento (opcional)',
+                ),
+                items: categoriasEstabelecimento
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _categoria = v),
+              ),
+              const SizedBox(height: 14),
+              CampoSenha(
+                controller: _senha,
+                labelText: 'Senha (mín. 6 caracteres)',
+                validator: (v) =>
+                    (v ?? '').length >= 6 ? null : 'Mínimo de 6 caracteres',
+              ),
+              if (TenantTheme.instance.configuracoes['indicacoes_ativas'] ==
+                  true) ...[
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _codigoIndicacao,
                   textCapitalization: TextCapitalization.characters,
-                  maxLength: 2,
-                  decoration: const InputDecoration(labelText: 'UF', counterText: ''),
-                  validator: (v) => (v ?? '').trim().length == 2 ? null : 'UF',
+                  decoration: const InputDecoration(
+                    labelText: 'Código de indicação (opcional)',
+                  ),
                 ),
-              ),
-            ]),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              initialValue: _categoria,
-              decoration: const InputDecoration(labelText: 'Categoria do estabelecimento (opcional)'),
-              items: categoriasEstabelecimento
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (v) => setState(() => _categoria = v),
-            ),
-            const SizedBox(height: 14),
-            TextFormField(
-              controller: _senha,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Senha (mín. 6 caracteres)'),
-              validator: (v) => (v ?? '').length >= 6 ? null : 'Mínimo de 6 caracteres',
-            ),
-            if (TenantTheme.instance.configuracoes['indicacoes_ativas'] == true) ...[
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: _codigoIndicacao,
-                textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(labelText: 'Código de indicação (opcional)'),
+              ],
+              const SizedBox(height: 22),
+              FilledButton(
+                onPressed: _enviando ? null : _cadastrar,
+                child: _enviando
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Criar conta'),
               ),
             ],
-            const SizedBox(height: 22),
-            FilledButton(
-              onPressed: _enviando ? null : _cadastrar,
-              child: _enviando
-                  ? const SizedBox(
-                      width: 22, height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2.5, color: Colors.white))
-                  : const Text('Criar conta'),
-            ),
-          ],
+          ),
         ),
       ),
     );

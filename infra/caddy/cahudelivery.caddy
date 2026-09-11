@@ -1,0 +1,26 @@
+# Site do CAHU Delivery no Servidor_BI. Importado pelo Caddyfile do Econômico
+# (C:\fc360\claude_code_\Caddyfile → import C:/cahudelivery/infra/caddy/*.caddy).
+# Depois de alterar: caddy validate + caddy reload (ver 04 - Backend/01-DEPLOY-SERVIDOR-PRODUCAO.md).
+cahudelivery.duckdns.org {
+    handle /v1/* {
+        reverse_proxy localhost:3000
+    }
+    handle /uploads/* {
+        reverse_proxy localhost:3000
+    }
+
+    # Versão web do app (teste no iPhone/navegador). Build: flutter build web --base-href /app/
+    redir /app /app/ 301
+    handle_path /app/* {
+        root * C:/cahudelivery/web-app
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Retaguarda (SPA). try_files é obrigatório pra URLs diretas (/login, /clientes) não darem 404.
+    handle {
+        root * C:/cahudelivery/apps/admin/dist
+        try_files {path} /index.html
+        file_server
+    }
+}

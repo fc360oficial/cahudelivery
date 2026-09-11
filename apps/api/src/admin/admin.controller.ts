@@ -80,8 +80,9 @@ export class AdminController {
   }
 
   @Get('produtos')
-  produtos(@Query('busca') busca?: string, @Query('pagina') pagina = '1') {
-    return this.admin.produtos({ busca, pagina: Math.max(1, Number(pagina) || 1) });
+  produtos(@Query('busca') busca?: string, @Query('estoque') estoque?: string, @Query('pagina') pagina = '1') {
+    const filtroEstoque = estoque === 'com' || estoque === 'sem' ? estoque : undefined;
+    return this.admin.produtos({ busca, estoque: filtroEstoque, pagina: Math.max(1, Number(pagina) || 1) });
   }
 
   @Patch('produtos/:id/ativo')

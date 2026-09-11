@@ -20,8 +20,10 @@ interface LinhaProduto {
 
 export function Produtos() {
   const [busca, setBusca] = useState('');
+  const [estoque, setEstoque] = useState<'' | 'com' | 'sem'>('');
   const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaProduto[] | null>(null);
+  const [resumo, setResumo] = useState<{ total: number; comEstoque: number; semEstoque: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [minimaEdit, setMinimaEdit] = useState('');
@@ -29,16 +31,20 @@ export function Produtos() {
   const [validadeEdit, setValidadeEdit] = useState('');
   const [subindoId, setSubindoId] = useState<string | null>(null);
 
-  useEffect(() => setPagina(1), [busca]);
+  useEffect(() => setPagina(1), [busca, estoque]);
 
   const carregar = useCallback(() => {
     const q = new URLSearchParams();
     if (busca) q.set('busca', busca);
+    if (estoque) q.set('estoque', estoque);
     q.set('pagina', String(pagina));
-    api<{ dados: LinhaProduto[] }>(`/admin/produtos?${q}`)
-      .then((r) => setDados(r.dados))
+    api<{ dados: LinhaProduto[]; resumo: { total: number; comEstoque: number; semEstoque: number } }>(`/admin/produtos?${q}`)
+      .then((r) => {
+        setDados(r.dados);
+        setResumo(r.resumo);
+      })
       .catch((e) => setErro(e.message));
-  }, [busca, pagina]);
+  }, [busca, estoque, pagina]);
 
   useEffect(carregar, [carregar]);
 
@@ -132,6 +138,15 @@ export function Produtos() {
       <h1>Produtos</h1>
       <div className="filtros">
         <input placeholder="Buscar por nome ou SKU…" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ flex: 1, maxWidth: 340 }} />
+        {([
+          ['', 'Todos', resumo?.total],
+          ['com', 'Com estoque', resumo?.comEstoque],
+          ['sem', 'Sem estoque', resumo?.semEstoque],
+        ] as const).map(([valor, rotulo, qtd]) => (
+          <button key={valor || 'todos'} className={`pill-filtro ${estoque === valor ? 'ativo' : ''}`} onClick={() => setEstoque(valor)}>
+            {rotulo}{qtd != null ? ` (${qtd})` : ''}
+          </button>
+        ))}
       </div>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">

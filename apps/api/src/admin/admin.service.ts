@@ -241,7 +241,7 @@ export class AdminService {
     return { ok: true, removidoDeVerdade: !preservarCliente };
   }
 
-  async produtos(f: { busca?: string; pagina: number }) {
+  async produtos(f: { busca?: string; estoque?: 'com' | 'sem'; pagina: number }) {
     const { pool } = tenantCtx();
     const cond: string[] = ['true'];
     const params: unknown[] = [];
@@ -249,6 +249,17 @@ export class AdminService {
       params.push(`%${f.busca}%`);
       cond.push(`(p.nome ilike $${params.length} or p.sku ilike $${params.length})`);
     }
+    // Resumo respeita a busca, mas não o filtro de estoque (senão os números dos filtros sumiriam).
+    const resumo = await pool.query(
+      `select count(*)::int as total,
+              count(*) filter (where coalesce(e.quantidade,0) > 0)::int as com_estoque,
+              count(*) filter (where coalesce(e.quantidade,0) <= 0)::int as sem_estoque
+         from produtos p left join estoques e on e.produto_id = p.id
+        where ${cond.join(' and ')}`,
+      params,
+    );
+    if (f.estoque === 'com') cond.push('coalesce(e.quantidade,0) > 0');
+    if (f.estoque === 'sem') cond.push('coalesce(e.quantidade,0) <= 0');
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade,
@@ -265,7 +276,8 @@ export class AdminService {
         order by p.nome limit 25 offset $${params.length}`,
       params,
     );
-    return { dados: rows, pagina: f.pagina };
+    const r = resumo.rows[0];
+    return { dados: rows, pagina: f.pagina, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque } };
   }
 
   async alternarProduto(id: string, ativo: boolean, usuarioId: string) {

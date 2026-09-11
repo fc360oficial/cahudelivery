@@ -1,18 +1,31 @@
 import { Body, Controller, Headers, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
-import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard, ClienteLogado } from './jwt.guard';
 
 type ReqCliente = Request & { cliente: ClienteLogado };
 
+class EnderecoCadastroDto {
+  @IsNotEmpty() cep!: string;
+  @IsNotEmpty() logradouro!: string;
+  @IsNotEmpty() numero!: string;
+  @IsOptional() @IsString() complemento?: string;
+  @IsNotEmpty() bairro!: string;
+  @IsNotEmpty() cidade!: string;
+  @Length(2, 2) uf!: string;
+}
+
+// Telefone e endereço são obrigatórios: alimentam o CRM da distribuidora.
 class RegistrarDto {
   @IsIn(['CPF', 'CNPJ']) tipo!: 'CPF' | 'CNPJ';
   @IsNotEmpty() documento!: string;
   @IsNotEmpty() nomeFantasia!: string;
   @IsOptional() @IsString() razaoSocial?: string;
   @IsOptional() @IsEmail() email?: string;
-  @IsOptional() @IsString() telefone?: string;
+  @IsNotEmpty() telefone!: string;
+  @ValidateNested() @Type(() => EnderecoCadastroDto) endereco!: EnderecoCadastroDto;
   @IsOptional() @IsString() categoria?: string;
   @MinLength(6) senha!: string;
   @IsOptional() @IsString() codigoIndicacao?: string;

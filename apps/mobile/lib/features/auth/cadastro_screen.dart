@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import '../../core/api_client.dart';
 import '../../core/tenant_theme.dart';
@@ -37,15 +40,48 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _telefone = TextEditingController();
   final _senha = TextEditingController();
   final _codigoIndicacao = TextEditingController();
+  final _cep = TextEditingController();
+  final _logradouro = TextEditingController();
+  final _numero = TextEditingController();
+  final _complemento = TextEditingController();
+  final _bairro = TextEditingController();
+  final _cidade = TextEditingController();
+  final _uf = TextEditingController();
   String? _categoria;
   bool _enviando = false;
+  bool _buscandoCep = false;
 
   @override
   void dispose() {
-    for (final c in [_documento, _nomeFantasia, _razaoSocial, _email, _telefone, _senha, _codigoIndicacao]) {
+    for (final c in [
+      _documento, _nomeFantasia, _razaoSocial, _email, _telefone, _senha, _codigoIndicacao,
+      _cep, _logradouro, _numero, _complemento, _bairro, _cidade, _uf,
+    ]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  Future<void> _buscarCep() async {
+    final cep = _cep.text.replaceAll(RegExp(r'\D'), '');
+    if (cep.length != 8) return;
+    setState(() => _buscandoCep = true);
+    try {
+      final r = await http
+          .get(Uri.parse('https://viacep.com.br/ws/$cep/json/'))
+          .timeout(const Duration(seconds: 6));
+      final d = jsonDecode(r.body) as Map<String, dynamic>;
+      if (d['erro'] != true && mounted) {
+        _logradouro.text = d['logradouro'] ?? _logradouro.text;
+        _bairro.text = d['bairro'] ?? _bairro.text;
+        _cidade.text = d['localidade'] ?? _cidade.text;
+        _uf.text = d['uf'] ?? _uf.text;
+      }
+    } catch (_) {
+      // ViaCEP fora do ar não bloqueia o preenchimento manual
+    } finally {
+      if (mounted) setState(() => _buscandoCep = false);
+    }
   }
 
   Future<void> _cadastrar() async {
@@ -58,7 +94,16 @@ class _CadastroScreenState extends State<CadastroScreen> {
         'nomeFantasia': _nomeFantasia.text.trim(),
         if (_razaoSocial.text.trim().isNotEmpty) 'razaoSocial': _razaoSocial.text.trim(),
         if (_email.text.trim().isNotEmpty) 'email': _email.text.trim(),
-        if (_telefone.text.trim().isNotEmpty) 'telefone': _telefone.text.trim(),
+        'telefone': _telefone.text.trim(),
+        'endereco': {
+          'cep': _cep.text.replaceAll(RegExp(r'\D'), ''),
+          'logradouro': _logradouro.text.trim(),
+          'numero': _numero.text.trim(),
+          if (_complemento.text.trim().isNotEmpty) 'complemento': _complemento.text.trim(),
+          'bairro': _bairro.text.trim(),
+          'cidade': _cidade.text.trim(),
+          'uf': _uf.text.trim().toUpperCase(),
+        },
         if (_categoria != null) 'categoria': _categoria,
         'senha': _senha.text,
         if (_codigoIndicacao.text.trim().isNotEmpty) 'codigoIndicacao': _codigoIndicacao.text.trim(),
@@ -165,9 +210,80 @@ class _CadastroScreenState extends State<CadastroScreen> {
             TextFormField(
               controller: _telefone,
               keyboardType: TextInputType.phone,
-              decoration:
-                  const InputDecoration(labelText: 'Telefone / WhatsApp (opcional)'),
+              decoration: const InputDecoration(labelText: 'Telefone / WhatsApp'),
+              validator: (v) =>
+                  (v ?? '').replaceAll(RegExp(r'\D'), '').length >= 10 ? null : 'Informe o telefone com DDD',
             ),
+            const SizedBox(height: 22),
+            const Text('Endereço', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _cep,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'CEP',
+                suffixIcon: _buscandoCep
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)))
+                    : null,
+              ),
+              onChanged: (v) {
+                if (v.replaceAll(RegExp(r'\D'), '').length == 8) _buscarCep();
+              },
+              validator: (v) => (v ?? '').replaceAll(RegExp(r'\D'), '').length == 8 ? null : 'CEP inválido',
+            ),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _logradouro,
+              decoration: const InputDecoration(labelText: 'Rua / Avenida'),
+              validator: _obrigatorio,
+            ),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _numero,
+                  decoration: const InputDecoration(labelText: 'Número'),
+                  validator: _obrigatorio,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: TextFormField(
+                  controller: _complemento,
+                  decoration: const InputDecoration(labelText: 'Complemento (opcional)'),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 14),
+            TextFormField(
+              controller: _bairro,
+              decoration: const InputDecoration(labelText: 'Bairro'),
+              validator: _obrigatorio,
+            ),
+            const SizedBox(height: 14),
+            Row(children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  controller: _cidade,
+                  decoration: const InputDecoration(labelText: 'Cidade'),
+                  validator: _obrigatorio,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextFormField(
+                  controller: _uf,
+                  textCapitalization: TextCapitalization.characters,
+                  maxLength: 2,
+                  decoration: const InputDecoration(labelText: 'UF', counterText: ''),
+                  validator: (v) => (v ?? '').trim().length == 2 ? null : 'UF',
+                ),
+              ),
+            ]),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               initialValue: _categoria,

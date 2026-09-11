@@ -23,7 +23,16 @@ export class AuthService {
       nomeFantasia: string;
       razaoSocial?: string;
       email?: string;
-      telefone?: string;
+      telefone: string;
+      endereco: {
+        cep: string;
+        logradouro: string;
+        numero: string;
+        complemento?: string;
+        bairro: string;
+        cidade: string;
+        uf: string;
+      };
       categoria?: string;
       senha: string;
       codigoIndicacao?: string;
@@ -70,10 +79,25 @@ export class AuthService {
           dados.razaoSocial ?? null,
           dados.nomeFantasia,
           dados.email?.trim().toLowerCase() || null,
-          dados.telefone ?? null,
+          dados.telefone.trim(),
           dados.categoria ?? null,
           codigoIndicacao,
           indicadoPorClienteId,
+        ],
+      );
+      const e = dados.endereco;
+      await client.query(
+        `insert into cliente_enderecos (cliente_id, cep, logradouro, numero, complemento, bairro, cidade, uf, padrao)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,true)`,
+        [
+          rows[0].id,
+          e.cep.replace(/\D/g, ''),
+          e.logradouro.trim(),
+          e.numero.trim(),
+          e.complemento?.trim() || null,
+          e.bairro.trim(),
+          e.cidade.trim(),
+          e.uf.trim().toUpperCase(),
         ],
       );
       await client.query(`insert into cliente_credenciais (cliente_id, senha_hash) values ($1,$2)`, [

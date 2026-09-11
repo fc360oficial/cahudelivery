@@ -93,7 +93,7 @@ export class DlinksSyncService {
          on conflict (erp_produto_id) do update set
            nome = excluded.nome,
            marca_id = excluded.marca_id,
-           categoria_id = excluded.categoria_id,
+           categoria_id = case when produtos.categoria_manual then produtos.categoria_id else excluded.categoria_id end,
            unidade_venda = excluded.unidade_venda,
            qtd_por_embalagem = excluded.qtd_por_embalagem,
            ativo = coalesce($7::boolean, produtos.ativo),

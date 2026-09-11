@@ -88,7 +88,7 @@ export class DlinksSyncService {
            $1, $1, $2,
            (select id from marcas where erp_marca_id = $3),
            (select id from categorias where erp_categoria_id = $4),
-           $5, coalesce($6, 1), $1, now()
+           $5, coalesce($6::numeric, 1), $1, now()
          )
          on conflict (erp_produto_id) do update set
            nome = excluded.nome,

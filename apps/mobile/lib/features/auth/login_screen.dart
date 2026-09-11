@@ -130,7 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Criar minha conta'),
                   ),
                   TextButton(
-                    // Recuperação por e-mail entra quando a API tiver o fluxo
                     onPressed: () => showDialog<void>(
                       context: context,
                       builder: (ctx) => AlertDialog(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api_client.dart';
+import '../shell/home_shell.dart';
 
 /// Primeiro acesso: o cliente entrou com a senha inicial (123456) e precisa
 /// criar a dele antes de usar o app. Não dá pra voltar sem concluir.
@@ -49,6 +50,18 @@ class _NovaSenhaScreenState extends State<NovaSenhaScreen> {
     }
   }
 
+  // Escape: se a flag local ficou "provisória" mas a senha já foi trocada
+  // (app morto entre o POST e o marcarSenhaProvisoria), 123456 não vale mais
+  // e a tela travaria pra sempre. Sair limpa a flag e volta ao modo visitante.
+  Future<void> _sair() async {
+    await ApiClient.instance.sair();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeShell()),
+      (_) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -92,6 +105,16 @@ class _NovaSenhaScreenState extends State<NovaSenhaScreen> {
                 child: _enviando
                     ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5))
                     : const Text('Salvar e continuar'),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Se você já criou sua senha antes, saia e entre de novo com ela.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.grey),
+              ),
+              TextButton(
+                onPressed: _enviando ? null : _sair,
+                child: const Text('Sair da conta'),
               ),
             ],
           ),

@@ -137,7 +137,7 @@ export class DlinksSyncService {
       );
       processados++;
     }
-    await this.registrarLog('sync_precos', `${processados} preço(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    await this.registrarLog('sync_precos', `${processados} preço(s), ${ignorados.length} ignorado(s)${resumoIgnorados(ignorados)}`, ignorados.length === 0);
     return { processados, ignorados };
   }
 
@@ -283,4 +283,21 @@ export class DlinksSyncService {
     await this.registrarLog('sync_titulos', `${processados} título(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
     return { processados, ignorados };
   }
+}
+
+/** Resume os ignorados por motivo com amostra dos códigos, pra diagnóstico no integracao_logs. */
+function resumoIgnorados(ignorados: ResultadoSync['ignorados']): string {
+  if (ignorados.length === 0) return '';
+  const porMotivo = new Map<string, string[]>();
+  for (const ig of ignorados) {
+    const item = ig.item as Record<string, unknown>;
+    const chave = ['produto_codigo', 'tabela_id', 'codigo', 'cliente_codigo']
+      .filter((k) => item[k] !== undefined)
+      .map((k) => `${k}=${String(item[k])}`)
+      .join(',');
+    const lista = porMotivo.get(ig.motivo) ?? [];
+    if (lista.length < 3) lista.push(chave);
+    porMotivo.set(ig.motivo, lista);
+  }
+  return ' | ' + [...porMotivo.entries()].map(([m, ex]) => `${m}: ${ex.join('; ')}`).join(' || ');
 }

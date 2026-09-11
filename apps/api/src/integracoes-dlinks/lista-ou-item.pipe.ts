@@ -21,7 +21,13 @@ export class ListaOuItemPipe<T extends object> implements PipeTransform<unknown,
     const mensagens: string[] = [];
     for (let i = 0; i < itens.length; i++) {
       const erros = await validate(itens[i] as object, { whitelist: true, forbidUnknownValues: false });
-      for (const m of this.mensagens(erros)) mensagens.push(`[${i}] ${m}`);
+      const msgs = this.mensagens(erros);
+      for (const m of msgs) mensagens.push(`[${i}] ${m}`);
+      if (msgs.length > 0) {
+        const recebido = lista[i];
+        const campos = recebido && typeof recebido === 'object' ? Object.keys(recebido as object).join(', ') : typeof recebido;
+        mensagens.push(`[${i}] campos recebidos: ${campos}`);
+      }
     }
     if (mensagens.length > 0) {
       throw new BadRequestException({ message: mensagens, error: 'Bad Request', statusCode: 400 });

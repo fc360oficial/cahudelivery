@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ListaOuItemPipe } from './lista-ou-item.pipe';
 import { ProdutoSyncDto } from './produto-sync.dto';
+import { PrecoDto } from './preco.dto';
 
 describe('ListaOuItemPipe', () => {
   const pipe = new ListaOuItemPipe(ProdutoSyncDto);
@@ -39,7 +40,16 @@ describe('ListaOuItemPipe', () => {
       const msg = JSON.stringify((e as BadRequestException).getResponse());
       expect(msg).toContain('[1]');
       expect(msg).toContain('unidade');
+      expect(msg).toContain('[1] campos recebidos: codigo, fornecedor_codigo');
     }
+  });
+
+  it('PrecoDto rejeita tabela_id vazio', async () => {
+    const p = new ListaOuItemPipe(PrecoDto);
+    await expect(p.transform([{ produto_codigo: '789', tabela_id: '', valor: 1 }])).rejects.toMatchObject({
+      response: { message: expect.arrayContaining([expect.stringContaining('tabela_id não pode ser vazio')]) },
+    });
+    await expect(p.transform([{ produto_codigo: '789', tabela_id: '4', valor: 1 }])).resolves.toHaveLength(1);
   });
 
   it('rejeita lista vazia', async () => {

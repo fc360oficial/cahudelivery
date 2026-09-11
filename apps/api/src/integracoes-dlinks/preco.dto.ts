@@ -1,10 +1,12 @@
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class PrecoDto {
   @IsString()
+  @IsNotEmpty()
   produto_codigo!: string;
 
   @IsString()
+  @IsNotEmpty({ message: 'tabela_id não pode ser vazio (código da tabela de preço enviada em /tabelas-de-precos)' })
   tabela_id!: string;
 
   @IsNumber()

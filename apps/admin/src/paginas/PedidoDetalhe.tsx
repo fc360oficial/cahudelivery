@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, fmtData, fmtDocumento, fmtMoeda, STATUS_LABEL } from '../api';
+import { api, fmtData, fmtDocumento, fmtMoeda, PAGAMENTO_LABEL, STATUS_LABEL } from '../api';
 
 interface Detalhe {
   id: string;
@@ -122,7 +122,7 @@ export function PedidoDetalhe() {
           </div>
           <div className="card" style={{ marginTop: 14 }}>
             <div className="rotulo">
-              Cobrança ({p.forma_pagamento.toUpperCase()}
+              Pagamento ({PAGAMENTO_LABEL[p.forma_pagamento] ?? p.forma_pagamento.toUpperCase()}
               {p.condicao_pagamento ? ` — ${p.condicao_pagamento}` : ''})
             </div>
             <div style={{ marginTop: 8 }}>
@@ -132,6 +132,8 @@ export function PedidoDetalhe() {
                   {p.cobranca.pix_copia_cola && <div className="mono" style={{ marginTop: 6, wordBreak: 'break-all' }}>{p.cobranca.pix_copia_cola}</div>}
                   {p.cobranca.linha_digitavel && <div className="mono" style={{ marginTop: 6 }}>{p.cobranca.linha_digitavel}</div>}
                 </>
+              ) : p.forma_pagamento === 'cartao' ? (
+                <span style={{ color: 'var(--texto-2)' }}>Cliente paga na maquininha ao receber o pedido</span>
               ) : (
                 <span style={{ color: 'var(--texto-2)' }}>Aguardando o ERP gerar a cobrança</span>
               )}

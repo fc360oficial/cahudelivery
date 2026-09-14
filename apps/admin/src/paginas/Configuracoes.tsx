@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, PAGAMENTO_LABEL } from '../api';
 
 interface Config {
   pedido_minimo?: { tipo: string; valor: number };
@@ -73,12 +73,13 @@ export function Configuracoes() {
         <div className="card">
           <div className="rotulo">Formas de pagamento aceitas</div>
           <div className="filtros" style={{ marginTop: 8, marginBottom: 0 }}>
-            {['pix', 'boleto'].map((f) => (
+            {['pix', 'cartao', 'boleto'].map((f) => (
               <button key={f} type="button" className={`pill-filtro ${formas.includes(f) ? 'ativo' : ''}`} onClick={() => toggleForma(f)}>
-                {f.toUpperCase()}
+                {PAGAMENTO_LABEL[f]}
               </button>
             ))}
           </div>
+          <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>Só as formas marcadas aparecem no checkout do app. Cartão = crédito/débito na maquininha, na entrega (sem cobrança online).</div>
         </div>
 
         <div className="card">

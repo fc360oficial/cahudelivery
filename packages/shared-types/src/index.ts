@@ -15,7 +15,8 @@ export const PEDIDO_STATUS = [
 ] as const;
 export type PedidoStatus = (typeof PEDIDO_STATUS)[number];
 
-export type FormaPagamento = 'boleto' | 'pix';
+/** 'cartao' = crédito/débito na maquininha na entrega (sem gateway online por enquanto). */
+export type FormaPagamento = 'boleto' | 'pix' | 'cartao';
 export type UnidadeVenda = 'UN' | 'CX' | 'FD' | 'PC' | 'KG';
 export type ClienteStatus = 'pendente' | 'aprovado' | 'bloqueado';
 

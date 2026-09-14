@@ -56,6 +56,7 @@ class DevMockAdapter implements ErpAdapter {
     const reg = this.pedidos.get(erpPedidoId);
     const { status } = await this.consultarStatusPedido(erpPedidoId);
     if (!reg || status === 'ENVIADO_ERP') return null;
+    if (reg.pedido.formaPagamento === 'cartao') return null; // paga na maquininha, sem cobrança do ERP
     const itensTotal = reg.pedido.itens.reduce((t, i) => t + i.quantidade * i.precoUnit, 0);
     const valor = Math.max(0, itensTotal - (reg.pedido.valorAbatidoSaldo ?? 0));
     return reg.pedido.formaPagamento === 'pix'

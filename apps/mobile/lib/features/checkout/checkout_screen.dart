@@ -9,8 +9,46 @@ import '../profile/endereco_form_screen.dart';
 import 'pedido_sucesso_screen.dart';
 
 /// Checkout em 3 passos (fluxo aprovado): 1. endereço de entrega,
-/// 2. pagamento (PIX/boleto — cobrança emitida pelo ERP), 3. revisão +
+/// 2. pagamento (formas habilitadas na retaguarda: PIX/boleto — cobrança
+/// emitida pelo ERP — ou cartão na maquininha, na entrega), 3. revisão +
 /// observações. Confirmar → POST /v1/pedidos → tela de sucesso.
+
+/// Formas de pagamento que o app sabe exibir. Quais aparecem de fato vem da
+/// config 'formas_pagamento' do tenant (Retaguarda > Configurações).
+class _FormaPagamento {
+  const _FormaPagamento(this.codigo, this.icone, this.titulo, this.descricao, this.aviso);
+  final String codigo;
+  final IconData icone;
+  final String titulo;
+  final String descricao;
+  final String aviso;
+}
+
+const _formasConhecidas = <_FormaPagamento>[
+  _FormaPagamento('pix', Icons.qr_code_2, 'PIX',
+      'Código copia-e-cola liberado após o faturamento',
+      'A cobrança PIX é gerada pela distribuidora no faturamento do pedido. '
+      'Você acompanha tudo na aba Pedidos.'),
+  _FormaPagamento('cartao', Icons.credit_card, 'Cartão na entrega',
+      'Crédito ou débito na maquininha, ao receber o pedido',
+      'Você paga na maquininha do entregador quando o pedido chegar. '
+      'Nada é cobrado agora.'),
+  _FormaPagamento('boleto', Icons.receipt_outlined, 'Boleto',
+      'Boleto emitido junto com a nota fiscal',
+      'O boleto é gerado pela distribuidora no faturamento do pedido. '
+      'Você acompanha tudo na aba Pedidos.'),
+];
+
+List<_FormaPagamento> _formasAceitas() {
+  final cfg = (TenantTheme.instance.configuracoes['formas_pagamento'] as List?)
+      ?.map((e) => '$e')
+      .toSet();
+  final lista = _formasConhecidas
+      .where((f) => cfg == null || cfg.contains(f.codigo))
+      .toList();
+  // Config vazia/inválida: não deixa o cliente sem forma de pagar.
+  return lista.isEmpty ? [_formasConhecidas.first] : lista;
+}
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -24,8 +62,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _erro;
   String? _enderecoId;
   String _tipoEntrega = 'entrega';
-  String _pagamento = 'pix';
+  late final List<_FormaPagamento> _formas = _formasAceitas();
+  late String _pagamento = _formas.first.codigo;
   String? _condicaoPagamento;
+
+  _FormaPagamento get _formaAtual =>
+      _formas.firstWhere((f) => f.codigo == _pagamento, orElse: () => _formas.first);
   final _observacoes = TextEditingController();
   bool _confirmando = false;
   double _saldo = 0;
@@ -417,11 +459,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   : null,
             ),
           ),
-        opcao('pix', Icons.qr_code_2, 'PIX',
-            'Código copia-e-cola liberado após o faturamento'),
-        opcao('boleto', Icons.receipt_outlined, 'Boleto',
-            'Boleto emitido junto com a nota fiscal'),
-        if (_pagamento == 'boleto') _condicoesBoleto(),
+        for (final f in _formas) ...[
+          opcao(f.codigo, f.icone, f.titulo, f.descricao),
+          if (f.codigo == 'boleto' && _pagamento == 'boleto') _condicoesBoleto(),
+        ],
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(14),
@@ -435,8 +476,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'A cobrança é gerada pela distribuidora no faturamento do pedido. '
-                  'Você acompanha tudo na aba Pedidos.',
+                  _formaAtual.aviso,
                   style: TextStyle(fontSize: 12.5, color: Colors.blue.shade900, height: 1.4),
                 ),
               ),
@@ -510,10 +550,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 const Divider(height: 20),
                 _linhaResumo(
-                  _pagamento == 'pix' ? Icons.qr_code_2 : Icons.receipt_outlined,
-                  _pagamento == 'pix'
-                      ? 'PIX'
-                      : 'Boleto — ${_condicaoPagamento ?? 'À vista'}',
+                  _formaAtual.icone,
+                  _pagamento == 'boleto'
+                      ? 'Boleto — ${_condicaoPagamento ?? 'À vista'}'
+                      : _formaAtual.titulo,
                 ),
               ],
             ),

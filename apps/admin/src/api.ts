@@ -74,6 +74,12 @@ export const fmtDocumento = (v: string | null | undefined) => {
 export const fmtData = (v: string) =>
   new Date(v).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
+export const PAGAMENTO_LABEL: Record<string, string> = {
+  pix: 'PIX',
+  cartao: 'Cartão na entrega',
+  boleto: 'Boleto',
+};
+
 export const STATUS_LABEL: Record<string, string> = {
   RECEBIDO: 'Recebido',
   ENVIADO_ERP: 'No ERP',

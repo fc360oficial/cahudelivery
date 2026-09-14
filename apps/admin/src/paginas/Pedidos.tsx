@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api, fmtData, fmtMoeda, STATUS_LABEL } from '../api';
+import { api, fmtData, fmtMoeda, PAGAMENTO_LABEL, STATUS_LABEL } from '../api';
 
 interface LinhaPedido {
   id: string;
@@ -58,7 +58,7 @@ export function Pedidos() {
                 <td><strong>#{p.numero}</strong></td>
                 <td>{p.cliente}</td>
                 <td><span className={`badge ${p.status}`}>{STATUS_LABEL[p.status] ?? p.status}</span></td>
-                <td>{p.forma_pagamento.toUpperCase()}</td>
+                <td>{PAGAMENTO_LABEL[p.forma_pagamento] ?? p.forma_pagamento.toUpperCase()}</td>
                 <td>{fmtMoeda(p.total)}</td>
                 <td className="mono">{p.erp_pedido_id ?? '—'}</td>
                 <td>{fmtData(p.criado_em)}</td>

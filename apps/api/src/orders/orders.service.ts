@@ -78,7 +78,7 @@ export class OrdersService {
     clienteId: string,
     dto: {
       enderecoId?: string;
-      formaPagamento: 'boleto' | 'pix';
+      formaPagamento: 'boleto' | 'pix' | 'cartao';
       tipoEntrega?: 'entrega' | 'retirada';
       observacoes?: string;
       condicaoPagamento?: string;
@@ -102,6 +102,14 @@ export class OrdersService {
     const cfg = await pool.query(`select valor_json from configuracoes where chave = 'pedido_minimo'`);
     const minimo = Number(cfg.rows[0]?.valor_json?.valor ?? 0);
     if (subtotal < minimo) throw new BadRequestException(`Pedido mínimo: R$ ${minimo.toFixed(2)}`);
+
+    // Só aceita forma habilitada na retaguarda (Configurações > Formas de pagamento aceitas).
+    // Config ausente = comportamento antigo (pix e boleto).
+    const cfgFormas = await pool.query(`select valor_json from configuracoes where chave = 'formas_pagamento'`);
+    const formasAceitas: string[] = Array.isArray(cfgFormas.rows[0]?.valor_json) ? cfgFormas.rows[0].valor_json : ['pix', 'boleto'];
+    if (!formasAceitas.includes(dto.formaPagamento)) {
+      throw new BadRequestException('Forma de pagamento não disponível');
+    }
 
     if (dto.formaPagamento === 'boleto') {
       const cred = await pool.query(`select limite_credito from clientes where id = $1`, [clienteId]);

@@ -159,6 +159,9 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
             // Cobrança (aparece quando o ERP fatura)
             if (cobranca != null) _cartaoCobranca(cobranca),
 
+            // Cartão na entrega: não há cobrança do ERP, o cliente paga na maquininha
+            if (cobranca == null && p['forma_pagamento'] == 'cartao') _cartaoPagamentoEntrega(),
+
             // Nota fiscal
             if (nota != null) _cartaoNota(nota),
 
@@ -407,6 +410,33 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
                     ),
                   ],
                 ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _cartaoPagamentoEntrega() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _titulo('Pagamento'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Icon(Icons.credit_card, color: Colors.grey.shade700),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Cartão na entrega · crédito ou débito na maquininha ao receber o pedido',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
               ],
             ),
           ),

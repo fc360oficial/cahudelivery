@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { unlink } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 
 /**
@@ -26,8 +26,10 @@ export async function padronizarFotoProduto(caminhoOriginal: string): Promise<Fo
   const arquivo = `${nomeBase}.jpg`;
   const miniatura = `${nomeBase}-m.jpg`;
 
-  // rotate() sem argumento aplica a orientação EXIF (foto de celular deitada)
-  const origem = sharp(caminhoOriginal, { failOn: 'none' }).rotate();
+  // Lê o original inteiro em memória: se ele já for .jpg, a saída tem o MESMO nome
+  // e o sharp recusa gravar por cima do arquivo que está lendo.
+  // rotate() sem argumento aplica a orientação EXIF (foto de celular deitada).
+  const origem = sharp(await readFile(caminhoOriginal), { failOn: 'none' }).rotate();
 
   await origem
     .clone()

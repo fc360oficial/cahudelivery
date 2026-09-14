@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fmtMoeda, upload } from '../api';
+import { api, fmtMoeda, uploadCompleto } from '../api';
 import { Paginacao } from '../Paginacao';
 
 interface LinhaProduto {
@@ -53,8 +53,8 @@ export function Produtos() {
     if (!arquivo) return;
     setSubindoId(id);
     try {
-      const url = await upload(arquivo);
-      await api(`/admin/produtos/${id}/imagem`, { method: 'PUT', body: JSON.stringify({ url }) });
+      const { url, urlMiniatura } = await uploadCompleto(arquivo, 'produto');
+      await api(`/admin/produtos/${id}/imagem`, { method: 'PUT', body: JSON.stringify({ url, urlMiniatura }) });
       setErro(null);
       carregar();
     } catch (err) {

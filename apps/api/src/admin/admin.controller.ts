@@ -25,6 +25,7 @@ class ValidadeDto {
 
 class ImagemProdutoDto {
   @IsNotEmpty() @IsString() url!: string;
+  @IsOptional() @IsString() urlMiniatura?: string;
 }
 
 class MovimentoCarteiraDto {
@@ -102,7 +103,7 @@ export class AdminController {
 
   @Put('produtos/:id/imagem')
   definirImagemProduto(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ImagemProdutoDto) {
-    return this.admin.definirImagemProduto(id, dto.url, req.admin.usuarioId);
+    return this.admin.definirImagemProduto(id, dto.url, req.admin.usuarioId, dto.urlMiniatura);
   }
 
   @Delete('produtos/:id/imagem')

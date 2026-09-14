@@ -21,7 +21,9 @@ class ProdutoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imagens = produto['imagens'] as List?;
-    final imagemUrl = (imagens != null && imagens.isNotEmpty) ? imagens.first['url'] as String? : null;
+    final imagemUrl = (imagens != null && imagens.isNotEmpty)
+        ? (imagens.first['miniatura'] ?? imagens.first['url']) as String?
+        : null;
     final emPromocao = produto['preco_promocional'] != null;
     final semEstoque = asDouble(produto['estoque']) <= 0;
     final produtoId = produto['id'] as String;
@@ -43,8 +45,12 @@ class ProdutoCard extends StatelessWidget {
                   AspectRatio(
                     aspectRatio: 1.0,
                     child: imagemUrl != null
-                        ? Image.network(imagemUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, e, s) => _semFoto())
+                        // contain + fundo branco: foto padronizada já é quadrada; foto antiga
+                        // (proporção qualquer) aparece inteira em vez de cortada.
+                        ? Container(
+                            color: Colors.white,
+                            child: Image.network(imagemUrl, fit: BoxFit.contain,
+                                errorBuilder: (_, e, s) => _semFoto()))
                         : _semFoto(),
                   ),
                   Positioned(top: 8, right: 8, child: _BotaoFavorito(produtoId: produtoId)),

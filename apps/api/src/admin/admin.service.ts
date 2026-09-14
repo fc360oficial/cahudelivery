@@ -355,7 +355,7 @@ export class AdminService {
     return { ok: true };
   }
 
-  async definirImagemProduto(produtoId: string, url: string, usuarioId: string) {
+  async definirImagemProduto(produtoId: string, url: string, usuarioId: string, urlMiniatura?: string) {
     const { pool } = tenantCtx();
     const client = await pool.connect();
     try {
@@ -369,11 +369,11 @@ export class AdminService {
         [produtoId],
       );
       if (capa.rowCount) {
-        await client.query(`update produto_imagens set url = $2 where id = $1`, [capa.rows[0].id, url]);
+        await client.query(`update produto_imagens set url = $2, url_miniatura = $3 where id = $1`, [capa.rows[0].id, url, urlMiniatura ?? null]);
       } else {
         await client.query(
-          `insert into produto_imagens (produto_id, url, ordem, origem) values ($1, $2, 0, 'retaguarda')`,
-          [produtoId, url],
+          `insert into produto_imagens (produto_id, url, url_miniatura, ordem, origem) values ($1, $2, $3, 0, 'retaguarda')`,
+          [produtoId, url, urlMiniatura ?? null],
         );
       }
       await client.query(

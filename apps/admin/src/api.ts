@@ -48,17 +48,22 @@ export async function api<T = unknown>(path: string, init?: RequestInit): Promis
 
 /** Envia uma imagem (banner, foto de produto) e devolve a URL pública. */
 export async function upload(arquivo: File): Promise<string> {
+  return (await uploadCompleto(arquivo)).url;
+}
+
+/** tipo='produto' → a API padroniza a foto (quadrado 1000x1000 fundo branco) e devolve também a miniatura. */
+export async function uploadCompleto(arquivo: File, tipo?: 'produto'): Promise<{ url: string; urlMiniatura?: string }> {
   const s = sessao();
   const fd = new FormData();
   fd.append('arquivo', arquivo);
-  const res = await fetch(`${API_URL}/admin/upload`, {
+  const res = await fetch(`${API_URL}/admin/upload${tipo ? `?tipo=${tipo}` : ''}`, {
     method: 'POST',
     headers: { 'X-Tenant': TENANT, ...(s ? { Authorization: `Bearer ${s.accessToken}` } : {}) },
     body: fd,
   });
   const body = await res.json();
   if (!res.ok) throw new Error(body?.message ?? 'Falha no upload');
-  return body.url as string;
+  return body as { url: string; urlMiniatura?: string };
 }
 
 export const fmtMoeda = (v: unknown) =>

@@ -28,7 +28,7 @@ export class OrdersService {
     const { rows } = await pool.query(
       `select ci.produto_id, ci.quantidade, p.nome, p.unidade_venda, p.qtd_minima,
               coalesce(e.quantidade,0) as estoque,
-              (select pi.url from produto_imagens pi where pi.produto_id = p.id order by pi.ordem limit 1) as imagem_url,
+              (select coalesce(pi.url_miniatura, pi.url) from produto_imagens pi where pi.produto_id = p.id order by pi.ordem limit 1) as imagem_url,
               least(
                 coalesce(promo.preco_promocional, pr.preco),
                 case when p.desconto_qtd_minima is not null and pr.preco is not null and ci.quantidade >= p.desconto_qtd_minima

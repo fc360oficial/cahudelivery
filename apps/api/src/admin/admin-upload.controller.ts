@@ -1,4 +1,5 @@
-import { BadRequestException, Controller, Post, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { padronizarFotoProduto } from './foto-produto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { randomBytes } from 'node:crypto';
@@ -33,9 +34,14 @@ export class AdminUploadController {
       },
     }),
   )
-  upload(@Req() req: Request, @UploadedFile() arquivo?: Express.Multer.File) {
+  async upload(@Req() req: Request, @Query('tipo') tipo?: string, @UploadedFile() arquivo?: Express.Multer.File) {
     if (!arquivo) throw new BadRequestException('Nenhum arquivo enviado (campo: arquivo)');
     const base = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
+    // Foto de produto: padroniza (quadrado 1000x1000 fundo branco + miniatura). Banner/logo fica como veio.
+    if (tipo === 'produto') {
+      const { arquivo: nome, miniatura } = await padronizarFotoProduto(arquivo.path);
+      return { url: `${base}/uploads/${nome}`, urlMiniatura: `${base}/uploads/${miniatura}` };
+    }
     return { url: `${base}/uploads/${arquivo.filename}` };
   }
 }

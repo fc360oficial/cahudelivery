@@ -237,8 +237,10 @@ class _ItemCarrinho extends StatelessWidget {
                   width: 64,
                   height: 64,
                   child: imagemUrl != null
-                      ? Image.network(imagemUrl, fit: BoxFit.cover,
-                          errorBuilder: (_, e, s) => _semFoto())
+                      ? Container(
+                          color: Colors.white,
+                          child: Image.network(imagemUrl, fit: BoxFit.contain,
+                              errorBuilder: (_, e, s) => _semFoto()))
                       : _semFoto(),
                 ),
               ),

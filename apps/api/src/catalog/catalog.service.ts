@@ -19,7 +19,7 @@ const SELECT_PRODUTO_BASE = `
          pr.preco as preco_tabela,
          promo.preco_promocional,
          coalesce(promo.preco_promocional, pr.preco) as preco,
-         (select json_agg(json_build_object('url', pi.url, 'ordem', pi.ordem) order by pi.ordem)
+         (select json_agg(json_build_object('url', pi.url, 'miniatura', pi.url_miniatura, 'ordem', pi.ordem) order by pi.ordem)
             from produto_imagens pi where pi.produto_id = p.id) as imagens
     from produtos p
     left join marcas m on m.id = p.marca_id
@@ -107,7 +107,7 @@ export class CatalogService {
                     'qtd_por_embalagem', p.qtd_por_embalagem, 'qtd_minima', p.qtd_minima, 'estoque', coalesce(e.quantidade,0),
                     'preco_tabela', pr.preco, 'preco_promocional', promo.preco_promocional,
                     'preco', coalesce(pp.preco_especial, promo.preco_promocional, pr.preco),
-                    'imagens', (select json_agg(json_build_object('url', pi.url,'ordem', pi.ordem) order by pi.ordem)
+                    'imagens', (select json_agg(json_build_object('url', pi.url, 'miniatura', pi.url_miniatura, 'ordem', pi.ordem) order by pi.ordem)
                                   from produto_imagens pi where pi.produto_id = p.id)
                   ) order by pp.ordem)
                    from patrocinador_produtos pp

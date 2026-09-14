@@ -166,9 +166,9 @@ export function Produtos() {
       </div>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">
-        <table>
+        <table className="tabela-produtos">
           <thead>
-            <tr><th>Foto</th><th>SKU</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por quantidade</th><th>Validade</th><th>Situação</th><th></th></tr>
+            <tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por qtd.</th><th>Validade</th><th>Situação</th></tr>
           </thead>
           <tbody>
             {dados?.map((p) => (
@@ -177,10 +177,10 @@ export function Produtos() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <label style={{ cursor: subindoId === p.id ? 'default' : 'pointer' }}>
                       {p.imagem_url ? (
-                        <img src={p.imagem_url} alt="" style={{ width: 40, height: 40, objectFit: 'contain', background: '#fff', border: '1px solid var(--borda)', borderRadius: 6 }} />
+                        <img src={p.imagem_url} alt="" style={{ width: 56, height: 56, objectFit: 'contain', background: '#fff', border: '1px solid var(--borda)', borderRadius: 8, display: 'block' }} />
                       ) : (
                         <div style={{
-                          width: 40, height: 40, borderRadius: 6, background: 'var(--fundo)',
+                          width: 56, height: 56, borderRadius: 8, background: 'var(--fundo)',
                           border: '1px dashed var(--borda)', display: 'flex', alignItems: 'center',
                           justifyContent: 'center', color: 'var(--texto-2)', fontSize: 10,
                         }}>
@@ -197,9 +197,11 @@ export function Produtos() {
                     )}
                   </div>
                 </td>
-                <td className="mono">{p.sku}</td>
-                <td><strong>{p.nome}</strong>{p.marca ? <span style={{ color: 'var(--texto-2)' }}> · {p.marca}</span> : null}</td>
-                <td>{p.categoria ?? '—'}</td>
+                <td className="col-produto">
+                  <div className="nome">{p.nome}</div>
+                  <div className="sub"><span className="mono">{p.sku}</span>{p.marca ? ` · ${p.marca}` : ''}</div>
+                </td>
+                <td className="nowrap">{p.categoria ?? '—'}</td>
                 <td>{p.unidade_venda}</td>
                 <td>{Number(p.estoque)}</td>
                 <td>{p.preco ? fmtMoeda(p.preco) : '—'}</td>
@@ -236,21 +238,21 @@ export function Produtos() {
                     <span style={{ color: 'var(--texto-2)' }}>—</span>
                   )}
                 </td>
-                <td><span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span></td>
-                <td>
+                <td className="nowrap">
+                  <span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span>{' '}
                   <button className={`btn-mini ${p.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(p)}>
                     {p.ativo ? 'Desativar' : 'Ativar'}
                   </button>
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={11} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={9} className="vazio">Nenhum produto — aguarde a sincronização do ERP</td></tr>}
           </tbody>
         </table>
       </div>
       {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} onMudar={setPagina} />}
       <small style={{ color: 'var(--texto-2)', display: 'block', marginTop: 8 }}>
-        Foto quadrada, ideal 800×800, até 5MB (PNG/JPG/WEBP).
+        Qualquer foto serve (celular, internet, catálogo), até 5MB: o sistema padroniza em 1000×1000 com fundo branco. Fotografe sobre fundo claro.
       </small>
     </>
   );

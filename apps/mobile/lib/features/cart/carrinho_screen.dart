@@ -202,6 +202,7 @@ class _ItemCarrinho extends StatelessWidget {
     final preco = asDouble(item['preco_atual']);
     final minima = asDouble(item['qtd_minima']);
     final estoque = asDouble(item['estoque']);
+    final imagemUrl = item['imagem_url'] as String?;
 
     Future<void> mudar(double v) async {
       try {
@@ -230,6 +231,18 @@ class _ItemCarrinho extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: imagemUrl != null
+                      ? Image.network(imagemUrl, fit: BoxFit.cover,
+                          errorBuilder: (_, e, s) => _semFoto())
+                      : _semFoto(),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,4 +283,9 @@ class _ItemCarrinho extends StatelessWidget {
       ),
     );
   }
+
+  Widget _semFoto() => Container(
+        color: Colors.grey.shade100,
+        child: Icon(Icons.image_not_supported_outlined, color: Colors.grey.shade400, size: 26),
+      );
 }

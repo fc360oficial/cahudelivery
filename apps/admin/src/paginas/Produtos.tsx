@@ -149,7 +149,11 @@ export function Produtos() {
             {rotulo}{qtd != null ? ` (${qtd})` : ''}
           </button>
         ))}
-        <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--borda)', margin: '0 4px' }} />
+      </div>
+      <div className="filtros" style={{ marginTop: -6, alignItems: 'center' }}>
+        <span style={{ color: 'var(--texto-2)', fontSize: 12.5 }}>
+          Dentro de <strong>{estoque === 'com' ? 'Com estoque' : estoque === 'sem' ? 'Sem estoque' : 'Todos'}</strong>:
+        </span>
         {([
           ['com', 'Com imagem', resumo?.comImagem],
           ['sem', 'Sem imagem', resumo?.semImagem],

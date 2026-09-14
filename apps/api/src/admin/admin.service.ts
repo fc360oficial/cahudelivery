@@ -283,15 +283,21 @@ export class AdminService {
     const resumo = await pool.query(
       `select count(*)::int as total,
               count(*) filter (where coalesce(e.quantidade,0) > 0)::int as com_estoque,
-              count(*) filter (where coalesce(e.quantidade,0) <= 0)::int as sem_estoque,
-              count(*) filter (where exists (select 1 from produto_imagens i where i.produto_id = p.id))::int as com_imagem,
-              count(*) filter (where not exists (select 1 from produto_imagens i where i.produto_id = p.id))::int as sem_imagem
+              count(*) filter (where coalesce(e.quantidade,0) <= 0)::int as sem_estoque
          from produtos p left join estoques e on e.produto_id = p.id
         where ${cond.join(' and ')}`,
       params,
     );
     if (f.estoque === 'com') cond.push('coalesce(e.quantidade,0) > 0');
     if (f.estoque === 'sem') cond.push('coalesce(e.quantidade,0) <= 0');
+    // Contagem de imagem DENTRO do filtro de estoque escolhido ("dos 188 com estoque, quantos têm foto").
+    const resumoImg = await pool.query(
+      `select count(*) filter (where exists (select 1 from produto_imagens i where i.produto_id = p.id))::int as com_imagem,
+              count(*) filter (where not exists (select 1 from produto_imagens i where i.produto_id = p.id))::int as sem_imagem
+         from produtos p left join estoques e on e.produto_id = p.id
+        where ${cond.join(' and ')}`,
+      params,
+    );
     if (f.imagem === 'com') cond.push('exists (select 1 from produto_imagens i where i.produto_id = p.id)');
     if (f.imagem === 'sem') cond.push('not exists (select 1 from produto_imagens i where i.produto_id = p.id)');
     params.push((f.pagina - 1) * 25);
@@ -311,7 +317,7 @@ export class AdminService {
       params,
     );
     const r = resumo.rows[0];
-    return { dados: rows, pagina: f.pagina, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque, comImagem: r.com_imagem, semImagem: r.sem_imagem } };
+    return { dados: rows, pagina: f.pagina, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque, comImagem: resumoImg.rows[0].com_imagem, semImagem: resumoImg.rows[0].sem_imagem } };
   }
 
   async alternarProduto(id: string, ativo: boolean, usuarioId: string) {

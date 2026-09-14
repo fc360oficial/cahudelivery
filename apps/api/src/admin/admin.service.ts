@@ -271,7 +271,7 @@ export class AdminService {
     return { ok: true, removidoDeVerdade: !preservarCliente };
   }
 
-  async produtos(f: { busca?: string; estoque?: 'com' | 'sem'; pagina: number }) {
+  async produtos(f: { busca?: string; estoque?: 'com' | 'sem'; imagem?: 'com' | 'sem'; pagina: number }) {
     const { pool } = tenantCtx();
     const cond: string[] = ['true'];
     const params: unknown[] = [];
@@ -283,13 +283,17 @@ export class AdminService {
     const resumo = await pool.query(
       `select count(*)::int as total,
               count(*) filter (where coalesce(e.quantidade,0) > 0)::int as com_estoque,
-              count(*) filter (where coalesce(e.quantidade,0) <= 0)::int as sem_estoque
+              count(*) filter (where coalesce(e.quantidade,0) <= 0)::int as sem_estoque,
+              count(*) filter (where exists (select 1 from produto_imagens i where i.produto_id = p.id))::int as com_imagem,
+              count(*) filter (where not exists (select 1 from produto_imagens i where i.produto_id = p.id))::int as sem_imagem
          from produtos p left join estoques e on e.produto_id = p.id
         where ${cond.join(' and ')}`,
       params,
     );
     if (f.estoque === 'com') cond.push('coalesce(e.quantidade,0) > 0');
     if (f.estoque === 'sem') cond.push('coalesce(e.quantidade,0) <= 0');
+    if (f.imagem === 'com') cond.push('exists (select 1 from produto_imagens i where i.produto_id = p.id)');
+    if (f.imagem === 'sem') cond.push('not exists (select 1 from produto_imagens i where i.produto_id = p.id)');
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade,
@@ -297,7 +301,7 @@ export class AdminService {
               coalesce(e.quantidade,0) as estoque,
               (select preco from precos pr join tabelas_preco t on t.id = pr.tabela_preco_id and t.padrao
                 where pr.produto_id = p.id) as preco,
-              (select url from produto_imagens where produto_id = p.id order by ordem asc limit 1) as imagem_url
+              (select coalesce(url_miniatura, url) from produto_imagens where produto_id = p.id order by ordem asc limit 1) as imagem_url
          from produtos p
          left join categorias c on c.id = p.categoria_id
          left join marcas m on m.id = p.marca_id
@@ -307,7 +311,7 @@ export class AdminService {
       params,
     );
     const r = resumo.rows[0];
-    return { dados: rows, pagina: f.pagina, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque } };
+    return { dados: rows, pagina: f.pagina, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque, comImagem: r.com_imagem, semImagem: r.sem_imagem } };
   }
 
   async alternarProduto(id: string, ativo: boolean, usuarioId: string) {

@@ -21,9 +21,10 @@ interface LinhaProduto {
 export function Produtos() {
   const [busca, setBusca] = useState('');
   const [estoque, setEstoque] = useState<'' | 'com' | 'sem'>('');
+  const [imagem, setImagem] = useState<'' | 'com' | 'sem'>('');
   const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaProduto[] | null>(null);
-  const [resumo, setResumo] = useState<{ total: number; comEstoque: number; semEstoque: number } | null>(null);
+  const [resumo, setResumo] = useState<{ total: number; comEstoque: number; semEstoque: number; comImagem: number; semImagem: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [minimaEdit, setMinimaEdit] = useState('');
@@ -31,20 +32,21 @@ export function Produtos() {
   const [validadeEdit, setValidadeEdit] = useState('');
   const [subindoId, setSubindoId] = useState<string | null>(null);
 
-  useEffect(() => setPagina(1), [busca, estoque]);
+  useEffect(() => setPagina(1), [busca, estoque, imagem]);
 
   const carregar = useCallback(() => {
     const q = new URLSearchParams();
     if (busca) q.set('busca', busca);
     if (estoque) q.set('estoque', estoque);
+    if (imagem) q.set('imagem', imagem);
     q.set('pagina', String(pagina));
-    api<{ dados: LinhaProduto[]; resumo: { total: number; comEstoque: number; semEstoque: number } }>(`/admin/produtos?${q}`)
+    api<{ dados: LinhaProduto[]; resumo: { total: number; comEstoque: number; semEstoque: number; comImagem: number; semImagem: number } }>(`/admin/produtos?${q}`)
       .then((r) => {
         setDados(r.dados);
         setResumo(r.resumo);
       })
       .catch((e) => setErro(e.message));
-  }, [busca, estoque, pagina]);
+  }, [busca, estoque, imagem, pagina]);
 
   useEffect(carregar, [carregar]);
 
@@ -147,6 +149,16 @@ export function Produtos() {
             {rotulo}{qtd != null ? ` (${qtd})` : ''}
           </button>
         ))}
+        <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--borda)', margin: '0 4px' }} />
+        {([
+          ['com', 'Com imagem', resumo?.comImagem],
+          ['sem', 'Sem imagem', resumo?.semImagem],
+        ] as const).map(([valor, rotulo, qtd]) => (
+          <button key={`img-${valor}`} className={`pill-filtro ${imagem === valor ? 'ativo' : ''}`}
+            onClick={() => setImagem(imagem === valor ? '' : valor)}>
+            {rotulo}{qtd != null ? ` (${qtd})` : ''}
+          </button>
+        ))}
       </div>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">
@@ -161,7 +173,7 @@ export function Produtos() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <label style={{ cursor: subindoId === p.id ? 'default' : 'pointer' }}>
                       {p.imagem_url ? (
-                        <img src={p.imagem_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />
+                        <img src={p.imagem_url} alt="" style={{ width: 40, height: 40, objectFit: 'contain', background: '#fff', border: '1px solid var(--borda)', borderRadius: 6 }} />
                       ) : (
                         <div style={{
                           width: 40, height: 40, borderRadius: 6, background: 'var(--fundo)',

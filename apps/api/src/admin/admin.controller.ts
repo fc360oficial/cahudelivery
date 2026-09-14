@@ -81,9 +81,10 @@ export class AdminController {
   }
 
   @Get('produtos')
-  produtos(@Query('busca') busca?: string, @Query('estoque') estoque?: string, @Query('pagina') pagina = '1') {
+  produtos(@Query('busca') busca?: string, @Query('estoque') estoque?: string, @Query('imagem') imagem?: string, @Query('pagina') pagina = '1') {
     const filtroEstoque = estoque === 'com' || estoque === 'sem' ? estoque : undefined;
-    return this.admin.produtos({ busca, estoque: filtroEstoque, pagina: Math.max(1, Number(pagina) || 1) });
+    const filtroImagem = imagem === 'com' || imagem === 'sem' ? imagem : undefined;
+    return this.admin.produtos({ busca, estoque: filtroEstoque, imagem: filtroImagem, pagina: Math.max(1, Number(pagina) || 1) });
   }
 
   @Patch('produtos/:id/ativo')

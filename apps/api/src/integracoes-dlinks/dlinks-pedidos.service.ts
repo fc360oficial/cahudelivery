@@ -7,7 +7,17 @@ export interface PedidoDlinks {
   codigo: string;
   numero: number;
   criadoEm: string;
-  cliente: { documento: string; erpClienteId: string | null };
+  /** Devolve ao Dlinks o mesmo cadastro que ele sobe no POST /clientes (+ o que o cliente preencheu no app). */
+  cliente: {
+    codigo: string | null; // código do cliente no ERP (o que o Dlinks mandou como "codigo"); null = cliente ainda não sincronizado
+    documento: string; // CNPJ/CPF só dígitos
+    tipo: string; // 'CNPJ' | 'CPF'
+    razaoSocial: string | null;
+    nomeFantasia: string | null;
+    email: string | null;
+    telefone: string | null;
+    erpClienteId: string | null; // mantido por compatibilidade — mesmo valor de `codigo`
+  };
   tipoEntrega: string;
   endereco: Record<string, unknown> | null;
   formaPagamento: string;
@@ -31,7 +41,7 @@ export class DlinksPedidosService {
     const { rows } = await pool.query(
       `select p.id, p.numero, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
               p.endereco_snapshot_json, p.valor_saldo_usado,
-              c.documento, c.erp_cliente_id,
+              c.documento, c.erp_cliente_id, c.tipo, c.razao_social, c.nome_fantasia, c.email, c.telefone,
               (select json_agg(json_build_object(
                   'erpProdutoId', coalesce(pr.erp_produto_id, pr.sku),
                   'quantidade', i.quantidade, 'precoUnit', i.preco_unit))
@@ -54,7 +64,16 @@ export class DlinksPedidosService {
         // pedidos.numero é bigint — node-pg devolve string, converter pro Dlinks receber número
         numero: Number(r.numero),
         criadoEm: r.criado_em,
-        cliente: { documento: r.documento, erpClienteId: r.erp_cliente_id },
+        cliente: {
+          codigo: r.erp_cliente_id,
+          documento: r.documento,
+          tipo: r.tipo,
+          razaoSocial: r.razao_social,
+          nomeFantasia: r.nome_fantasia,
+          email: r.email,
+          telefone: r.telefone,
+          erpClienteId: r.erp_cliente_id,
+        },
         tipoEntrega: r.tipo_entrega,
         endereco: r.endereco_snapshot_json,
         formaPagamento: r.forma_pagamento,

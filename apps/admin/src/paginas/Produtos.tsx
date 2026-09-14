@@ -170,15 +170,15 @@ export function Produtos() {
       <div className="tabela-wrap tabela-wrap-fixa">
         <table className="tabela-produtos">
           <colgroup>
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '31%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '30%' }} />
             <col style={{ width: '11%' }} />
             <col style={{ width: '5%' }} />
             <col style={{ width: '7%' }} />
             <col style={{ width: '8%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '7%' }} />
-            <col style={{ width: '10%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '12%' }} />
           </colgroup>
           <thead>
             <tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por qtd.</th><th>Validade</th><th>Situação</th></tr>
@@ -187,7 +187,7 @@ export function Produtos() {
             {dados?.map((p) => (
               <tr key={p.id}>
                 <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div className="foto-produto">
                     <label style={{ cursor: subindoId === p.id ? 'default' : 'pointer' }}>
                       {p.imagem_url ? (
                         <img src={p.imagem_url} alt="" style={{ width: 56, height: 56, objectFit: 'contain', background: '#fff', border: '1px solid var(--borda)', borderRadius: 8, display: 'block' }} />
@@ -205,7 +205,7 @@ export function Produtos() {
                         style={{ display: 'none' }} />
                     </label>
                     {p.imagem_url && (
-                      <button type="button" className="btn-mini btn-perigo" title="Remover foto"
+                      <button type="button" className="remover-foto" title="Remover foto"
                         onClick={() => removerFoto(p.id)}>×</button>
                     )}
                   </div>
@@ -252,10 +252,12 @@ export function Produtos() {
                   )}
                 </td>
                 <td>
-                  <span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span>{' '}
+                  <div className="situacao">
+                  <span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span>
                   <button className={`btn-mini ${p.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(p)}>
                     {p.ativo ? 'Desativar' : 'Ativar'}
                   </button>
+                  </div>
                 </td>
               </tr>
             ))}

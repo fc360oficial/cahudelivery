@@ -34,16 +34,17 @@ export function Marcas() {
 
   return (
     <>
-      <h1>Marcas</h1>
+      <h1>Fornecedores</h1>
+      <p style={{ color: 'var(--texto-2)', marginTop: -6, marginBottom: 12 }}>Lista sincronizada dos fornecedores do ERP. Cada produto chega ligado ao fornecedor de origem; o nome aparece em letras pequenas na tela do produto no app.</p>
       <form className="filtros" onSubmit={salvar}>
-        <input placeholder="Nome da marca" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ flex: 1, maxWidth: 300 }} />
+        <input placeholder="Nome do fornecedor" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ flex: 1, maxWidth: 300 }} />
         <button className="btn">{editando ? 'Salvar edição' : 'Adicionar'}</button>
         {editando && <button type="button" className="btn btn-claro" onClick={() => { setEditando(null); setNome(''); }}>Cancelar</button>}
       </form>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">
         <table>
-          <thead><tr><th>Marca</th><th>Produtos</th><th>Situação</th><th></th></tr></thead>
+          <thead><tr><th>Fornecedor</th><th>Produtos</th><th>Situação</th><th></th></tr></thead>
           <tbody>
             {dados?.map((m) => (
               <tr key={m.id}>
@@ -56,7 +57,7 @@ export function Marcas() {
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={4} className="vazio">Nenhuma marca</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={4} className="vazio">Nenhum fornecedor</td></tr>}
           </tbody>
         </table>
       </div>

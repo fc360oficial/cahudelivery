@@ -6,7 +6,7 @@ import { tenantCtx } from '../tenancy/tenant-context';
 export class AdminService {
   async dashboard() {
     const { pool } = tenantCtx();
-    const [hoje, porStatus, mes, topProdutos, pendentes, falhas] = await Promise.all([
+    const [hoje, porStatus, mes, topProdutos, clientes, falhas] = await Promise.all([
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento
            from pedidos where criado_em::date = current_date and status <> 'CANCELADO'`,
@@ -23,17 +23,37 @@ export class AdminService {
           where p.criado_em > now() - interval '30 days' and p.status <> 'CANCELADO'
           group by 1 order by valor desc limit 5`,
       ),
-      pool.query(`select count(*)::int as qtd from clientes where status = 'pendente'`),
+      pool.query(
+        `select count(*) filter (where status <> 'excluido')::int as total,
+                count(*) filter (where status = 'aprovado')::int as aprovados,
+                count(*) filter (where status = 'pendente')::int as pendentes,
+                count(*) filter (where status = 'bloqueado')::int as bloqueados,
+                count(*) filter (where status <> 'excluido' and criado_em > now() - interval '30 days')::int as novos_30d,
+                count(*) filter (where status <> 'excluido'
+                                   and exists (select 1 from pedidos p where p.cliente_id = clientes.id
+                                                  and p.status <> 'CANCELADO'
+                                                  and p.criado_em > now() - interval '30 days'))::int as compraram_30d
+           from clientes`,
+      ),
       pool.query(
         `select count(*)::int as qtd from pedidos where status = 'FALHA_INTEGRACAO'`,
       ),
     ]);
+    const c = clientes.rows[0];
     return {
       hoje: hoje.rows[0],
       ultimos30d: mes.rows[0],
       porStatus: porStatus.rows,
       topProdutos: topProdutos.rows,
-      clientesPendentes: pendentes.rows[0].qtd,
+      clientesPendentes: c.pendentes,
+      clientes: {
+        total: c.total,
+        aprovados: c.aprovados,
+        pendentes: c.pendentes,
+        bloqueados: c.bloqueados,
+        novos30d: c.novos_30d,
+        compraram30d: c.compraram_30d,
+      },
       falhasIntegracao: falhas.rows[0].qtd,
     };
   }
@@ -107,13 +127,23 @@ export class AdminService {
     const { pool } = tenantCtx();
     const cond: string[] = ['true'];
     const params: unknown[] = [];
-    if (f.status) {
-      params.push(f.status);
-      cond.push(`status = $${params.length}`);
-    }
     if (f.busca) {
       params.push(`%${f.busca}%`);
       cond.push(`(nome_fantasia ilike $${params.length} or documento ilike $${params.length} or email ilike $${params.length})`);
+    }
+    // Resumo respeita a busca, mas não o filtro de status (senão os números dos filtros sumiriam).
+    const resumo = await pool.query(
+      `select count(*)::int as todos,
+              count(*) filter (where status = 'pendente')::int as pendente,
+              count(*) filter (where status = 'aprovado')::int as aprovado,
+              count(*) filter (where status = 'bloqueado')::int as bloqueado,
+              count(*) filter (where status = 'excluido')::int as excluido
+         from clientes where ${cond.join(' and ')}`,
+      params,
+    );
+    if (f.status) {
+      params.push(f.status);
+      cond.push(`status = $${params.length}`);
     }
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
@@ -123,7 +153,7 @@ export class AdminService {
         order by criado_em desc limit 25 offset $${params.length}`,
       params,
     );
-    return { dados: rows, pagina: f.pagina };
+    return { dados: rows, pagina: f.pagina, resumo: resumo.rows[0] };
   }
 
   async mudarStatusCliente(id: string, status: 'aprovado' | 'bloqueado' | 'pendente', usuarioId: string) {

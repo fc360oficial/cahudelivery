@@ -21,6 +21,7 @@ export function Clientes() {
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaCliente[] | null>(null);
+  const [resumo, setResumo] = useState<Record<string, number> | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => setPagina(1), [status, busca]);
@@ -30,8 +31,11 @@ export function Clientes() {
     if (status) q.set('status', status);
     if (busca) q.set('busca', busca);
     q.set('pagina', String(pagina));
-    api<{ dados: LinhaCliente[] }>(`/admin/clientes?${q}`)
-      .then((r) => setDados(r.dados))
+    api<{ dados: LinhaCliente[]; resumo: Record<string, number> }>(`/admin/clientes?${q}`)
+      .then((r) => {
+        setDados(r.dados);
+        setResumo(r.resumo);
+      })
       .catch((e) => setErro(e.message));
   }, [status, busca, pagina]);
 
@@ -74,11 +78,14 @@ export function Clientes() {
       <h1>Clientes</h1>
       <div className="filtros">
         <input placeholder="Buscar por nome, CNPJ ou e-mail…" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ flex: 1, maxWidth: 340 }} />
-        {['', 'pendente', 'aprovado', 'bloqueado', 'excluido'].map((s) => (
-          <button key={s || 'todos'} className={`pill-filtro ${status === s ? 'ativo' : ''}`} onClick={() => setParams(s ? { status: s } : {})}>
-            {s ? s[0].toUpperCase() + s.slice(1) : 'Todos'}
-          </button>
-        ))}
+        {['', 'pendente', 'aprovado', 'bloqueado', 'excluido'].map((s) => {
+          const qtd = resumo?.[s || 'todos'];
+          return (
+            <button key={s || 'todos'} className={`pill-filtro ${status === s ? 'ativo' : ''}`} onClick={() => setParams(s ? { status: s } : {})}>
+              {s ? s[0].toUpperCase() + s.slice(1) : 'Todos'}{qtd != null ? ` (${qtd})` : ''}
+            </button>
+          );
+        })}
       </div>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">

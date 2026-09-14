@@ -8,6 +8,7 @@ interface DadosDashboard {
   porStatus: { status: string; qtd: number }[];
   topProdutos: { produto: string; qtd: string; valor: string }[];
   clientesPendentes: number;
+  clientes: { total: number; aprovados: number; pendentes: number; bloqueados: number; novos30d: number; compraram30d: number };
   falhasIntegracao: number;
 }
 
@@ -30,6 +31,11 @@ export function Dashboard() {
         <div className="card"><div className="rotulo">Faturamento hoje</div><div className="valor">{fmtMoeda(d.hoje.faturamento)}</div></div>
         <div className="card"><div className="rotulo">Faturamento 30 dias</div><div className="valor">{fmtMoeda(d.ultimos30d.faturamento)}</div></div>
         <div className="card"><div className="rotulo">Ticket médio 30d</div><div className="valor">{fmtMoeda(d.ultimos30d.ticket_medio)}</div></div>
+        <Link to="/clientes" className="card">
+          <div className="rotulo">Clientes cadastrados</div>
+          <div className="valor">{d.clientes.total}</div>
+          <div className="sub">{d.clientes.aprovados} aprovados · {d.clientes.novos30d} novos em 30d · {d.clientes.compraram30d} compraram em 30d</div>
+        </Link>
         <Link to="/clientes?status=pendente" className="card">
           <div className="rotulo">Clientes p/ aprovar</div>
           <div className={`valor ${d.clientesPendentes ? 'alerta' : ''}`}>{d.clientesPendentes}</div>

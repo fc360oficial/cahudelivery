@@ -30,9 +30,11 @@ button { font: inherit; cursor: pointer; }
 .layout { display: flex; min-height: 100vh; }
 .sidebar {
   width: 232px; flex-shrink: 0; background: var(--acento-escuro); color: #d5d8dd;
-  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column; position: sticky; top: 0;
+  min-height: 100vh; min-height: 100dvh;
 }
 .sidebar .marca {
+  flex-shrink: 0;
   padding: 20px 18px 14px; color: #fff; font-weight: 700; font-size: 16px;
   border-bottom: 1px solid rgb(255 255 255 / 0.08);
 }
@@ -47,13 +49,20 @@ button { font: inherit; cursor: pointer; }
   display: grid; place-items: center; margin-bottom: 20px;
 }
 .login-logo img { height: 62px; max-width: 100%; object-fit: contain; }
-.sidebar nav { padding: 10px; display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.sidebar nav {
+  padding: 10px; display: flex; flex-direction: column; gap: 2px;
+  flex: 1; min-height: 0; overflow-y: auto;
+}
 .sidebar nav a {
-  padding: 9px 12px; border-radius: 8px; font-weight: 500; display: flex; gap: 10px; align-items: center;
+  padding: 9px 12px; border-radius: 8px; font-weight: 500;
+  display: flex; gap: 10px; align-items: center; white-space: nowrap;
 }
 .sidebar nav a:hover { background: rgb(255 255 255 / 0.07); color: #fff; }
 .sidebar nav a.ativo { background: var(--acento); color: #1a1a1a; font-weight: 700; }
-.sidebar .rodape { padding: 14px 18px; border-top: 1px solid rgb(255 255 255 / 0.08); font-size: 12.5px; }
+.sidebar .rodape {
+  flex-shrink: 0;
+  padding: 14px 18px; border-top: 1px solid rgb(255 255 255 / 0.08); font-size: 12.5px;
+}
 .sidebar .rodape button { background: none; border: 0; color: #d5d8dd; padding: 4px 0; }
 .sidebar .rodape button:hover { color: var(--acento); }
 
@@ -67,6 +76,7 @@ button { font: inherit; cursor: pointer; }
 .card .valor { font-size: 24px; font-weight: 700; margin-top: 6px; }
 .card .valor.alerta { color: var(--laranja); }
 .card .valor.erro { color: var(--vermelho); }
+.card .sub { color: var(--texto-2); font-size: 12px; margin-top: 4px; }
 
 /* Tabela */
 .tabela-wrap { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); overflow-x: auto; }

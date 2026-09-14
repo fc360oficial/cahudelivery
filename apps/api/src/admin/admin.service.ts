@@ -300,6 +300,10 @@ export class AdminService {
     );
     if (f.imagem === 'com') cond.push('exists (select 1 from produto_imagens i where i.produto_id = p.id)');
     if (f.imagem === 'sem') cond.push('not exists (select 1 from produto_imagens i where i.produto_id = p.id)');
+    const totalFiltrado = await pool.query(
+      `select count(*)::int as n from produtos p left join estoques e on e.produto_id = p.id where ${cond.join(' and ')}`,
+      params,
+    );
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select p.id, p.sku, p.nome, p.unidade_venda, p.ativo, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade,
@@ -317,7 +321,7 @@ export class AdminService {
       params,
     );
     const r = resumo.rows[0];
-    return { dados: rows, pagina: f.pagina, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque, comImagem: resumoImg.rows[0].com_imagem, semImagem: resumoImg.rows[0].sem_imagem } };
+    return { dados: rows, pagina: f.pagina, totalFiltrado: totalFiltrado.rows[0].n, resumo: { total: r.total, comEstoque: r.com_estoque, semEstoque: r.sem_estoque, comImagem: resumoImg.rows[0].com_imagem, semImagem: resumoImg.rows[0].sem_imagem } };
   }
 
   async alternarProduto(id: string, ativo: boolean, usuarioId: string) {

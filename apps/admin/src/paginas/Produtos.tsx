@@ -24,6 +24,7 @@ export function Produtos() {
   const [imagem, setImagem] = useState<'' | 'com' | 'sem'>('');
   const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaProduto[] | null>(null);
+  const [totalFiltrado, setTotalFiltrado] = useState<number | null>(null);
   const [resumo, setResumo] = useState<{ total: number; comEstoque: number; semEstoque: number; comImagem: number; semImagem: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -40,9 +41,10 @@ export function Produtos() {
     if (estoque) q.set('estoque', estoque);
     if (imagem) q.set('imagem', imagem);
     q.set('pagina', String(pagina));
-    api<{ dados: LinhaProduto[]; resumo: { total: number; comEstoque: number; semEstoque: number; comImagem: number; semImagem: number } }>(`/admin/produtos?${q}`)
+    api<{ dados: LinhaProduto[]; totalFiltrado: number; resumo: { total: number; comEstoque: number; semEstoque: number; comImagem: number; semImagem: number } }>(`/admin/produtos?${q}`)
       .then((r) => {
         setDados(r.dados);
+        setTotalFiltrado(r.totalFiltrado);
         setResumo(r.resumo);
       })
       .catch((e) => setErro(e.message));
@@ -165,8 +167,19 @@ export function Produtos() {
         ))}
       </div>
       {erro && <div className="erro-texto">{erro}</div>}
-      <div className="tabela-wrap">
+      <div className="tabela-wrap tabela-wrap-fixa">
         <table className="tabela-produtos">
+          <colgroup>
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '31%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '5%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '10%' }} />
+          </colgroup>
           <thead>
             <tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Un.</th><th>Estoque</th><th>Preço</th><th>Desconto por qtd.</th><th>Validade</th><th>Situação</th></tr>
           </thead>
@@ -201,13 +214,13 @@ export function Produtos() {
                   <div className="nome">{p.nome}</div>
                   <div className="sub"><span className="mono">{p.sku}</span>{p.marca ? ` · ${p.marca}` : ''}</div>
                 </td>
-                <td className="nowrap">{p.categoria ?? '—'}</td>
+                <td>{p.categoria ?? '—'}</td>
                 <td>{p.unidade_venda}</td>
                 <td>{Number(p.estoque)}</td>
                 <td>{p.preco ? fmtMoeda(p.preco) : '—'}</td>
                 <td>
                   {editandoId === p.id ? (
-                    <div className="filtros" style={{ flexWrap: 'nowrap' }}>
+                    <div className="filtros" style={{ marginBottom: 0 }}>
                       <input type="number" min="1" placeholder="A partir de" value={minimaEdit}
                         onChange={(e) => setMinimaEdit(e.target.value)} style={{ width: 90 }} />
                       <input type="number" step="0.01" min="0" placeholder="Preço" value={precoEdit}
@@ -227,7 +240,7 @@ export function Produtos() {
                 </td>
                 <td>
                   {editandoId === p.id ? (
-                    <div className="filtros" style={{ flexWrap: 'nowrap' }}>
+                    <div className="filtros" style={{ marginBottom: 0 }}>
                       <input type="date" value={validadeEdit}
                         onChange={(e) => setValidadeEdit(e.target.value)} style={{ width: 150 }} />
                       <button className="btn-mini btn-ok" onClick={() => salvarValidade(p.id)}>Salvar</button>
@@ -238,7 +251,7 @@ export function Produtos() {
                     <span style={{ color: 'var(--texto-2)' }}>—</span>
                   )}
                 </td>
-                <td className="nowrap">
+                <td>
                   <span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span>{' '}
                   <button className={`btn-mini ${p.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(p)}>
                     {p.ativo ? 'Desativar' : 'Ativar'}
@@ -250,7 +263,7 @@ export function Produtos() {
           </tbody>
         </table>
       </div>
-      {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} onMudar={setPagina} />}
+      {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} total={totalFiltrado ?? undefined} onMudar={setPagina} />}
       <small style={{ color: 'var(--texto-2)', display: 'block', marginTop: 8 }}>
         Qualquer foto serve (celular, internet, catálogo), até 5MB: o sistema padroniza em 1000×1000 com fundo branco. Fotografe sobre fundo claro.
       </small>

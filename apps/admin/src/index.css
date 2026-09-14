@@ -85,8 +85,11 @@ th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacin
 td { padding: 12px 16px; border-bottom: 1px solid var(--borda); }
 tbody tr:last-child td { border-bottom: 0; }
 /* Lista de produtos: linhas compactas, nome sem quebrar em 4 linhas, SKU embaixo do nome */
-.tabela-produtos th, .tabela-produtos td { padding: 8px 12px; vertical-align: middle; }
-.tabela-produtos .col-produto { min-width: 300px; }
+.tabela-wrap-fixa { overflow-x: hidden; }
+.tabela-produtos { table-layout: fixed; }
+.tabela-produtos th, .tabela-produtos td { padding: 8px 10px; vertical-align: middle; overflow-wrap: anywhere; }
+.tabela-produtos th { white-space: normal; }
+.tabela-produtos .btn-mini { white-space: nowrap; }
 .tabela-produtos .col-produto .nome { font-weight: 600; line-height: 1.25; }
 .tabela-produtos .col-produto .sub { color: var(--texto-2); font-size: 12px; margin-top: 2px; }
 .tabela-produtos .nowrap { white-space: nowrap; }

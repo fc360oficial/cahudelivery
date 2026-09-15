@@ -102,11 +102,7 @@ class ProdutoCard extends StatelessWidget {
     );
   }
 
-  static String _unidade(Map<String, dynamic> p) {
-    final un = p['unidade_venda'] ?? 'UN';
-    final porEmb = asDouble(p['qtd_por_embalagem']);
-    return porEmb > 1 ? '$un c/ ${porEmb.toInt()}' : '$un';
-  }
+  static String _unidade(Map<String, dynamic> p) => descricaoEmbalagem(p);
 
   static String _formatarData(String iso) {
     final d = DateTime.tryParse(iso);

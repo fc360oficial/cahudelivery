@@ -74,6 +74,49 @@ String siglaUnidade(Map<String, dynamic> p) {
   }
 }
 
+/// Nome por extenso da unidade de venda que vem do ERP (CX, FD, PCT...).
+/// Sigla desconhecida volta como veio — melhor mostrar "DZ" do que errar.
+String nomeUnidade(String? sigla) {
+  switch ((sigla ?? 'UN').toUpperCase()) {
+    case 'CX':
+      return 'Caixa';
+    case 'FD':
+      return 'Fardo';
+    case 'PCT':
+    case 'PT':
+      return 'Pacote';
+    case 'PC':
+      return 'Peça';
+    case 'DP':
+    case 'DISP':
+      return 'Display';
+    case 'SC':
+      return 'Saco';
+    case 'BD':
+    case 'BDJ':
+      return 'Bandeja';
+    case 'GL':
+      return 'Galão';
+    case 'KG':
+      return 'Kg';
+    case 'LT':
+      return 'Litro';
+    case 'UN':
+    case 'UND':
+      return 'Unidade';
+    default:
+      return sigla ?? 'Unidade';
+  }
+}
+
+/// "Caixa c/ 12 un", "Fardo c/ 6 un" ou só "Unidade" — texto pro cliente,
+/// no lugar do jargão "CX c/ 12".
+String descricaoEmbalagem(Map<String, dynamic> p) {
+  final nome = nomeUnidade(p['unidade_venda'] as String?);
+  final porEmb = asDouble(p['qtd_por_embalagem']);
+  return porEmb > 1 ? '$nome c/ ${porEmb.toInt()} un' : nome;
+}
+
 /// Preço por unidade avulsa, calculado a partir do preço do pacote (fardo/
 /// caixa/etc.) — o comprador B2B compara oferta pelo valor unitário mesmo
 /// quando a venda mínima é por caixa fechada.

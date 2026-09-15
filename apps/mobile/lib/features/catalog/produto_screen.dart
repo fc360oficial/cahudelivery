@@ -177,8 +177,7 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _tag('${p['unidade_venda'] ?? 'UN'}'
-                        '${asDouble(p['qtd_por_embalagem']) > 1 ? ' c/ ${asDouble(p['qtd_por_embalagem']).toInt()}' : ''}'),
+                    _tag(descricaoEmbalagem(p)),
                     if (minima > 1) _tag('Mín. ${minima.toInt()}'),
                     if (p['sku'] != null) _tag('Cód. ${p['sku']}'),
                     _tag(semEstoque ? 'Sem estoque' : 'Disponível',
@@ -210,14 +209,14 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${siglaUnidade(p)} com ${asDouble(p['qtd_por_embalagem']).toInt()}un — ${moeda(p['preco'])}',
+                        '${descricaoEmbalagem(p)} — ${moeda(p['preco'])}',
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
                       ),
                     ),
                   )
                 else
-                  Text('por ${p['unidade_venda'] ?? 'unidade'}',
+                  Text('por ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}',
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                 if ((p['descricao'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),

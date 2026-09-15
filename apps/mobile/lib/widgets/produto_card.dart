@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../core/api_client.dart';
@@ -301,6 +302,24 @@ class _BotaoAdicionar extends StatefulWidget {
 
 class _BotaoAdicionarState extends State<_BotaoAdicionar> {
   bool _enviando = false;
+  // Card mostra só o "+"; o controle "− qtd +" abre ao tocar e se recolhe
+  // sozinho depois de alguns segundos (a quantidade continua no carrinho).
+  bool _aberto = false;
+  Timer? _fechar;
+
+  void _manterAberto() {
+    _fechar?.cancel();
+    setState(() => _aberto = true);
+    _fechar = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _aberto = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _fechar?.cancel();
+    super.dispose();
+  }
 
   Future<void> _mudar(double delta) async {
     if (_enviando) return;
@@ -316,6 +335,7 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
       nova = atual + delta;
       if (nova < min) nova = 0; // abaixo do mínimo remove do carrinho
     }
+    _manterAberto();
     setState(() => _enviando = true);
     try {
       await store.definirQuantidade(id, nova);
@@ -337,7 +357,7 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
       listenable: CarrinhoStore.instance,
       builder: (context, _) {
         final qtd = CarrinhoStore.instance.quantidadeDe(widget.produto['id'] as String);
-        if (qtd <= 0) {
+        if (qtd <= 0 || !_aberto) {
           return SizedBox(
             height: 40,
             child: FilledButton(
@@ -347,13 +367,17 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 backgroundColor: scheme.primary,
               ),
-              onPressed: _enviando ? null : () => _mudar(1),
+              onPressed: _enviando ? null : () => qtd > 0 ? _manterAberto() : _mudar(1),
               child: _enviando
                   ? SizedBox(
                       width: 14, height: 14,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: scheme.onPrimary))
-                  : const Icon(Icons.add, size: 24),
+                  : qtd > 0
+                      ? Text(qtd % 1 == 0 ? qtd.toInt().toString() : '$qtd',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w800, color: scheme.onPrimary))
+                      : const Icon(Icons.add, size: 24),
             ),
           );
         }

@@ -23,7 +23,8 @@ class StepperQuantidade extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cor = Theme.of(context).colorScheme.primary;
+    // Ícones escuros: amarelo (primary) em traço fino sobre branco não tem contraste.
+    const cor = Color(0xFF1A1A1A);
     final min = minimo < 1 ? 1.0 : minimo;
     final podeMenos = quantidade > min || permitirRemover;
     final podeMais = maximo == null || quantidade < maximo!;

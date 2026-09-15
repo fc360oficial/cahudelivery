@@ -266,7 +266,7 @@ class _ItemCarrinho extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.primary)),
+                            color: const Color(0xFF1A1A1A))),
                   ],
                 ),
               ),

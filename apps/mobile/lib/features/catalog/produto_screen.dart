@@ -172,52 +172,61 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                 const SizedBox(height: 4),
                 Text(p['nome'] ?? '',
                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.25)),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _tag(descricaoEmbalagem(p)),
-                    if (minima > 1) _tag('Mín. ${minima.toInt()}'),
-                    if (p['sku'] != null) _tag('Cód. ${p['sku']}'),
-                    _tag(semEstoque ? 'Sem estoque' : 'Disponível',
-                        cor: semEstoque ? Colors.red.shade50 : Colors.green.shade50,
-                        corTexto: semEstoque ? Colors.red.shade700 : Colors.green.shade700),
-                  ],
-                ),
+                const SizedBox(height: 10),
+                _tag(semEstoque ? 'Sem estoque' : 'Disponível',
+                    cor: semEstoque ? Colors.red.shade50 : Colors.green.shade50,
+                    corTexto: semEstoque ? Colors.red.shade700 : Colors.green.shade700),
                 const SizedBox(height: 18),
+                // Preço principal = o que o cliente paga (pacote fechado), em
+                // preto forte — amarelo sobre branco não tem contraste.
                 if (emPromocao)
-                  Text(moeda(precoUnitario(p, campoPreco: 'preco_tabela')),
+                  Text(moeda(p['preco_tabela']),
                       style: TextStyle(
                           fontSize: 15,
                           color: Colors.grey.shade500,
                           decoration: TextDecoration.lineThrough)),
-                Text('${moeda(precoUnitario(p))}/un',
-                    style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: emPromocao ? Colors.red.shade600 : tema.primary)),
-                // Preço do pacote fechado (fardo/caixa) quando a venda mínima
-                // não é por unidade avulsa — mesmo padrão do card de produto.
-                if (asDouble(p['qtd_por_embalagem']) > 1)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${moeda(p['preco'])} ${nomeUnidade(p['unidade_venda'] as String?)} · ${descricaoEmbalagem(p)}',
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(moeda(p['preco']),
                         style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
-                      ),
-                    ),
-                  )
-                else
-                  Text('por ${nomeUnidade(p['unidade_venda'] as String?)}',
-                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            color: emPromocao ? Colors.red.shade600 : const Color(0xFF1A1A1A))),
+                    const SizedBox(width: 8),
+                    Text(nomeUnidade(p['unidade_venda'] as String?),
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w800, color: Colors.grey.shade700)),
+                  ],
+                ),
+                if (asDouble(p['qtd_por_embalagem']) > 1)
+                  Text('${moeda(precoUnitario(p))} por unidade',
+                      style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+                const SizedBox(height: 22),
+                const Text('Informações adicionais',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      _info('Embalagem', descricaoEmbalagem(p)),
+                      if (asDouble(p['qtd_por_embalagem']) > 1)
+                        _info('Unidades por ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}',
+                            '${asDouble(p['qtd_por_embalagem']).toInt()}'),
+                      if (p['ean'] != null && '${p['ean']}'.isNotEmpty) _info('Código de barras (EAN)', '${p['ean']}'),
+                      if (p['sku'] != null && '${p['sku']}' != '${p['ean']}') _info('Código interno', '${p['sku']}'),
+                      if (minima > 1) _info('Pedido mínimo', '${minima.toInt()} ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}(s)'),
+                      if (p['data_validade'] != null) _info('Validade', dataCurta(p['data_validade'])),
+                      if (p['categoria'] != null) _info('Categoria', '${p['categoria']}', ultimo: true),
+                    ],
+                  ),
+                ),
                 if ((p['descricao'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Text('Descrição',
@@ -272,6 +281,27 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
             ),
     );
   }
+
+  Widget _info(String rotulo, String valor, {bool ultimo = false}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          border: ultimo ? null : Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 150,
+              child: Text(rotulo, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+            ),
+            Expanded(
+              child: Text(valor,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
 
   Widget _tag(String texto, {Color? cor, Color? corTexto}) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

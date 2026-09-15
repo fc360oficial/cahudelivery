@@ -10,7 +10,7 @@ export interface TokenPair {
   refreshToken: string;
 }
 
-const REFRESH_DIAS = 30;
+const REFRESH_DIAS = 90; // cliente que abre o app pelo menos 1x a cada 90 dias nunca precisa logar de novo
 
 @Injectable()
 export class AuthService {
@@ -169,9 +169,13 @@ export class AuthService {
   async refresh(refreshToken: string): Promise<TokenPair> {
     const { pool, tenant } = tenantCtx();
     const hash = createHash('sha256').update(refreshToken).digest('hex');
+    // Rotação com janela de tolerância: um token recém-usado (até 30s) ainda vale, pra
+    // duas renovações simultâneas do mesmo aparelho (ou duas abas no web) não derrubarem
+    // a sessão. Fora da janela, reuso = token inválido.
     const { rows } = await pool.query(
-      `update refresh_tokens set revogado_em = now()
-        where token_hash = $1 and revogado_em is null and expira_em > now()
+      `update refresh_tokens set revogado_em = coalesce(revogado_em, now())
+        where token_hash = $1 and expira_em > now()
+          and (revogado_em is null or revogado_em > now() - interval '30 seconds')
         returning sujeito_id`,
       [hash],
     );

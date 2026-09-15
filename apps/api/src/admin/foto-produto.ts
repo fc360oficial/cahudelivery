@@ -50,3 +50,21 @@ export async function padronizarFotoProduto(caminhoOriginal: string): Promise<Fo
   }
   return { arquivo, miniatura };
 }
+
+/**
+ * Imagem de categoria: no app ela é o FUNDO do card (proporção ~1.4, nome por cima),
+ * então aqui é corte central 3:2 (900x600), sem borda branca. JPEG q82.
+ */
+export async function padronizarImagemCategoria(caminhoOriginal: string): Promise<{ arquivo: string }> {
+  const pasta = dirname(caminhoOriginal);
+  const nomeBase = basename(caminhoOriginal, extname(caminhoOriginal));
+  const arquivo = `${nomeBase}.jpg`;
+  await sharp(await readFile(caminhoOriginal), { failOn: 'none' })
+    .rotate()
+    .resize(900, 600, { fit: 'cover', position: 'centre' })
+    .flatten({ background: BRANCO })
+    .jpeg({ quality: 82, mozjpeg: true })
+    .toFile(join(pasta, arquivo));
+  if (basename(caminhoOriginal) !== arquivo) await unlink(caminhoOriginal).catch(() => undefined);
+  return { arquivo };
+}

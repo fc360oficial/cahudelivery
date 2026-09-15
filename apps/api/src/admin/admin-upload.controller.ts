@@ -1,5 +1,5 @@
 import { BadRequestException, Controller, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { padronizarFotoProduto } from './foto-produto';
+import { padronizarFotoProduto, padronizarImagemCategoria } from './foto-produto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request } from 'express';
 import { randomBytes } from 'node:crypto';
@@ -41,6 +41,10 @@ export class AdminUploadController {
     if (tipo === 'produto') {
       const { arquivo: nome, miniatura } = await padronizarFotoProduto(arquivo.path);
       return { url: `${base}/uploads/${nome}`, urlMiniatura: `${base}/uploads/${miniatura}` };
+    }
+    if (tipo === 'categoria') {
+      const { arquivo: nome } = await padronizarImagemCategoria(arquivo.path);
+      return { url: `${base}/uploads/${nome}` };
     }
     return { url: `${base}/uploads/${arquivo.filename}` };
   }

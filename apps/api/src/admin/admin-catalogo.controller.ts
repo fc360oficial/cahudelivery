@@ -88,9 +88,11 @@ export class AdminCatalogoController {
   async editarCategoria(@Param('id', ParseUUIDPipe) id: string, @Body() dto: CategoriaDto) {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `update categorias set nome=$2, pai_id=$3, imagem_url=$4, ordem=coalesce($5,ordem), ativo=coalesce($6,ativo)
+      // imagemUrl ausente = mantém a atual; '' = remove. (Antes, Ativar/Desativar apagava a foto.)
+      `update categorias set nome=$2, pai_id=$3, imagem_url=case when $7 then imagem_url else $4 end,
+              ordem=coalesce($5,ordem), ativo=coalesce($6,ativo)
         where id=$1 returning *`,
-      [id, dto.nome, dto.paiId ?? null, dto.imagemUrl ?? null, dto.ordem, dto.ativo],
+      [id, dto.nome, dto.paiId ?? null, dto.imagemUrl || null, dto.ordem, dto.ativo, dto.imagemUrl === undefined],
     );
     if (!rows[0]) throw new NotFoundException();
     return rows[0];

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 
 interface Marca { id: string; nome: string; logo_url?: string; ativo: boolean; produtos: number }
@@ -8,6 +8,7 @@ export function Marcas() {
   const [erro, setErro] = useState<string | null>(null);
   const [nome, setNome] = useState('');
   const [editando, setEditando] = useState<string | null>(null);
+  const inputNome = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(() => {
     api<Marca[]>('/admin/marcas').then(setDados).catch((e) => setErro(e.message));
@@ -37,7 +38,7 @@ export function Marcas() {
       <h1>Fornecedores</h1>
       <p style={{ color: 'var(--texto-2)', marginTop: -6, marginBottom: 12 }}>Lista sincronizada dos fornecedores do ERP. Cada produto chega ligado ao fornecedor de origem; o nome aparece em letras pequenas na tela do produto no app.</p>
       <form className="filtros" onSubmit={salvar}>
-        <input placeholder="Nome do fornecedor" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ flex: 1, maxWidth: 300 }} />
+        <input ref={inputNome} placeholder="Nome do fornecedor" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ flex: 1, maxWidth: 300 }} />
         <button className="btn">{editando ? 'Salvar edição' : 'Adicionar'}</button>
         {editando && <button type="button" className="btn btn-claro" onClick={() => { setEditando(null); setNome(''); }}>Cancelar</button>}
       </form>
@@ -52,7 +53,7 @@ export function Marcas() {
                 <td>{m.produtos}</td>
                 <td><span className={`badge ${m.ativo ? 'aprovado' : 'bloqueado'}`}>{m.ativo ? 'ativa' : 'inativa'}</span></td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="btn-mini btn-claro" onClick={() => { setEditando(m.id); setNome(m.nome); }}>Editar</button>{' '}
+                  <button className="btn-mini btn-claro" onClick={() => { setEditando(m.id); setNome(m.nome); window.scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => inputNome.current?.focus(), 300); }}>Editar</button>{' '}
                   <button className={`btn-mini ${m.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(m)}>{m.ativo ? 'Desativar' : 'Ativar'}</button>
                 </td>
               </tr>

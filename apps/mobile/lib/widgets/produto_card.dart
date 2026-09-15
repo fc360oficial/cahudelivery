@@ -340,10 +340,10 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
         final qtd = CarrinhoStore.instance.quantidadeDe(widget.produto['id'] as String);
         if (qtd <= 0) {
           return SizedBox(
-            height: 32,
+            height: 40,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                minimumSize: const Size(32, 32),
+                minimumSize: const Size(40, 40),
                 padding: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 backgroundColor: scheme.primary,
@@ -354,7 +354,7 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
                       width: 14, height: 14,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: scheme.onPrimary))
-                  : const Icon(Icons.add, size: 18),
+                  : const Icon(Icons.add, size: 24),
             ),
           );
         }
@@ -362,13 +362,13 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
               onTap: _enviando ? null : () => _mudar(delta),
               borderRadius: BorderRadius.circular(10),
               child: SizedBox(
-                width: 26,
-                height: 32,
-                child: Icon(icone, size: 15, color: scheme.onPrimary),
+                width: 32,
+                height: 40,
+                child: Icon(icone, size: 18, color: scheme.onPrimary),
               ),
             );
         return Container(
-          height: 32,
+          height: 40,
           decoration: BoxDecoration(
             color: scheme.primary,
             borderRadius: BorderRadius.circular(10),

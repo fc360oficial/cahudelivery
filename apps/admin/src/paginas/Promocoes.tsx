@@ -68,7 +68,7 @@ export function Promocoes() {
 
   return (
     <>
-      <h1>Promoções</h1>
+      <h1>Ofertas da Semana</h1>
       <div className="filtros">
         <button className="btn" onClick={abrirNova}>+ Nova promoção</button>
       </div>

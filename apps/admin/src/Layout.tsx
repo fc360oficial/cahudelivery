@@ -11,7 +11,7 @@ const LINKS = [
   { para: '/produtos', rotulo: '📦 Produtos' },
   { para: '/categorias', rotulo: '🗂️ Categorias' },
   { para: '/marcas', rotulo: '🏭 Fornecedores' },
-  { para: '/promocoes', rotulo: '💛 Promoções' },
+  { para: '/promocoes', rotulo: '💛 Ofertas da Semana' },
   { para: '/patrocinadores', rotulo: '🏭 Patrocinadores' },
   { para: '/banners', rotulo: '🖼️ Banners' },
   { para: '/notificacoes', rotulo: '🔔 Notificações' },

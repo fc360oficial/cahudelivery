@@ -81,7 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (_) => ProdutosScreen(categoriaId: id, titulo: b['titulo'] ?? 'Categoria')));
     } else if (tipo == 'promocao') {
       Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => const ProdutosScreen(somentePromocao: true, titulo: 'Promoções')));
+          builder: (_) => const ProdutosScreen(somentePromocao: true, titulo: 'Ofertas da Semana')));
     }
   }
 
@@ -121,11 +121,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _banners(),
                       _vitrine(
-                        'Promoções',
+                        'Ofertas da Semana',
                         _home!['promocoes'] as List? ?? const [],
                         verTodos: () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const ProdutosScreen(
-                                somentePromocao: true, titulo: 'Promoções'))),
+                                somentePromocao: true, titulo: 'Ofertas da Semana'))),
                       ),
                       _vitrine('Mais vendidos', _home!['maisVendidos'] as List? ?? const []),
                       _vitrine('Vencimento Próximo',

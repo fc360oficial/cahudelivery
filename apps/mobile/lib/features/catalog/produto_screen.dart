@@ -216,9 +216,6 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                   child: Column(
                     children: [
                       _info('Embalagem', descricaoEmbalagem(p)),
-                      if (asDouble(p['qtd_por_embalagem']) > 1)
-                        _info('Unidades por ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}',
-                            '${asDouble(p['qtd_por_embalagem']).toInt()}'),
                       if (p['ean'] != null && '${p['ean']}'.isNotEmpty) _info('Código de barras (EAN)', '${p['ean']}'),
                       if (p['sku'] != null && '${p['sku']}' != '${p['ean']}') _info('Código interno', '${p['sku']}'),
                       if (minima > 1) _info('Pedido mínimo', '${minima.toInt()} ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}(s)'),

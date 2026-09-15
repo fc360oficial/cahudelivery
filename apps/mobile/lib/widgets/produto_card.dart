@@ -216,7 +216,7 @@ class ProdutoCard extends StatelessWidget {
           Colors.green.shade50, Colors.green.shade800));
     }
     if (_estoqueBaixo(produto)) {
-      selos.add(_selo('${asDouble(produto['estoque']).toInt()} em estoque',
+      selos.add(_selo('${asDouble(produto['estoque']).toInt()} ${siglaUnidade(produto)} em estoque',
           Colors.orange.shade50, Colors.orange.shade800));
     }
     final seloValidade = _seloValidade(dataValidade);

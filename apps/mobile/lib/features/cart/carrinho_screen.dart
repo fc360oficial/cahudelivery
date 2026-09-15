@@ -255,7 +255,7 @@ class _ItemCarrinho extends StatelessWidget {
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
                     Text(
-                      '${moeda(preco)} / ${descricaoEmbalagem(item).toLowerCase()}'
+                      '${moeda(preco)} ${descricaoEmbalagem(item)}'
                       '${estoque < qtd ? '  •  estoque: ${estoque.toInt()}' : ''}',
                       style: TextStyle(
                           fontSize: 12,

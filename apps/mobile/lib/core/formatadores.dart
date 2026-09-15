@@ -79,42 +79,42 @@ String siglaUnidade(Map<String, dynamic> p) {
 String nomeUnidade(String? sigla) {
   switch ((sigla ?? 'UN').toUpperCase()) {
     case 'CX':
-      return 'Caixa';
+      return 'CAIXA';
     case 'FD':
-      return 'Fardo';
+      return 'FARDO';
     case 'PCT':
     case 'PT':
-      return 'Pacote';
+      return 'PACOTE';
     case 'PC':
-      return 'Peça';
+      return 'PEÇA';
     case 'DP':
     case 'DISP':
-      return 'Display';
+      return 'DISPLAY';
     case 'SC':
-      return 'Saco';
+      return 'SACO';
     case 'BD':
     case 'BDJ':
-      return 'Bandeja';
+      return 'BANDEJA';
     case 'GL':
-      return 'Galão';
+      return 'GALÃO';
     case 'KG':
-      return 'Kg';
+      return 'KG';
     case 'LT':
-      return 'Litro';
+      return 'LITRO';
     case 'UN':
     case 'UND':
-      return 'Unidade';
+      return 'UNIDADE';
     default:
-      return sigla ?? 'Unidade';
+      return (sigla ?? 'UNIDADE').toUpperCase();
   }
 }
 
-/// "Caixa c/ 12 un", "Fardo c/ 6 un" ou só "Unidade" — texto pro cliente,
-/// no lugar do jargão "CX c/ 12".
+/// "CAIXA C/ 12 UN", "FARDO C/ 6 UN" ou só "UNIDADE" — texto pro cliente,
+/// em caixa alta como o nome do produto, no lugar do jargão "CX c/ 12".
 String descricaoEmbalagem(Map<String, dynamic> p) {
   final nome = nomeUnidade(p['unidade_venda'] as String?);
   final porEmb = asDouble(p['qtd_por_embalagem']);
-  return porEmb > 1 ? '$nome c/ ${porEmb.toInt()} un' : nome;
+  return porEmb > 1 ? '$nome C/ ${porEmb.toInt()} UN' : nome;
 }
 
 /// Preço por unidade avulsa, calculado a partir do preço do pacote (fardo/

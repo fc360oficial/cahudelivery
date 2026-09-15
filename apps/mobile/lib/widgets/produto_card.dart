@@ -139,7 +139,6 @@ class ProdutoCard extends StatelessWidget {
   /// fardo/caixa) logo abaixo, em texto cinza simples (sem fundo colorido).
   static Widget _blocoPreco(Map<String, dynamic> produto, bool emPromocao) {
     final porEmb = asDouble(produto['qtd_por_embalagem']);
-    final sigla = siglaUnidade(produto);
     final unit = precoUnitario(produto);
     final precoAtual = asDouble(produto['preco']);
     final precoTabela = asDouble(produto['preco_tabela']);
@@ -185,7 +184,7 @@ class ProdutoCard extends StatelessWidget {
         if (porEmb > 1)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('$sigla c/${porEmb.toInt()} ${moeda(produto['preco'])}',
+            child: Text('${moeda(produto['preco'])} ${nomeUnidade(produto['unidade_venda'] as String?)}',
                 style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
           ),
       ],

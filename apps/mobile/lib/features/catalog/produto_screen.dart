@@ -209,14 +209,14 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '${descricaoEmbalagem(p)} — ${moeda(p['preco'])}',
+                        '${moeda(p['preco'])} ${nomeUnidade(p['unidade_venda'] as String?)} · ${descricaoEmbalagem(p)}',
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w700, color: Colors.grey.shade700),
                       ),
                     ),
                   )
                 else
-                  Text('por ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}',
+                  Text('por ${nomeUnidade(p['unidade_venda'] as String?)}',
                       style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
                 if ((p['descricao'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),

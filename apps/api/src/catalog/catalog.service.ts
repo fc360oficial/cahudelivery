@@ -301,9 +301,10 @@ export class CatalogService {
 
     if (pecaTambem.length < 6 && categoriaId) {
       // Plano B: categorias irmãs (mesmo pai; se for categoria raiz, as outras raízes)
+      // $4 sempre referenciado com cast: sem isso o pg não infere o tipo quando a categoria é raiz.
       const irmas = paiId
-        ? `select id from categorias where pai_id = $4 and id <> $3 and ativo`
-        : `select id from categorias where pai_id is null and id <> $3 and ativo`;
+        ? `select id from categorias where pai_id = $4::uuid and id <> $3 and ativo`
+        : `select id from categorias where pai_id is null and id <> $3 and id <> $4::uuid and ativo`;
       const extra = await pool.query(
         `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id in (${irmas})
            and not (p.id = any($5::uuid[]))

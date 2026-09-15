@@ -245,7 +245,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               ),
               if (verTodos != null)
-                TextButton(onPressed: verTodos, child: const Text('Ver todas')),
+                TextButton(onPressed: verTodos, child: const Text('Ver todos')),
             ],
           ),
         ),

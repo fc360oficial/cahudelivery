@@ -154,12 +154,24 @@ class ProdutoCard extends StatelessWidget {
           runSpacing: 2,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text('${moeda(unit)} /un',
-                maxLines: 1,
+            // Valor grande, "/un" pequeno e cinza: o número é o que chama.
+            Text.rich(
+              TextSpan(
+                text: moeda(unit),
                 style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 19,
                     fontWeight: FontWeight.w800,
-                    color: emPromocao ? Colors.green.shade700 : Colors.black87)),
+                    color: emPromocao ? Colors.green.shade700 : const Color(0xFF1A1A1A)),
+                children: [
+                  TextSpan(
+                    text: ' /un',
+                    style: TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              maxLines: 1,
+            ),
             if (emPromocao && percentual > 0) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),

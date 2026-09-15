@@ -55,6 +55,14 @@ class TenantTheme extends ChangeNotifier {
         elevation: 0,
         centerTitle: false,
       ),
+      // Links/botões de texto ("Ver todos") em preto forte: amarelo em texto
+      // sobre branco não tem contraste. O amarelo fica pra fundo de botão.
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFF1A1A1A),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           minimumSize: const Size.fromHeight(52),

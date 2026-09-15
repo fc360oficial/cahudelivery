@@ -110,15 +110,39 @@ class ApiClient extends ChangeNotifier {
     return decoded;
   }
 
-  Future<void> _renovar() async {
-    final res = await http.post(
-      Uri.parse('${AppBuildConfig.apiUrl}/auth/refresh'),
-      headers: {'X-Tenant': AppBuildConfig.tenant, 'Content-Type': 'application/json'},
-      body: jsonEncode({'refreshToken': _refreshToken}),
-    );
-    if (res.statusCode != 200) {
+  /// Renovação em andamento — várias chamadas que tomam 401 ao mesmo tempo
+  /// (carrinho + favoritos + home na abertura) compartilham UMA renovação.
+  /// Sem isso, a 1ª renovava e invalidava o refresh token, as outras falhavam
+  /// e o app apagava a sessão: o cliente caía no login depois de 15 min fora.
+  Future<void>? _renovando;
+
+  Future<void> _renovar() {
+    return _renovando ??= _renovarDeVerdade().whenComplete(() => _renovando = null);
+  }
+
+  Future<void> _renovarDeVerdade() async {
+    final token = _refreshToken;
+    if (token == null) throw ApiException(401, 'Sessão expirada — entre novamente');
+    late final http.Response res;
+    try {
+      res = await http
+          .post(
+            Uri.parse('${AppBuildConfig.apiUrl}/auth/refresh'),
+            headers: {'X-Tenant': AppBuildConfig.tenant, 'Content-Type': 'application/json'},
+            body: jsonEncode({'refreshToken': token}),
+          )
+          .timeout(const Duration(seconds: 15));
+    } catch (_) {
+      // Sem rede / servidor fora: NÃO derruba a sessão — tenta de novo na próxima chamada.
+      throw ApiException(0, 'Sem conexão — tente novamente');
+    }
+    if (res.statusCode == 401 || res.statusCode == 403) {
+      // Refresh token realmente inválido/expirado (30+ dias sem abrir, ou revogado).
       await sair();
       throw ApiException(401, 'Sessão expirada — entre novamente');
+    }
+    if (res.statusCode != 200) {
+      throw ApiException(res.statusCode, 'Falha ao renovar a sessão (${res.statusCode})');
     }
     final data = jsonDecode(res.body);
     await salvarTokens(data['accessToken'], data['refreshToken']);

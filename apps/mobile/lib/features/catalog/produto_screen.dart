@@ -4,6 +4,7 @@ import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
 import '../../core/formatadores.dart';
 import '../../widgets/estados.dart';
+import '../../widgets/produto_card.dart';
 import '../../widgets/stepper_quantidade.dart';
 
 /// Detalhe do produto (GET /v1/produtos/:id): galeria, preço da tabela do
@@ -18,6 +19,8 @@ class ProdutoScreen extends StatefulWidget {
 
 class _ProdutoScreenState extends State<ProdutoScreen> {
   Map<String, dynamic>? _p;
+  List _similares = const [];
+  List _pecaTambem = const [];
   String? _erro;
   double _quantidade = 1;
   int _foto = 0;
@@ -27,6 +30,20 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
   void initState() {
     super.initState();
     _carregar();
+  }
+
+  /// Prateleiras "Produtos similares" e "Peça também" — carregam depois do
+  /// produto, sem travar a tela; se falhar, simplesmente não aparecem.
+  Future<void> _carregarRelacionados() async {
+    try {
+      final r = await ApiClient.instance.get('/produtos/${widget.produtoId}/relacionados')
+          as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() {
+        _similares = (r['similares'] as List?) ?? const [];
+        _pecaTambem = (r['pecaTambem'] as List?) ?? const [];
+      });
+    } catch (_) {}
   }
 
   Future<void> _carregar() async {
@@ -44,6 +61,7 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
         _p = r;
         _quantidade = noCarrinho > 0 ? noCarrinho : (minima > 1 ? minima : 1);
       });
+      _carregarRelacionados();
     } on ApiException catch (e) {
       if (mounted) setState(() => _erro = e.message);
     } catch (_) {
@@ -236,6 +254,9 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
               ],
             ),
           ),
+          _prateleira('Produtos similares', _similares),
+          _prateleira('Peça também', _pecaTambem),
+          const SizedBox(height: 12),
         ],
       ),
       bottomNavigationBar: semEstoque
@@ -276,6 +297,30 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _prateleira(String titulo, List produtos) {
+    if (produtos.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+          child: Text(titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        ),
+        SizedBox(
+          height: 300,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: produtos.length,
+            separatorBuilder: (_, i) => const SizedBox(width: 10),
+            itemBuilder: (_, i) =>
+                ProdutoCard(produto: produtos[i] as Map<String, dynamic>, largura: 168),
+          ),
+        ),
+      ],
     );
   }
 

@@ -262,6 +262,60 @@ export class CatalogService {
     return rows[0];
   }
 
+  /**
+   * Prateleiras da tela do produto:
+   *  - similares: mesma categoria, mais vendidos primeiro;
+   *  - pecaTambem: "quem comprou este também comprou" (co-ocorrência em pedidos), de OUTRAS
+   *    categorias; com pouco histórico completa com produtos das categorias irmãs (mesmo pai).
+   */
+  async relacionados(id: string, clienteId?: string) {
+    const { pool } = tenantCtx();
+    const tabela = await this.tabelaPrecoDe(clienteId);
+    const base = await pool.query(
+      `select p.categoria_id, c.pai_id from produtos p left join categorias c on c.id = p.categoria_id where p.id = $1`,
+      [id],
+    );
+    if (!base.rows[0]) throw new NotFoundException('Produto não encontrado');
+    const { categoria_id: categoriaId, pai_id: paiId } = base.rows[0] as { categoria_id: string | null; pai_id: string | null };
+    const LIMITE = 10;
+
+    const similares = categoriaId
+      ? await pool.query(
+          `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id = $3
+            order by (select count(*) from pedido_itens i where i.produto_id = p.id) desc, p.nome limit ${LIMITE}`,
+          [tabela, id, categoriaId],
+        )
+      : { rows: [] as unknown[] };
+
+    const juntos = await pool.query(
+      `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id is distinct from $3
+         and p.id in (select i2.produto_id from pedido_itens i1
+                        join pedido_itens i2 on i2.pedido_id = i1.pedido_id and i2.produto_id <> i1.produto_id
+                       where i1.produto_id = $2)
+        order by (select count(*) from pedido_itens i1 join pedido_itens i2 on i2.pedido_id = i1.pedido_id
+                   where i1.produto_id = $2 and i2.produto_id = p.id) desc, p.nome
+        limit ${LIMITE}`,
+      [tabela, id, categoriaId],
+    );
+    let pecaTambem = juntos.rows as Array<{ id: string }>;
+
+    if (pecaTambem.length < 6 && categoriaId) {
+      // Plano B: categorias irmãs (mesmo pai; se for categoria raiz, as outras raízes)
+      const irmas = paiId
+        ? `select id from categorias where pai_id = $4 and id <> $3 and ativo`
+        : `select id from categorias where pai_id is null and id <> $3 and ativo`;
+      const extra = await pool.query(
+        `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id in (${irmas})
+           and not (p.id = any($5::uuid[]))
+          order by (select count(*) from pedido_itens i where i.produto_id = p.id) desc, random()
+          limit ${LIMITE - pecaTambem.length}`,
+        [tabela, id, categoriaId, paiId ?? categoriaId, pecaTambem.map((r) => r.id)],
+      );
+      pecaTambem = pecaTambem.concat(extra.rows as Array<{ id: string }>);
+    }
+    return { similares: similares.rows, pecaTambem };
+  }
+
   async promocoes(clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);

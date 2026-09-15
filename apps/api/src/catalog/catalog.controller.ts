@@ -53,6 +53,11 @@ export class CatalogController {
     return this.catalog.produto(id, req.cliente?.clienteId);
   }
 
+  @Get('produtos/:id/relacionados')
+  relacionados(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string) {
+    return this.catalog.relacionados(id, req.cliente?.clienteId);
+  }
+
   @Get('promocoes')
   promocoes(@Req() req: ReqCliente) {
     return this.catalog.promocoes(req.cliente?.clienteId);

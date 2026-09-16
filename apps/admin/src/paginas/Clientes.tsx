@@ -18,7 +18,7 @@ interface LinhaCliente {
 export function Clientes() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? '';
-  const [busca, setBusca] = useState('');
+  const [busca, setBusca] = useState(params.get('busca') ?? '');
   const [pagina, setPagina] = useState(1);
   const [dados, setDados] = useState<LinhaCliente[] | null>(null);
   const [resumo, setResumo] = useState<Record<string, number> | null>(null);

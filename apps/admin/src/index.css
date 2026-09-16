@@ -158,3 +158,15 @@ input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: 0;
 .vazio { text-align: center; color: var(--texto-2); padding: 38px 0; }
 .pill-filtro { border: 1px solid var(--borda); background: #fff; border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 13px; }
 .pill-filtro.ativo { background: var(--acento); border-color: var(--acento); }
+
+/* Mapa */
+.mapa-wrap { height: calc(100vh - 230px); min-height: 520px; border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); overflow: hidden; }
+.mapa-aviso { color: var(--texto-2); font-size: 13px; }
+.mapa-legenda { display: flex; gap: 18px; align-items: center; margin: 0 0 10px; font-size: 13px; color: var(--texto-2); }
+.mapa-ponto { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -2px; margin-right: 4px; }
+.mapa-ponto.cliente { background: #6b7280; border: 1px solid #4b5563; }
+.mapa-ponto.pedido { background: #FFD500; border: 2px solid #1a1a1a; }
+.popup-mapa { font: 13px/1.45 inherit; min-width: 200px; }
+.popup-mapa small { color: var(--texto-2); }
+.popup-mapa a { display: inline-block; margin-top: 6px; font-weight: 700; color: #1a1a1a; }
+.leaflet-container { font-family: inherit; }

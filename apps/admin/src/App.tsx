@@ -11,6 +11,7 @@ import { IndicaLanding } from './paginas/IndicaLanding';
 import { Indicacoes } from './paginas/Indicacoes';
 import { Login } from './paginas/Login';
 import { Logs } from './paginas/Logs';
+import { Mapa } from './paginas/Mapa';
 import { Marcas } from './paginas/Marcas';
 import { Notificacoes } from './paginas/Notificacoes';
 import { PedidoDetalhe } from './paginas/PedidoDetalhe';
@@ -29,6 +30,7 @@ const ROTAS: [string, React.ReactNode][] = [
   ['/', <Dashboard />],
   ['/pedidos', <Pedidos />],
   ['/pedidos/:id', <PedidoDetalhe />],
+  ['/mapa', <Mapa />],
   ['/clientes', <Clientes />],
   ['/credito', <SolicitacoesCredito />],
   ['/indicacoes', <Indicacoes />],

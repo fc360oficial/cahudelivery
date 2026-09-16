@@ -19,4 +19,13 @@ describe('parseFiltrosMapa', () => {
   it('lista só com desconhecidos vira o padrão', () => {
     expect(parseFiltrosMapa({ status: 'XPTO' }, hoje).status).toEqual(STATUS_PADRAO);
   });
+  it('data inexistente no calendário (30/02) cai no padrão de "de"', () => {
+    expect(parseFiltrosMapa({ de: '2026-02-30' }, hoje).de).toBe('2026-09-09');
+  });
+  it('mês inválido (13) cai no padrão de "ate"', () => {
+    expect(parseFiltrosMapa({ ate: '2026-13-01' }, hoje).ate).toBe('2026-09-16');
+  });
+  it('aceita 29/02 em ano bissexto', () => {
+    expect(parseFiltrosMapa({ de: '2024-02-29' }, hoje).de).toBe('2024-02-29');
+  });
 });

@@ -16,11 +16,19 @@ function iso(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Regex casa o formato, mas não garante data existente no calendário (ex.: 2026-02-30). */
+function dataValida(s: string): boolean {
+  if (!DATA_RE.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
+
 export function parseFiltrosMapa(q: { de?: string; ate?: string; status?: string }, hoje = new Date()): FiltrosMapa {
   const seteDiasAtras = new Date(hoje);
   seteDiasAtras.setDate(hoje.getDate() - 7);
-  const de = q.de && DATA_RE.test(q.de) ? q.de : iso(seteDiasAtras);
-  const ate = q.ate && DATA_RE.test(q.ate) ? q.ate : iso(hoje);
+  const de = q.de && dataValida(q.de) ? q.de : iso(seteDiasAtras);
+  const ate = q.ate && dataValida(q.ate) ? q.ate : iso(hoje);
   const pedidos = (q.status ?? '')
     .split(',')
     .map((s) => s.trim().toUpperCase())

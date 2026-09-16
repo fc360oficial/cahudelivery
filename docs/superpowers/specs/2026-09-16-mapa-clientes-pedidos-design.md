@@ -48,10 +48,12 @@ create index if not exists cliente_enderecos_geo_pendente_idx
   quando só o CEP resolveu.
 - `geo_tentativas` limita a 5 tentativas por endereço; depois disso o endereço
   fica como "sem localização" até alguém corrigir o CEP.
-- A tabela `pedidos` **não muda**. O pedido é posicionado pelo endereço do
-  cliente cujo `cep` e `numero` batem com `endereco_snapshot_json`; se não achar,
-  usa o endereço `padrao = true` do cliente; se ainda assim não tiver
-  coordenada, o pedido conta como "sem localização".
+- A tabela `pedidos` **não muda**. O `endereco_snapshot_json` já guarda a linha
+  inteira de `cliente_enderecos` (inclusive o `id`), então o pedido é
+  posicionado pelo endereço de `id = (endereco_snapshot_json->>'id')::uuid`.
+  Se não houver snapshot (pedido de retirada) ou o endereço não tiver
+  coordenada, usa o endereço `padrao = true` do cliente; se ainda assim não
+  tiver coordenada, o pedido conta como "sem localização".
 
 ## 2. Job de geocodificação
 
@@ -140,7 +142,8 @@ Arquivos novos `apps/api/src/geo/geocodificacao.worker.ts`,
   - Cluster com contagem quando há sobreposição (padrão do markercluster).
 - Balão (popup):
   - Cliente: nome, documento, endereço; link `Abrir cliente` para
-    `/clientes?busca={documento}`.
+    `/clientes?busca={documento}` (a tela Clientes passa a ler `busca` da URL
+    como valor inicial do campo de busca).
   - Pedido: `#numero`, cliente, badge de status, total formatado em R$, data;
     link `Abrir pedido` para `/pedidos/{id}`.
   - Se `precisao = 'cep'`, linha discreta "Localização aproximada pelo CEP".

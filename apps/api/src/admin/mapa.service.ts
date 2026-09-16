@@ -18,8 +18,8 @@ export class MapaService {
                 e.latitude as lat, e.longitude as lng, e.geo_precisao as precisao
            from clientes c
            join cliente_enderecos e on e.cliente_id = c.id and e.latitude is not null
-          where c.status <> 'bloqueado'
-          order by c.id, e.padrao desc`,
+          where c.status not in ('bloqueado', 'excluido')
+          order by c.id, e.padrao desc, e.id`,
       ),
       pool.query(
         `select p.id, p.numero, p.cliente_id as "clienteId", c.nome_fantasia as cliente, p.status,
@@ -44,7 +44,7 @@ export class MapaService {
       pool.query(
         `select
            (select count(*)::int from clientes c
-             where c.status <> 'bloqueado'
+             where c.status not in ('bloqueado', 'excluido')
                and not exists (select 1 from cliente_enderecos e where e.cliente_id = c.id and e.latitude is not null)) as clientes,
            (select count(*)::int from pedidos p
              where p.criado_em::date between $1 and $2 and p.status = any($3)
@@ -65,6 +65,6 @@ export class MapaService {
   }
 
   geocodificarAgora() {
-    return this.geo.dispararAgora();
+    return this.geo.dispararAgora(tenantCtx().tenant.slug);
   }
 }

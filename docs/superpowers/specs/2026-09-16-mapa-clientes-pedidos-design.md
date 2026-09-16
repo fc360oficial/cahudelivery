@@ -67,6 +67,9 @@ Arquivos novos `apps/api/src/geo/geocodificacao.worker.ts`,
 - Também roda **sob demanda** via `POST /admin/mapa/geocodificar` (botão na
   tela). Se já houver execução em andamento, responde `{ emAndamento: true }` e
   não inicia outra.
+- O disparo manual pelo botão geocodifica só o tenant do admin logado; a
+  rodada das 03:00 cobre todos os tenants. `GEOCODIFICACAO_DESLIGADA=true`
+  desliga os dois caminhos.
 - Seleção: `latitude is null and geo_tentativas < 5`, ordenado por
   `geo_ultima_tentativa_em nulls first`, em lotes de 200.
 - Por endereço:
@@ -111,7 +114,7 @@ Arquivos novos `apps/api/src/geo/geocodificacao.worker.ts`,
 ```
 
 - Clientes: um ponto por cliente, usando o endereço padrão (ou o primeiro com
-  coordenada). Só clientes com `status <> 'bloqueado'`.
+  coordenada). Só clientes com `status` diferente de `bloqueado` e `excluido`.
 - Pedidos: um ponto por pedido, resolvido conforme a regra da seção 1.
 - `POST /admin/mapa/geocodificar` dispara o job; responde
   `{ iniciado: true }` ou `{ emAndamento: true }`.
@@ -124,7 +127,7 @@ Arquivos novos `apps/api/src/geo/geocodificacao.worker.ts`,
   `leaflet.markercluster`, `@types/leaflet.markercluster`. CSS do Leaflet e do
   cluster importados no próprio componente.
 - Layout (controles **acima** do mapa, nunca em rodapé):
-  - Linha 1: alternância `Clientes | Pedidos | Ambos` (padrão Ambos) e, à
+  - Linha 1: alternância `Ambos | Clientes | Pedidos` (padrão Ambos) e, à
     direita, aviso "N clientes / M pedidos sem localização" + botão
     **Geocodificar pendentes** (desabilitado com texto "Geocodificando..."
     enquanto `emAndamento`).

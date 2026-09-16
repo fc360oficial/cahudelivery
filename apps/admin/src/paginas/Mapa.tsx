@@ -60,10 +60,15 @@ export function Mapa() {
   const mapaRef = useRef<L.Map | null>(null);
   const camadaRef = useRef<L.MarkerClusterGroup | null>(null);
   const divRef = useRef<HTMLDivElement | null>(null);
+  const ajustouRef = useRef(false);
+  const modoAnteriorRef = useRef<Modo | null>(null);
 
   const atualizarParams = (patch: Record<string, string>) => {
     const p = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(patch)) (v ? p.set(k, v) : p.delete(k));
+    for (const [k, v] of Object.entries(patch)) {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    }
     setParams(p);
   };
 
@@ -144,8 +149,15 @@ export function Mapa() {
         pontos.push([p.lat, p.lng]);
       }
     }
-    if (pontos.length) mapa.fitBounds(L.latLngBounds(pontos), { padding: [30, 30], maxZoom: 15 });
-    else mapa.setView(CENTRO_PADRAO, 12);
+    if (pontos.length) {
+      if (!ajustouRef.current || modoAnteriorRef.current !== modo) {
+        mapa.fitBounds(L.latLngBounds(pontos), { padding: [30, 30], maxZoom: 15 });
+        ajustouRef.current = true;
+        modoAnteriorRef.current = modo;
+      }
+    } else {
+      mapa.setView(CENTRO_PADRAO, 12);
+    }
   }, [dados, modo]);
 
   const geocodificar = async () => {

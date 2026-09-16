@@ -112,4 +112,21 @@ describe('GeocodificacaoWorker.processarPendentes', () => {
     hoje0310.setHours(3, 10, 0, 0);
     expect(deveRodarAgora(hoje0310, w['ultimaDataRodada'])).toBe(false);
   });
+
+  it('processarPendentes(slug) só geocodifica o tenant informado, nunca os outros', async () => {
+    const query = jest.fn(async (sql: string) => (sql.includes('select') ? { rows: [linha] } : { rows: [] }));
+    const getTenantPool = jest.fn(async () => ({ query }));
+    const db = {
+      listActiveTenantSlugs: async () => ['a', 'b'],
+      getTenantPool,
+    };
+    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep' }));
+    const w = new GeocodificacaoWorker(db as never, { geocodificar, esperar: async () => undefined });
+
+    await w.processarPendentes('b');
+
+    expect(getTenantPool).toHaveBeenCalledTimes(1);
+    expect(getTenantPool).toHaveBeenCalledWith('b');
+    expect(getTenantPool).not.toHaveBeenCalledWith('a');
+  });
 });

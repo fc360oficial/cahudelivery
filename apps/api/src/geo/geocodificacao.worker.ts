@@ -6,6 +6,7 @@ const MAX_TENTATIVAS = 5;
 const LOTE = 200;
 const HORA_AGENDADA = 3; // 03:00 hora local do servidor
 const INTERVALO_MS = 1_000; // 1 req/s (Nominatim)
+const DESLIGADA = process.env.GEOCODIFICACAO_DESLIGADA === 'true';
 
 /** Regra pura da agenda: roda uma vez por dia, dentro da hora 03:xx. */
 export function deveRodarAgora(agora: Date, ultimaDataRodada: string | null): boolean {
@@ -47,7 +48,7 @@ export class GeocodificacaoWorker implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if (process.env.GEOCODIFICACAO_DESLIGADA === 'true') return;
+    if (DESLIGADA) return;
     this.timer = setInterval(() => {
       const agora = new Date();
       if (!deveRodarAgora(agora, this.ultimaDataRodada)) return;
@@ -64,20 +65,22 @@ export class GeocodificacaoWorker implements OnModuleInit, OnModuleDestroy {
     return { emAndamento: this.emAndamento, ultimaExecucaoEm: this.ultimaExecucaoEm?.toISOString() ?? null };
   }
 
-  /** Dispara em background; se já estiver rodando, não inicia outra. */
-  dispararAgora(): { iniciado: boolean; emAndamento: boolean } {
+  /** Dispara em background; se já estiver rodando, não inicia outra. Sem `slug`, cobre todos os tenants. */
+  dispararAgora(slug?: string): { iniciado: boolean; emAndamento: boolean } {
+    if (DESLIGADA) return { iniciado: false, emAndamento: false };
     if (this.emAndamento) return { iniciado: false, emAndamento: true };
-    void this.processarPendentes().catch((e) => this.log.error(e));
+    void this.processarPendentes(slug).catch((e) => this.log.error(e));
     return { iniciado: true, emAndamento: true };
   }
 
-  async processarPendentes(): Promise<void> {
+  async processarPendentes(slug?: string): Promise<void> {
     if (this.emAndamento) return;
     this.emAndamento = true;
     this.ultimaDataRodada = dataLocal(new Date());
     const contagem = { processados: 0, porCep: 0, porEndereco: 0, falhas: 0 };
     try {
-      for (const slug of await this.db.listActiveTenantSlugs()) {
+      const slugs = slug ? [slug] : await this.db.listActiveTenantSlugs();
+      for (const slug of slugs) {
         try {
           const pool = await this.db.getTenantPool(slug);
           const { rows } = await pool.query(

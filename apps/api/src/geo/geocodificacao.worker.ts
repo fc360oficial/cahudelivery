@@ -74,39 +74,49 @@ export class GeocodificacaoWorker implements OnModuleInit, OnModuleDestroy {
   async processarPendentes(): Promise<void> {
     if (this.emAndamento) return;
     this.emAndamento = true;
+    this.ultimaDataRodada = dataLocal(new Date());
     const contagem = { processados: 0, porCep: 0, porEndereco: 0, falhas: 0 };
     try {
       for (const slug of await this.db.listActiveTenantSlugs()) {
-        const pool = await this.db.getTenantPool(slug);
-        const { rows } = await pool.query(
-          `select id, cep, logradouro, numero, cidade, uf from cliente_enderecos
-            where latitude is null and geo_tentativas < $1
-            order by geo_ultima_tentativa_em nulls first limit $2`,
-          [MAX_TENTATIVAS, LOTE],
-        );
-        for (const end of rows as (EnderecoGeo & { id: string })[]) {
-          const coord = await this.deps.geocodificar(end);
-          contagem.processados++;
-          if (coord) {
-            await pool.query(
-              `update cliente_enderecos
-                  set latitude = $1, longitude = $2, geo_precisao = $3,
-                      geocodificado_em = now(), geo_ultima_tentativa_em = now()
-                where id = $4`,
-              [coord.lat, coord.lng, coord.precisao, end.id],
-            );
-            if (coord.precisao === 'cep') contagem.porCep++;
-            else contagem.porEndereco++;
-          } else {
-            await pool.query(
-              `update cliente_enderecos
-                  set geo_tentativas = geo_tentativas + 1, geo_ultima_tentativa_em = now()
-                where id = $1`,
-              [end.id],
-            );
-            contagem.falhas++;
+        try {
+          const pool = await this.db.getTenantPool(slug);
+          const { rows } = await pool.query(
+            `select id, cep, logradouro, numero, cidade, uf from cliente_enderecos
+              where latitude is null and geo_tentativas < $1
+              order by geo_ultima_tentativa_em nulls first limit $2`,
+            [MAX_TENTATIVAS, LOTE],
+          );
+          for (const end of rows as (EnderecoGeo & { id: string })[]) {
+            try {
+              const coord = await this.deps.geocodificar(end);
+              contagem.processados++;
+              if (coord) {
+                await pool.query(
+                  `update cliente_enderecos
+                      set latitude = $1, longitude = $2, geo_precisao = $3,
+                          geocodificado_em = now(), geo_ultima_tentativa_em = now()
+                    where id = $4`,
+                  [coord.lat, coord.lng, coord.precisao, end.id],
+                );
+                if (coord.precisao === 'cep') contagem.porCep++;
+                else contagem.porEndereco++;
+              } else {
+                await pool.query(
+                  `update cliente_enderecos
+                      set geo_tentativas = geo_tentativas + 1, geo_ultima_tentativa_em = now()
+                    where id = $1`,
+                  [end.id],
+                );
+                contagem.falhas++;
+              }
+            } catch (e) {
+              contagem.falhas++;
+              this.log.error(`geocodificação: falha no endereço ${slug}/${end.id}: ${e}`);
+            }
+            await this.deps.esperar(INTERVALO_MS);
           }
-          await this.deps.esperar(INTERVALO_MS);
+        } catch (e) {
+          this.log.error(`geocodificação: falha no tenant ${slug}: ${e}`);
         }
       }
       this.log.log(

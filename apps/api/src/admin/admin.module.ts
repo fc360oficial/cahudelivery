@@ -7,8 +7,11 @@ import { AdminUploadController } from './admin-upload.controller';
 import { AdminController } from './admin.controller';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
+import { GeoModule } from '../geo/geo.module';
+import { MapaService } from './mapa.service';
 
 @Module({
+  imports: [GeoModule],
   controllers: [
     AdminAuthController,
     AdminController,
@@ -17,6 +20,6 @@ import { AdminService } from './admin.service';
     AdminPatrocinadoresController,
     AdminUploadController,
   ],
-  providers: [AdminService, AdminGuard],
+  providers: [AdminService, AdminGuard, MapaService],
 })
 export class AdminModule {}

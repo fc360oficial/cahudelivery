@@ -3,6 +3,8 @@ import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional,
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
 import { AdminService } from './admin.service';
+import { MapaService } from './mapa.service';
+import { parseFiltrosMapa } from './mapa-filtros';
 
 type ReqAdmin = Request & { admin: AdminLogado };
 
@@ -36,7 +38,7 @@ class MovimentoCarteiraDto {
 @Controller('admin')
 @UseGuards(AdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService) {}
+  constructor(private readonly admin: AdminService, private readonly mapa: MapaService) {}
 
   @Get('dashboard')
   dashboard() {
@@ -51,6 +53,17 @@ export class AdminController {
   @Get('pedidos/:id')
   pedido(@Param('id', ParseUUIDPipe) id: string) {
     return this.admin.pedido(id);
+  }
+
+  @Get('mapa')
+  mapaDados(@Query('de') de?: string, @Query('ate') ate?: string, @Query('status') status?: string) {
+    return this.mapa.mapa(parseFiltrosMapa({ de, ate, status }));
+  }
+
+  @Post('mapa/geocodificar')
+  @HttpCode(200)
+  mapaGeocodificar() {
+    return this.mapa.geocodificarAgora();
   }
 
   @Post('pedidos/:id/reenviar-erp')

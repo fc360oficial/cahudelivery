@@ -157,6 +157,7 @@ export function Mapa() {
       }
     } else {
       mapa.setView(CENTRO_PADRAO, 12);
+      ajustouRef.current = false; // filtro sem pontos: re-enquadra quando voltarem
     }
   }, [dados, modo]);
 

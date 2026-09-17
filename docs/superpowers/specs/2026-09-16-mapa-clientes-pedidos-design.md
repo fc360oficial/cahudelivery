@@ -214,7 +214,8 @@ bairros diferentes numa bola só e sumia ao aproximar.
 - API: `pedidos[]` passa a trazer também `cidade` (campo separado), para o
   agrupamento no cliente. Nada mais muda no endpoint.
 - Pinos na mesma coordenada (mesmo CEP com precisão de rua) são espalhados
-  num círculo pequeno em pixels, recalculado a cada zoom.
+  numa espiral compacta em pixels, só com zoom ≥ 15; afastado ficam
+  empilhados e a bolha dá a contagem.
 - O contador "N clientes sem localização" é clicável e abre o painel com a
   lista (nome, CEP, endereço, tentativas, link para o cadastro); o endpoint
   devolve `semLocalizacao.listaClientes`.

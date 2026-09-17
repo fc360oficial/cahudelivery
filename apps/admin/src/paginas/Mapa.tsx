@@ -151,15 +151,18 @@ export function Mapa() {
       if (g) g.push(p);
       else grupos.set(k, [p]);
     }
+    // Só espalha com zoom perto; afastado, empilhar é o normal e a bolha dá a contagem.
+    const espalhar = mapa.getZoom() >= 15;
     for (const g of grupos.values()) {
-      if (g.length === 1) {
-        g[0].marcador.setLatLng(g[0].base);
+      if (g.length === 1 || !espalhar) {
+        for (const p of g) p.marcador.setLatLng(p.base);
         continue;
       }
+      // Espiral compacta (ângulo áureo): 133 pinos cabem num miolo de ~130 px de raio.
       const centro = mapa.latLngToLayerPoint(g[0].base);
-      const raio = 14 + g.length * 3;
       g.forEach((p, i) => {
-        const ang = (i / g.length) * Math.PI * 2 - Math.PI / 2;
+        const ang = i * 2.39996;
+        const raio = i === 0 ? 0 : 11 * Math.sqrt(i) + 10;
         p.marcador.setLatLng(mapa.layerPointToLatLng(L.point(centro.x + Math.cos(ang) * raio, centro.y + Math.sin(ang) * raio)));
       });
     }

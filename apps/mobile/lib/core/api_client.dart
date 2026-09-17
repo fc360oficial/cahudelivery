@@ -128,7 +128,12 @@ class ApiClient extends ChangeNotifier {
       res = await http
           .post(
             Uri.parse('${AppBuildConfig.apiUrl}/auth/refresh'),
-            headers: {'X-Tenant': AppBuildConfig.tenant, 'Content-Type': 'application/json'},
+            headers: {
+              'X-Tenant': AppBuildConfig.tenant,
+              'Content-Type': 'application/json',
+              // Deixa a API mesclar um carrinho anônimo que tenha ficado no aparelho.
+              'X-Device-Id': ?_deviceId,
+            },
             body: jsonEncode({'refreshToken': token}),
           )
           .timeout(const Duration(seconds: 15));

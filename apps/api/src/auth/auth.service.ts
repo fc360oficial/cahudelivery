@@ -166,7 +166,13 @@ export class AuthService {
     return { ok: true };
   }
 
-  async refresh(refreshToken: string): Promise<TokenPair> {
+  /**
+   * `deviceId`: se ficou algum carrinho anônimo no aparelho (itens adicionados
+   * enquanto o access token estava vencido, antes do fix do OptionalAuthGuard),
+   * ele é mesclado no carrinho do cliente aqui — a renovação é o 1º ponto em que
+   * o app volta a saber quem é o cliente.
+   */
+  async refresh(refreshToken: string, deviceId?: string): Promise<TokenPair> {
     const { pool, tenant } = tenantCtx();
     const hash = createHash('sha256').update(refreshToken).digest('hex');
     // Rotação com janela de tolerância: um token recém-usado (até 30s) ainda vale, pra
@@ -180,6 +186,7 @@ export class AuthService {
       [hash],
     );
     if (!rows[0]) throw new UnauthorizedException('Refresh token inválido ou expirado');
+    await this.reivindicarCarrinho(rows[0].sujeito_id, deviceId);
     return this.emitirTokens(rows[0].sujeito_id, tenant.slug);
   }
 

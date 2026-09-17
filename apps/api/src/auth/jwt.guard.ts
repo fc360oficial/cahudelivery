@@ -33,13 +33,26 @@ export class JwtAuthGuard implements CanActivate {
   }
 }
 
-/** Autenticação opcional: anexa req.cliente se houver token válido (preço por cliente no catálogo). */
+/**
+ * Autenticação opcional: sem Authorization segue como visitante (carrinho por
+ * X-Device-Id, preço da tabela padrão). Com Authorization presente, o token TEM
+ * que ser válido: token vencido/de outro tenant responde 401 pro app renovar e
+ * repetir a chamada. Rebaixar silenciosamente pra visitante fazia os itens do
+ * cliente logado (access token de 15 min vencido) irem pro carrinho do aparelho,
+ * e o "Confirmar pedido" (JwtAuthGuard) achava o carrinho do cliente vazio.
+ */
 @Injectable()
 export class OptionalAuthGuard implements CanActivate {
   constructor(private readonly jwt: JwtService) {}
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<Request & { cliente?: ClienteLogado }>();
-    req.cliente = (await extrair(this.jwt, req)) ?? undefined;
+    if (!req.headers.authorization) {
+      req.cliente = undefined;
+      return true;
+    }
+    const cliente = await extrair(this.jwt, req);
+    if (!cliente) throw new UnauthorizedException();
+    req.cliente = cliente;
     return true;
   }
 }

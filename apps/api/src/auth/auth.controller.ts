@@ -62,8 +62,8 @@ export class AuthController {
 
   @Post('refresh')
   @HttpCode(200)
-  refresh(@Body() dto: RefreshDto) {
-    return this.auth.refresh(dto.refreshToken);
+  refresh(@Body() dto: RefreshDto, @Headers('x-device-id') deviceId?: string) {
+    return this.auth.refresh(dto.refreshToken, deviceId);
   }
 
   @Post('senha')

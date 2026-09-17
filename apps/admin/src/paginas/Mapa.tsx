@@ -57,6 +57,14 @@ function esc(s: string) {
 function normalizar(s: string) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
+/** "RECIFE" e "Recife" são o mesmo município: chave sem acento/caixa, nome exibido em Título. */
+function chaveMunicipio(cidade: string) {
+  return normalizar(cidade).trim().replace(/\s+/g, ' ');
+}
+const MINUSCULAS = new Set(['da', 'de', 'do', 'das', 'dos', 'e']);
+function nomeMunicipio(cidade: string) {
+  return cidade.trim().toLowerCase().split(/\s+/).map((w, i) => (i > 0 && MINUSCULAS.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
 
 function iconePino(fill: string, stroke: string, tamanho = 28) {
   const h = Math.round(tamanho * 1.38);
@@ -73,24 +81,25 @@ function iconeBolha(m: Municipio, modo: Modo) {
   const n = modo === 'clientes' ? m.clientes.length : modo === 'pedidos' ? m.pedidos.length : Math.max(m.clientes.length, m.pedidos.length);
   const d = Math.round(Math.min(96, Math.max(48, 40 + Math.sqrt(n) * 7)));
   const contagem = modo === 'ambos' ? `${m.clientes.length} · ${m.pedidos.length}` : String(n);
-  return L.divIcon({
+  const icon = L.divIcon({
     className: 'mapa-bolha-wrap',
     html: `<div class="mapa-bolha" style="width:${d}px;height:${d}px;background:${m.cor}"><b>${contagem}</b><span>${esc(m.nome)}</span></div>`,
     iconSize: [d, d],
     iconAnchor: [d / 2, d / 2],
   });
+  return { icon, diametro: d };
 }
 
 /** Agrupa clientes e pedidos por município, com cor fixa e centro geométrico. */
 function agruparMunicipios(dados: RespostaMapa): Map<string, Municipio> {
   const mapa = new Map<string, Municipio>();
-  const nomes = new Set<string>();
-  for (const c of dados.clientes) nomes.add(c.cidade);
-  for (const p of dados.pedidos) nomes.add(p.cidade);
-  const ordenados = [...nomes].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  ordenados.forEach((nome, i) => mapa.set(nome, { nome, cor: PALETA[i % PALETA.length], clientes: [], pedidos: [], centro: [0, 0] }));
-  for (const c of dados.clientes) mapa.get(c.cidade)!.clientes.push(c);
-  for (const p of dados.pedidos) mapa.get(p.cidade)!.pedidos.push(p);
+  const nomes = new Map<string, string>(); // chave normalizada → nome exibido
+  for (const c of dados.clientes) nomes.set(chaveMunicipio(c.cidade), nomeMunicipio(c.cidade));
+  for (const p of dados.pedidos) nomes.set(chaveMunicipio(p.cidade), nomeMunicipio(p.cidade));
+  const ordenados = [...nomes.keys()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  ordenados.forEach((chave, i) => mapa.set(chave, { nome: nomes.get(chave)!, cor: PALETA[i % PALETA.length], clientes: [], pedidos: [], centro: [0, 0] }));
+  for (const c of dados.clientes) mapa.get(chaveMunicipio(c.cidade))!.clientes.push(c);
+  for (const p of dados.pedidos) mapa.get(chaveMunicipio(p.cidade))!.pedidos.push(p);
   for (const m of mapa.values()) {
     const pts = [...m.clientes, ...m.pedidos];
     m.centro = [pts.reduce((s, p) => s + p.lat, 0) / pts.length, pts.reduce((s, p) => s + p.lng, 0) / pts.length];
@@ -117,6 +126,42 @@ export function Mapa() {
   const divRef = useRef<HTMLDivElement | null>(null);
   const ajustouRef = useRef(false);
   const modoAnteriorRef = useRef<Modo | null>(null);
+  const bolhasInfoRef = useRef<{ marcador: L.Marker; centro: [number, number]; diametro: number }[]>([]);
+
+  /**
+   * Coloca cada bolha no ponto livre mais próximo do centro do município:
+   * testa o próprio centro e depois anéis de 8 direções, até achar um lugar
+   * sem pino (nem outra bolha) por baixo. Tudo em pixels da tela atual.
+   */
+  const posicionarBolhas = () => {
+    const mapa = mapaRef.current;
+    if (!mapa) return;
+    const pinos = [...marcadoresRef.current.values()].map((m) => mapa.latLngToLayerPoint(m.getLatLng()));
+    const ocupadas: { p: L.Point; r: number }[] = [];
+    const FOLGA_PINO = 22; // metade da altura do alfinete, aproximada
+    for (const b of bolhasInfoRef.current) {
+      const raio = b.diametro / 2;
+      const centro = mapa.latLngToLayerPoint(L.latLng(b.centro));
+      const livre = (p: L.Point) =>
+        pinos.every((q) => p.distanceTo(q) > raio + FOLGA_PINO) && ocupadas.every((o) => p.distanceTo(o.p) > raio + o.r + 6);
+      let escolhido = centro;
+      if (!livre(centro)) {
+        busca: for (let anel = 1; anel <= 8; anel++) {
+          const dist = raio + anel * 28;
+          for (let k = 0; k < 8; k++) {
+            const ang = (k / 8) * Math.PI * 2 + (anel % 2) * (Math.PI / 8);
+            const cand = L.point(centro.x + Math.cos(ang) * dist, centro.y + Math.sin(ang) * dist);
+            if (livre(cand)) {
+              escolhido = cand;
+              break busca;
+            }
+          }
+        }
+      }
+      ocupadas.push({ p: escolhido, r: raio });
+      b.marcador.setLatLng(mapa.layerPointToLatLng(escolhido));
+    }
+  };
 
   const municipios = useMemo(() => (dados ? agruparMunicipios(dados) : new Map<string, Municipio>()), [dados]);
 
@@ -163,6 +208,8 @@ export function Mapa() {
       if (perto && mapa.hasLayer(bolhas)) mapa.removeLayer(bolhas);
       if (!perto && !mapa.hasLayer(bolhas)) mapa.addLayer(bolhas);
     });
+    // A posição livre depende da escala: recalcula a cada zoom/arraste.
+    mapa.on('zoomend moveend', () => posicionarBolhas());
     mapaRef.current = mapa;
     camadaPinosRef.current = pinos;
     camadaBolhasRef.current = bolhas;
@@ -187,7 +234,7 @@ export function Mapa() {
 
     if (modo !== 'pedidos') {
       for (const c of dados.clientes) {
-        const cor = municipios.get(c.cidade)?.cor ?? '#6b7280';
+        const cor = municipios.get(chaveMunicipio(c.cidade))?.cor ?? '#6b7280';
         const m = L.marker([c.lat, c.lng], { icon: iconePino(cor, '#1f2937') });
         m.bindPopup(
           `<div class="popup-mapa">
@@ -221,16 +268,20 @@ export function Mapa() {
         pontos.push([p.lat, p.lng]);
       }
     }
+    bolhasInfoRef.current = [];
     for (const mun of municipios.values()) {
       const n = modo === 'clientes' ? mun.clientes.length : modo === 'pedidos' ? mun.pedidos.length : Math.max(mun.clientes.length, mun.pedidos.length);
       if (n < MIN_BOLHA) continue;
-      const b = L.marker(mun.centro, { icon: iconeBolha(mun, modo), pane: 'bolhas', interactive: true });
+      const { icon, diametro } = iconeBolha(mun, modo);
+      const b = L.marker(mun.centro, { icon, pane: 'bolhas', interactive: true });
       b.on('click', () => {
-        setMunicipioSel(mun.nome);
+        setMunicipioSel(chaveMunicipio(mun.nome));
         setBuscaPainel('');
       });
       bolhas.addLayer(b);
+      bolhasInfoRef.current.push({ marcador: b, centro: mun.centro, diametro });
     }
+    posicionarBolhas();
     if (pontos.length) {
       if (!ajustouRef.current || modoAnteriorRef.current !== modo) {
         mapa.fitBounds(L.latLngBounds(pontos), { padding: [30, 30], maxZoom: 15 });
@@ -248,10 +299,11 @@ export function Mapa() {
     mapaRef.current?.invalidateSize();
   }, [municipioSel]);
 
-  const geocodificar = async () => {
+  const geocodificar = async (refazer = false) => {
+    if (refazer && !confirm('Apagar todas as coordenadas deste cliente e geocodificar tudo de novo? Leva cerca de 1 segundo por endereço.')) return;
     setDisparando(true);
     try {
-      await api('/admin/mapa/geocodificar', { method: 'POST' });
+      await api('/admin/mapa/geocodificar' + (refazer ? '?refazer=1' : ''), { method: 'POST' });
       carregar();
     } catch (e) {
       setErro((e as Error).message);
@@ -299,8 +351,11 @@ export function Mapa() {
             {semLoc.clientes} cliente{semLoc.clientes === 1 ? '' : 's'} / {semLoc.pedidos} pedido{semLoc.pedidos === 1 ? '' : 's'} sem localização
           </span>
         )}
-        <button className="btn btn-claro" onClick={geocodificar} disabled={emAndamento || disparando}>
+        <button className="btn btn-claro" onClick={() => geocodificar(false)} disabled={emAndamento || disparando}>
           {emAndamento ? 'Geocodificando…' : 'Geocodificar pendentes'}
+        </button>
+        <button className="btn btn-claro btn-mini" onClick={() => geocodificar(true)} disabled={emAndamento || disparando} title="Zera as coordenadas e geocodifica todos os endereços de novo (use após corrigir CEPs ou trocar a fonte)">
+          Refazer tudo
         </button>
       </div>
       {modo !== 'clientes' && (

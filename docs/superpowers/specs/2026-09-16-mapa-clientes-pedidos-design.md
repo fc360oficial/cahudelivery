@@ -190,10 +190,13 @@ bairros diferentes numa bola só e sumia ao aproximar.
 - **Pinos de alfinete** no lugar dos círculos: cliente com a cor do município
   (miolo branco), pedido amarelo CAHU com borda pela cor do status. Sempre
   visíveis na posição real.
-- **Uma bolha por município**, no centro geométrico dos pontos daquele
-  município, com nome e contagem ("Recife · 107"). Tamanho proporcional à
+- **Uma bolha por município**, no ponto livre mais próximo do centro
+  geométrico dos pontos daquele município (nunca em cima de um pino;
+  recalculado a cada zoom/arraste), com nome e contagem ("Recife · 107"). Tamanho proporcional à
   contagem. Só aparece a partir de **3** itens. Cada município recebe uma cor
   fixa de uma paleta de 12, atribuída em ordem alfabética.
+- Municípios são agrupados ignorando caixa e acento ("RECIFE" e "Recife"
+  são um só) e exibidos em Título.
 - A bolha **segue o filtro**: em Clientes conta clientes, em Pedidos conta
   pedidos do período, em Ambos mostra "clientes · pedidos".
 - **Clicar na bolha** abre um painel lateral à direita do mapa com a lista do

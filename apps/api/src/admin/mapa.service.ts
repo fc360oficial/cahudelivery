@@ -65,7 +65,17 @@ export class MapaService {
     };
   }
 
-  geocodificarAgora() {
-    return this.geo.dispararAgora(tenantCtx().tenant.slug);
+  /** Dispara a geocodificação do tenant logado. Com refazer, zera todas as coordenadas antes. */
+  async geocodificarAgora(refazer = false) {
+    const { pool, tenant } = tenantCtx();
+    if (refazer) {
+      if (this.geo.estado().emAndamento) return { iniciado: false, emAndamento: true };
+      await pool.query(
+        `update cliente_enderecos
+            set latitude = null, longitude = null, geo_precisao = null,
+                geocodificado_em = null, geo_tentativas = 0, geo_ultima_tentativa_em = null`,
+      );
+    }
+    return this.geo.dispararAgora(tenant.slug);
   }
 }

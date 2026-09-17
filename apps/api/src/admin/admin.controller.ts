@@ -62,8 +62,8 @@ export class AdminController {
 
   @Post('mapa/geocodificar')
   @HttpCode(200)
-  mapaGeocodificar() {
-    return this.mapa.geocodificarAgora();
+  mapaGeocodificar(@Query('refazer') refazer?: string) {
+    return this.mapa.geocodificarAgora(refazer === '1');
   }
 
   @Post('pedidos/:id/reenviar-erp')

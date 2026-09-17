@@ -12,10 +12,13 @@ interface PedidoMapa {
   id: string; numero: number; clienteId: string; cliente: string; status: string; total: number; criadoEm: string;
   endereco: string; cidade: string; bairro: string; lat: number; lng: number; precisao: 'cep' | 'endereco';
 }
+interface ClienteSemLoc {
+  id: string; nome: string; documento: string; cep: string | null; endereco: string | null; tentativas: number;
+}
 interface RespostaMapa {
   clientes: ClienteMapa[];
   pedidos: PedidoMapa[];
-  semLocalizacao: { clientes: number; pedidos: number };
+  semLocalizacao: { clientes: number; pedidos: number; listaClientes: ClienteSemLoc[] };
   geocodificacao: { emAndamento: boolean; ultimaExecucaoEm: string | null };
 }
 
@@ -120,6 +123,7 @@ export function Mapa() {
   const [erro, setErro] = useState<string | null>(null);
   const [disparando, setDisparando] = useState(false);
   const [municipioSel, setMunicipioSel] = useState<string | null>(null);
+  const [mostrarSemLoc, setMostrarSemLoc] = useState(false);
   const [buscaPainel, setBuscaPainel] = useState('');
 
   const mapaRef = useRef<L.Map | null>(null);
@@ -130,6 +134,36 @@ export function Mapa() {
   const ajustouRef = useRef(false);
   const modoAnteriorRef = useRef<Modo | null>(null);
   const bolhasInfoRef = useRef<{ marcador: L.Marker; centro: [number, number]; diametro: number }[]>([]);
+  const pinosBaseRef = useRef<{ marcador: L.Marker; base: L.LatLng }[]>([]);
+
+  /**
+   * Pinos na mesma coordenada (mesmo CEP, precisão de rua) ficariam um em cima
+   * do outro: espalha cada grupo num círculo pequeno, em pixels, recalculado
+   * a cada zoom para o círculo ter sempre o mesmo tamanho na tela.
+   */
+  const espalharPinos = () => {
+    const mapa = mapaRef.current;
+    if (!mapa) return;
+    const grupos = new Map<string, { marcador: L.Marker; base: L.LatLng }[]>();
+    for (const p of pinosBaseRef.current) {
+      const k = `${p.base.lat.toFixed(5)},${p.base.lng.toFixed(5)}`;
+      const g = grupos.get(k);
+      if (g) g.push(p);
+      else grupos.set(k, [p]);
+    }
+    for (const g of grupos.values()) {
+      if (g.length === 1) {
+        g[0].marcador.setLatLng(g[0].base);
+        continue;
+      }
+      const centro = mapa.latLngToLayerPoint(g[0].base);
+      const raio = 14 + g.length * 3;
+      g.forEach((p, i) => {
+        const ang = (i / g.length) * Math.PI * 2 - Math.PI / 2;
+        p.marcador.setLatLng(mapa.layerPointToLatLng(L.point(centro.x + Math.cos(ang) * raio, centro.y + Math.sin(ang) * raio)));
+      });
+    }
+  };
 
   /**
    * Coloca cada bolha no ponto livre mais próximo do centro do município:
@@ -215,6 +249,7 @@ export function Mapa() {
     });
     // A posição livre depende da escala: recalcula a cada zoom/arraste.
     mapa.on('zoomend moveend', () => posicionarBolhas());
+    mapa.on('zoomend', () => espalharPinos());
     mapaRef.current = mapa;
     camadaPinosRef.current = pinos;
     camadaBolhasRef.current = bolhas;
@@ -235,6 +270,7 @@ export function Mapa() {
     pinos.clearLayers();
     bolhas.clearLayers();
     marcadoresRef.current.clear();
+    pinosBaseRef.current = [];
     const pontos: L.LatLngExpression[] = [];
 
     if (modo !== 'pedidos') {
@@ -252,6 +288,7 @@ export function Mapa() {
         );
         pinos.addLayer(m);
         marcadoresRef.current.set('c:' + c.id, m);
+        pinosBaseRef.current.push({ marcador: m, base: L.latLng(c.lat, c.lng) });
         pontos.push([c.lat, c.lng]);
       }
     }
@@ -270,6 +307,7 @@ export function Mapa() {
         );
         pinos.addLayer(m);
         marcadoresRef.current.set('p:' + p.id, m);
+        pinosBaseRef.current.push({ marcador: m, base: L.latLng(p.lat, p.lng) });
         pontos.push([p.lat, p.lng]);
       }
     }
@@ -281,11 +319,13 @@ export function Mapa() {
       const b = L.marker(mun.centro, { icon, pane: 'bolhas', interactive: true });
       b.on('click', () => {
         setMunicipioSel(chaveMunicipio(mun.nome));
+        setMostrarSemLoc(false);
         setBuscaPainel('');
       });
       bolhas.addLayer(b);
       bolhasInfoRef.current.push({ marcador: b, centro: mun.centro, diametro });
     }
+    espalharPinos();
     posicionarBolhas();
     if (pontos.length) {
       if (!ajustouRef.current || modoAnteriorRef.current !== modo) {
@@ -302,7 +342,7 @@ export function Mapa() {
   // O painel abre em cima do mapa; avisa o Leaflet que a área mudou.
   useEffect(() => {
     mapaRef.current?.invalidateSize();
-  }, [municipioSel]);
+  }, [municipioSel, mostrarSemLoc]);
 
   const geocodificar = async (refazer = false) => {
     if (refazer && !confirm('Apagar todas as coordenadas deste cliente e geocodificar tudo de novo? Leva cerca de 1 segundo por endereço.')) return;
@@ -352,9 +392,9 @@ export function Mapa() {
         ))}
         <span style={{ flex: 1 }} />
         {semLoc && (
-          <span className="mapa-aviso">
+          <button className={`mapa-aviso ${mostrarSemLoc ? 'ativo' : ''}`} onClick={() => { setMostrarSemLoc(!mostrarSemLoc); setMunicipioSel(null); setBuscaPainel(''); }} title="Ver quem ficou sem localização">
             {semLoc.clientes} cliente{semLoc.clientes === 1 ? '' : 's'} / {semLoc.pedidos} pedido{semLoc.pedidos === 1 ? '' : 's'} sem localização
-          </span>
+          </button>
         )}
         <button className="btn btn-claro" onClick={() => geocodificar(false)} disabled={emAndamento || disparando}>
           {emAndamento ? 'Geocodificando…' : 'Geocodificar pendentes'}
@@ -420,6 +460,29 @@ export function Mapa() {
                 </button>
               ))}
               {!clientesPainel.length && !pedidosPainel.length && <div className="vazio">Nada encontrado</div>}
+            </div>
+          </aside>
+        )}
+        {mostrarSemLoc && semLoc && (
+          <aside className="mapa-painel">
+            <div className="mapa-painel-cab" style={{ borderColor: '#c02626' }}>
+              <div>
+                <strong>Sem localização</strong>
+                <div className="sub">{semLoc.listaClientes.length} cliente{semLoc.listaClientes.length === 1 ? '' : 's'} · confira CEP e endereço no cadastro</div>
+              </div>
+              <button className="btn btn-mini btn-claro" onClick={() => setMostrarSemLoc(false)} title="Fechar">✕</button>
+            </div>
+            <input placeholder="Buscar nome, CEP, documento…" value={buscaPainel} onChange={(e) => setBuscaPainel(e.target.value)} />
+            <div className="mapa-painel-lista">
+              {semLoc.listaClientes
+                .filter((c) => !filtro || normalizar(`${c.nome} ${c.cep ?? ''} ${c.documento} ${c.endereco ?? ''}`).includes(filtro))
+                .map((c) => (
+                  <a key={c.id} className="mapa-painel-item" href={`/clientes?busca=${encodeURIComponent(c.documento)}`} title="Abrir cliente">
+                    <strong>{c.nome}</strong>
+                    <span className="sub">{c.cep ? `CEP ${c.cep}` : 'Sem endereço cadastrado'}{c.endereco ? ` · ${c.endereco}` : ''}</span>
+                    <span className="sub">{fmtDocumento(c.documento)}{c.tentativas >= 5 ? ' · esgotou as tentativas' : c.tentativas ? ` · ${c.tentativas} tentativa${c.tentativas === 1 ? '' : 's'}` : ' · ainda não tentado'}</span>
+                  </a>
+                ))}
             </div>
           </aside>
         )}

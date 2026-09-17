@@ -213,5 +213,12 @@ bairros diferentes numa bola só e sumia ao aproximar.
   total), com busca. Clicar num item centraliza o pino e abre o balão.
 - API: `pedidos[]` passa a trazer também `cidade` (campo separado), para o
   agrupamento no cliente. Nada mais muda no endpoint.
+- Pinos na mesma coordenada (mesmo CEP com precisão de rua) são espalhados
+  num círculo pequeno em pixels, recalculado a cada zoom.
+- O contador "N clientes sem localização" é clicável e abre o painel com a
+  lista (nome, CEP, endereço, tentativas, link para o cadastro); o endpoint
+  devolve `semLocalizacao.listaClientes`.
+- "Geocodificar pendentes" zera `geo_tentativas` dos pendentes antes de
+  rodar, então o clique manual sempre retenta quem esgotou as 5 tentativas.
 - Dependências `leaflet.markercluster` e `@types/leaflet.markercluster`
   removidas.

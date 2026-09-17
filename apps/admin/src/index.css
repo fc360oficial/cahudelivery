@@ -162,7 +162,9 @@ input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: 0;
 /* Mapa */
 .mapa-area { display: flex; gap: 12px; align-items: stretch; }
 .mapa-wrap { flex: 1; min-width: 0; height: calc(100vh - 230px); min-height: 520px; border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); overflow: hidden; }
-.mapa-aviso { color: var(--texto-2); font-size: 13px; }
+.mapa-aviso { color: var(--texto-2); font-size: 13px; background: none; border: 1px solid transparent; border-radius: 8px; padding: 6px 10px; text-decoration: underline dotted; }
+.mapa-aviso:hover, .mapa-aviso.ativo { background: #fef2f2; border-color: #fecaca; color: var(--vermelho); }
+a.mapa-painel-item { text-decoration: none; color: inherit; }
 .mapa-legenda { display: flex; gap: 18px; align-items: center; margin: 0 0 10px; font-size: 13px; color: var(--texto-2); }
 .mapa-ponto { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -2px; margin-right: 4px; }
 .mapa-ponto.cliente { background: #6b7280; border: 1px solid #4b5563; }

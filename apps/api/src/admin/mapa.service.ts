@@ -10,7 +10,7 @@ export class MapaService {
 
   async mapa(f: FiltrosMapa) {
     const { pool } = tenantCtx();
-    const [clientes, pedidos, semLoc] = await Promise.all([
+    const [clientes, pedidos, semLoc, semLocLista] = await Promise.all([
       pool.query(
         `select distinct on (c.id)
                 c.id, c.nome_fantasia as nome, c.documento, coalesce(e.geo_cidade, e.cidade) as cidade, e.bairro,
@@ -56,11 +56,23 @@ export class MapaService {
                )) as pedidos`,
         [f.de, f.ate, f.status],
       ),
+      // Quem ficou de fora, com o endereço padrão, para conferir o cadastro.
+      pool.query(
+        `select distinct on (c.id)
+                c.id, c.nome_fantasia as nome, c.documento, e.cep,
+                concat_ws(', ', e.logradouro, e.numero) || ' - ' || e.bairro || ', ' || e.cidade as endereco,
+                coalesce(e.geo_tentativas, 0) as tentativas
+           from clientes c
+           left join cliente_enderecos e on e.cliente_id = c.id
+          where c.status not in ('bloqueado', 'excluido')
+            and not exists (select 1 from cliente_enderecos e2 where e2.cliente_id = c.id and e2.latitude is not null)
+          order by c.id, e.padrao desc nulls last, e.id`,
+      ),
     ]);
     return {
       clientes: clientes.rows,
       pedidos: pedidos.rows,
-      semLocalizacao: semLoc.rows[0],
+      semLocalizacao: { ...semLoc.rows[0], listaClientes: semLocLista.rows },
       geocodificacao: this.geo.estado(),
     };
   }
@@ -75,6 +87,9 @@ export class MapaService {
             set latitude = null, longitude = null, geo_precisao = null, geo_cidade = null,
                 geocodificado_em = null, geo_tentativas = 0, geo_ultima_tentativa_em = null`,
       );
+    } else {
+      // Clique manual sempre tenta de novo, inclusive quem já esgotou as 5 tentativas.
+      await pool.query(`update cliente_enderecos set geo_tentativas = 0 where latitude is null and geo_tentativas > 0`);
     }
     return this.geo.dispararAgora(tenant.slug);
   }

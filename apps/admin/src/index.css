@@ -178,6 +178,8 @@ input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: 0;
 .mapa-bolha { border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; opacity: .88; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); cursor: pointer; text-align: center; line-height: 1.1; transition: transform .12s; }
 .mapa-bolha:hover { transform: scale(1.06); opacity: 1; }
 .mapa-bolha b { font-size: 15px; }
+.mapa-bolha-ped { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #FFD500; color: #1a1a1a; font: 700 11px/20px inherit; font-style: normal; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.mapa-bolha { position: relative; }
 .mapa-bolha span { font-size: 10px; font-weight: 600; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mapa-painel { width: 320px; flex: none; background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 10px; padding: 14px; height: calc(100vh - 230px); min-height: 520px; }
 .mapa-painel-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-left: 5px solid; padding-left: 10px; }

@@ -80,10 +80,13 @@ function iconePino(fill: string, stroke: string, tamanho = 28) {
 function iconeBolha(m: Municipio, modo: Modo) {
   const n = modo === 'clientes' ? m.clientes.length : modo === 'pedidos' ? m.pedidos.length : Math.max(m.clientes.length, m.pedidos.length);
   const d = Math.round(Math.min(96, Math.max(48, 40 + Math.sqrt(n) * 7)));
-  const contagem = modo === 'ambos' ? `${m.clientes.length} · ${m.pedidos.length}` : String(n);
+  // Ambos: número grande = clientes; pedidos do período numa etiqueta amarela, só quando existem.
+  const principal = modo === 'pedidos' ? m.pedidos.length : m.clientes.length;
+  const etiquetaPedidos = modo === 'ambos' && m.pedidos.length ? `<i class="mapa-bolha-ped" title="pedidos no período">${m.pedidos.length}</i>` : '';
+  const titulo = modo === 'clientes' ? `${m.clientes.length} clientes` : modo === 'pedidos' ? `${m.pedidos.length} pedidos no período` : `${m.clientes.length} clientes · ${m.pedidos.length} pedidos no período`;
   const icon = L.divIcon({
     className: 'mapa-bolha-wrap',
-    html: `<div class="mapa-bolha" style="width:${d}px;height:${d}px;background:${m.cor}"><b>${contagem}</b><span>${esc(m.nome)}</span></div>`,
+    html: `<div class="mapa-bolha" style="width:${d}px;height:${d}px;background:${m.cor}" title="${esc(m.nome)}: ${titulo}"><b>${principal}</b><span>${esc(m.nome)}</span>${etiquetaPedidos}</div>`,
     iconSize: [d, d],
     iconAnchor: [d / 2, d / 2],
   });
@@ -146,8 +149,10 @@ export function Mapa() {
         pinos.every((q) => p.distanceTo(q) > raio + FOLGA_PINO) && ocupadas.every((o) => p.distanceTo(o.p) > raio + o.r + 6);
       let escolhido = centro;
       if (!livre(centro)) {
-        busca: for (let anel = 1; anel <= 8; anel++) {
-          const dist = raio + anel * 28;
+        // Só perto do centro (3 anéis): longe demais a bolha deixa de "ser" o município.
+        // Sem lugar livre por perto, fica no centro mesmo, por cima dos pinos.
+        busca: for (let anel = 1; anel <= 3; anel++) {
+          const dist = raio + anel * 26;
           for (let k = 0; k < 8; k++) {
             const ang = (k / 8) * Math.PI * 2 + (anel % 2) * (Math.PI / 8);
             const cand = L.point(centro.x + Math.cos(ang) * dist, centro.y + Math.sin(ang) * dist);

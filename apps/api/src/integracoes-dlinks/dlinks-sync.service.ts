@@ -33,11 +33,13 @@ export class DlinksSyncService {
     const { pool } = tenantCtx();
     let processados = 0;
     for (const item of itens) {
+      // Grupo do ERP não vira categoria: só entra no mapa grupo→categoria (categoria_id fica
+      // nulo até ser mapeado na retaguarda/script). Categorias são gerenciadas na retaguarda.
       await pool.query(
-        `insert into categorias (nome, slug, erp_categoria_id)
-         values ($1, $2, $3)
-         on conflict (erp_categoria_id) do update set nome = excluded.nome`,
-        [item.descricao, `${slug(item.descricao)}-${item.codigo}`, item.codigo],
+        `insert into categoria_grupo_erp (erp_categoria_id, nome_erp)
+         values ($1, $2)
+         on conflict (erp_categoria_id) do update set nome_erp = excluded.nome_erp, atualizado_em = now()`,
+        [item.codigo, item.descricao],
       );
       processados++;
     }
@@ -87,7 +89,10 @@ export class DlinksSyncService {
          values (
            $1, $1, $2,
            (select id from marcas where erp_marca_id = $3),
-           (select coalesce(pai_id, id) from categorias where erp_categoria_id = $4),
+           coalesce(
+             (select categoria_id from categoria_grupo_erp where erp_categoria_id = $4),
+             (select id from categorias where pai_id is null and ativo and slug = 'variedades' limit 1)
+           ),
            $5, coalesce($6::numeric, 1), $1, now(), coalesce($7::boolean, true)
          )
          on conflict (erp_produto_id) do update set

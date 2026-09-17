@@ -13,7 +13,7 @@ export class MapaService {
     const [clientes, pedidos, semLoc] = await Promise.all([
       pool.query(
         `select distinct on (c.id)
-                c.id, c.nome_fantasia as nome, c.documento, e.cidade, e.bairro,
+                c.id, c.nome_fantasia as nome, c.documento, coalesce(e.geo_cidade, e.cidade) as cidade, e.bairro,
                 concat_ws(', ', e.logradouro, e.numero) as endereco,
                 e.latitude as lat, e.longitude as lng, e.geo_precisao as precisao
            from clientes c
@@ -25,7 +25,7 @@ export class MapaService {
         `select p.id, p.numero, p.cliente_id as "clienteId", c.nome_fantasia as cliente, p.status,
                 p.total::float as total, p.criado_em as "criadoEm",
                 concat_ws(', ', e.logradouro, e.numero) || ' - ' || e.bairro || ', ' || e.cidade as endereco,
-                e.cidade, e.bairro,
+                coalesce(e.geo_cidade, e.cidade) as cidade, e.bairro,
                 e.latitude as lat, e.longitude as lng, e.geo_precisao as precisao
            from pedidos p
            join clientes c on c.id = p.cliente_id
@@ -72,7 +72,7 @@ export class MapaService {
       if (this.geo.estado().emAndamento) return { iniciado: false, emAndamento: true };
       await pool.query(
         `update cliente_enderecos
-            set latitude = null, longitude = null, geo_precisao = null,
+            set latitude = null, longitude = null, geo_precisao = null, geo_cidade = null,
                 geocodificado_em = null, geo_tentativas = 0, geo_ultima_tentativa_em = null`,
       );
     }

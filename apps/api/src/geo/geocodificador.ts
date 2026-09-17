@@ -18,6 +18,8 @@ export interface Coordenada {
   lat: number;
   lng: number;
   precisao: 'cep' | 'endereco';
+  /** Município segundo o OpenStreetMap (o campo cidade do cadastro não é confiável). */
+  cidade: string | null;
 }
 
 export type FetchFn = (url: string, init?: RequestInit) => Promise<Response>;
@@ -43,20 +45,22 @@ async function nominatim(
   precisao: Coordenada['precisao'],
   fetchFn: FetchFn,
 ): Promise<Coordenada | null> {
-  const q = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'br', ...filtros });
+  const q = new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'br', addressdetails: '1', ...filtros });
   try {
     const res = await fetchFn(`${NOMINATIM}?${q}`, {
       headers: { 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) return null;
-    const body = (await res.json()) as Array<{ lat: string; lon: string }>;
+    const body = (await res.json()) as Array<{ lat: string; lon: string; address?: Record<string, string> }>;
     const hit = body[0];
     if (!hit) return null;
     const lat = Number(hit.lat);
     const lng = Number(hit.lon);
     if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-    return { lat, lng, precisao };
+    const a = hit.address ?? {};
+    const cidade = a.city ?? a.town ?? a.municipality ?? a.village ?? null;
+    return { lat, lng, precisao, cidade };
   } catch {
     return null;
   }

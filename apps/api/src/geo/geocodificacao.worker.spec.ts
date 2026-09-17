@@ -33,11 +33,11 @@ describe('GeocodificacaoWorker.processarPendentes', () => {
   const linha = { id: 'e1', cep: '56302000', logradouro: 'Rua A', numero: '1', cidade: 'Petrolina', uf: 'PE' };
 
   it('grava lat/lng quando resolve', async () => {
-    const { w, query } = montar([linha], { lat: -9.39, lng: -40.5, precisao: 'cep' });
+    const { w, query } = montar([linha], { lat: -9.39, lng: -40.5, precisao: 'cep', cidade: 'Petrolina' });
     await w.processarPendentes();
     const update = query.mock.calls.find(([sql]) => String(sql).includes('set latitude'));
     expect(update).toBeDefined();
-    expect(update![1]).toEqual([-9.39, -40.5, 'cep', 'e1']);
+    expect(update![1]).toEqual([-9.39, -40.5, 'cep', 'Petrolina', 'e1']);
     expect(w.estado().emAndamento).toBe(false);
     expect(w.estado().ultimaExecucaoEm).not.toBeNull();
   });
@@ -68,7 +68,7 @@ describe('GeocodificacaoWorker.processarPendentes', () => {
         return { query: queryB };
       },
     };
-    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep' }));
+    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep', cidade: 'Petrolina' }));
     const w = new GeocodificacaoWorker(db as never, { geocodificar, esperar: async () => undefined });
 
     await w.processarPendentes();
@@ -94,7 +94,7 @@ describe('GeocodificacaoWorker.processarPendentes', () => {
       listActiveTenantSlugs: async () => ['cahu'],
       getTenantPool: async () => ({ query }),
     };
-    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep' }));
+    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep', cidade: 'Petrolina' }));
     const w = new GeocodificacaoWorker(db as never, { geocodificar, esperar: async () => undefined });
 
     await w.processarPendentes();
@@ -120,7 +120,7 @@ describe('GeocodificacaoWorker.processarPendentes', () => {
       listActiveTenantSlugs: async () => ['a', 'b'],
       getTenantPool,
     };
-    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep' }));
+    const geocodificar = jest.fn(async () => ({ lat: -9.39, lng: -40.5, precisao: 'cep', cidade: 'Petrolina' }));
     const w = new GeocodificacaoWorker(db as never, { geocodificar, esperar: async () => undefined });
 
     await w.processarPendentes('b');

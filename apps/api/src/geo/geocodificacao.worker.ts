@@ -96,10 +96,10 @@ export class GeocodificacaoWorker implements OnModuleInit, OnModuleDestroy {
               if (coord) {
                 await pool.query(
                   `update cliente_enderecos
-                      set latitude = $1, longitude = $2, geo_precisao = $3,
+                      set latitude = $1, longitude = $2, geo_precisao = $3, geo_cidade = $4,
                           geocodificado_em = now(), geo_ultima_tentativa_em = now()
-                    where id = $4`,
-                  [coord.lat, coord.lng, coord.precisao, end.id],
+                    where id = $5`,
+                  [coord.lat, coord.lng, coord.precisao, coord.cidade, end.id],
                 );
                 if (coord.precisao === 'cep') contagem.porCep++;
                 else contagem.porEndereco++;

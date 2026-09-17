@@ -196,6 +196,12 @@ bairros diferentes numa bola só e sumia ao aproximar.
   zoom/arraste), com nome e contagem ("Recife · 107"). Tamanho proporcional à
   contagem. Só aparece a partir de **3** itens. Cada município recebe uma cor
   fixa de uma paleta de 12, atribuída em ordem alfabética.
+- **Município vem da geocodificação**, não do cadastro: o Nominatim devolve
+  `address.city` (ou town/municipality/village), gravado em
+  `cliente_enderecos.geo_cidade` (migração 024). O endpoint usa
+  `coalesce(geo_cidade, cidade)`. Motivo: no cadastro o campo cidade vem com
+  bairro no lugar da cidade ("Barra de Jangada" em vez de Jaboatão) e com
+  grafias diferentes.
 - Municípios são agrupados ignorando caixa e acento ("RECIFE" e "Recife"
   são um só) e exibidos em Título.
 - A bolha **segue o filtro**: em Clientes conta clientes, em Pedidos conta

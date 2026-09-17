@@ -87,7 +87,7 @@ export class DlinksSyncService {
          values (
            $1, $1, $2,
            (select id from marcas where erp_marca_id = $3),
-           (select id from categorias where erp_categoria_id = $4),
+           (select coalesce(pai_id, id) from categorias where erp_categoria_id = $4),
            $5, coalesce($6::numeric, 1), $1, now(), coalesce($7::boolean, true)
          )
          on conflict (erp_produto_id) do update set

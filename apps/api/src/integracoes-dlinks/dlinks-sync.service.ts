@@ -120,6 +120,28 @@ export class DlinksSyncService {
     return { processados, ignorados };
   }
 
+  /**
+   * Troca armada da tabela padrão: config `tabela_padrao_erp_armada` = código da tabela no ERP
+   * (ex.: "6"). Assim que essa tabela receber preços, vira a padrão sozinha e a config é
+   * removida — dispensa alguém ficar esperando o Dlinks enviar.
+   */
+  private async promoverTabelaPadraoArmada() {
+    const { pool } = tenantCtx();
+    const cfg = await pool.query(`select valor_json from configuracoes where chave = 'tabela_padrao_erp_armada'`);
+    const codigo = cfg.rows[0]?.valor_json;
+    if (!codigo) return;
+    const pronta = await pool.query(
+      `select t.id, t.nome, (select count(*)::int from precos p where p.tabela_preco_id = t.id) as precos
+         from tabelas_preco t where t.erp_tabela_id = $1`,
+      [String(codigo)],
+    );
+    const t = pronta.rows[0];
+    if (!t || t.precos < 50) return; // ainda não chegou de verdade
+    await pool.query(`update tabelas_preco set padrao = (id = $1)`, [t.id]);
+    await pool.query(`delete from configuracoes where chave = 'tabela_padrao_erp_armada'`);
+    await this.registrarLog('tabela_padrao', `Tabela ${codigo} (${t.nome}) virou a padrão com ${t.precos} preços`, true);
+  }
+
   async syncPrecos(itens: PrecoDto[]): Promise<ResultadoSync> {
     const { pool } = tenantCtx();
     let processados = 0;
@@ -144,6 +166,7 @@ export class DlinksSyncService {
       processados++;
     }
     await this.registrarLog('sync_precos', `${processados} preço(s), ${ignorados.length} ignorado(s)${resumoIgnorados(ignorados)}`, ignorados.length === 0);
+    await this.promoverTabelaPadraoArmada();
     return { processados, ignorados };
   }
 

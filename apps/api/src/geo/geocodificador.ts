@@ -28,16 +28,33 @@ export const USER_AGENT = 'FluxoCommerce/1.0 (contato@fluxocerto.com.br)';
 const TIMEOUT_MS = 8_000;
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 
-export async function geocodificar(end: EnderecoGeo, fetchFn: FetchFn = fetch): Promise<Coordenada | null> {
-  const porRua = await nominatim(
-    { street: `${end.numero} ${end.logradouro}`.trim(), city: end.cidade, state: end.uf },
-    'endereco',
-    fetchFn,
-  );
-  if (porRua) return porRua;
+export type EsperarFn = (ms: number) => Promise<void>;
+const dormir: EsperarFn = (ms) => new Promise((r) => setTimeout(r, ms));
+const INTERVALO_MS = 1_000; // Nominatim: no máximo 1 requisição por segundo
+
+/**
+ * Cascata, da mais precisa para a menos: rua com número → rua sem número →
+ * busca livre "rua, bairro, cidade" → só o CEP. Em cidade pequena o CEP é
+ * único e cai no centro, por isso vale insistir na rua antes.
+ */
+export async function geocodificar(end: EnderecoGeo, fetchFn: FetchFn = fetch, esperar: EsperarFn = dormir): Promise<Coordenada | null> {
+  const rua = end.logradouro.trim();
+  const numero = end.numero.trim();
   const cep = end.cep.replace(/\D/g, '');
-  if (cep.length !== 8) return null;
-  return nominatim({ postalcode: `${cep.slice(0, 5)}-${cep.slice(5)}` }, 'cep', fetchFn);
+  const etapas: { filtros: Record<string, string>; precisao: Coordenada['precisao'] }[] = [];
+  if (rua) {
+    if (numero) etapas.push({ filtros: { street: `${numero} ${rua}`, city: end.cidade, state: end.uf }, precisao: 'endereco' });
+    etapas.push({ filtros: { street: rua, city: end.cidade, state: end.uf }, precisao: 'endereco' });
+    etapas.push({ filtros: { q: `${rua}, ${end.cidade}, ${end.uf}` }, precisao: 'endereco' });
+  }
+  if (cep.length === 8) etapas.push({ filtros: { postalcode: `${cep.slice(0, 5)}-${cep.slice(5)}` }, precisao: 'cep' });
+
+  for (let i = 0; i < etapas.length; i++) {
+    if (i > 0) await esperar(INTERVALO_MS);
+    const c = await nominatim(etapas[i].filtros, etapas[i].precisao, fetchFn);
+    if (c) return c;
+  }
+  return null;
 }
 
 async function nominatim(

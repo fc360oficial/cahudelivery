@@ -147,13 +147,42 @@ export class AdminService {
     }
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
-      `select id, tipo, documento, nome_fantasia, email, telefone, status, criado_em,
+      `select id, tipo, documento, nome_fantasia, email, telefone, status, criado_em, tabela_preco_id,
         (select count(*)::int from pedidos p where p.cliente_id = clientes.id) as pedidos
          from clientes where ${cond.join(' and ')}
         order by criado_em desc limit 25 offset $${params.length}`,
       params,
     );
     return { dados: rows, pagina: f.pagina, resumo: resumo.rows[0] };
+  }
+
+  /** Tabelas de preço do tenant, com código do ERP e quantos preços/clientes têm. */
+  async tabelasPreco() {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select t.id, t.nome, t.padrao, t.erp_tabela_id as codigo,
+              (select count(*)::int from precos p where p.tabela_preco_id = t.id) as precos,
+              (select count(*)::int from clientes c where c.tabela_preco_id = t.id) as clientes
+         from tabelas_preco t
+        order by t.padrao desc, nullif(regexp_replace(coalesce(t.erp_tabela_id, ''), '\\D', '', 'g'), '')::int nulls last, t.nome`,
+    );
+    return rows;
+  }
+
+  /** Vincula (ou desvincula, com null) a tabela de preço de um cliente. Sem tabela = padrão do tenant. */
+  async definirTabelaCliente(id: string, tabelaPrecoId: string | null, usuarioId: string) {
+    const { pool } = tenantCtx();
+    if (tabelaPrecoId) {
+      const t = await pool.query(`select 1 from tabelas_preco where id = $1`, [tabelaPrecoId]);
+      if (!t.rowCount) throw new BadRequestException('Tabela de preço não encontrada');
+    }
+    const r = await pool.query(`update clientes set tabela_preco_id = $2 where id = $1 returning id`, [id, tabelaPrecoId]);
+    if (!r.rowCount) throw new NotFoundException('Cliente não encontrado');
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json) values ($1, 'tabela_preco', 'cliente', $2, $3)`,
+      [usuarioId, id, JSON.stringify({ tabelaPrecoId })],
+    );
+    return { ok: true };
   }
 
   async mudarStatusCliente(id: string, status: 'aprovado' | 'bloqueado' | 'pendente', usuarioId: string) {

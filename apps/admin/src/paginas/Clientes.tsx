@@ -13,6 +13,11 @@ interface LinhaCliente {
   status: 'pendente' | 'aprovado' | 'bloqueado' | 'excluido';
   criado_em: string;
   pedidos: number;
+  tabela_preco_id: string | null;
+}
+
+interface TabelaPreco {
+  id: string; nome: string; padrao: boolean; codigo: string | null; precos: number; clientes: number;
 }
 
 export function Clientes() {
@@ -40,6 +45,21 @@ export function Clientes() {
   }, [status, busca, pagina]);
 
   useEffect(carregar, [carregar]);
+
+  const [tabelas, setTabelas] = useState<TabelaPreco[]>([]);
+  useEffect(() => {
+    api<TabelaPreco[]>('/admin/tabelas-preco').then(setTabelas).catch(() => setTabelas([]));
+  }, []);
+  const padrao = tabelas.find((t) => t.padrao);
+
+  async function mudarTabela(id: string, tabelaPrecoId: string) {
+    try {
+      await api(`/admin/clientes/${id}/tabela-preco`, { method: 'PATCH', body: JSON.stringify({ tabelaPrecoId: tabelaPrecoId || null }) });
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    }
+  }
 
   async function mudar(id: string, novo: string) {
     try {
@@ -91,7 +111,7 @@ export function Clientes() {
       <div className="tabela-wrap">
         <table>
           <thead>
-            <tr><th>Cliente</th><th>Documento</th><th>Contato</th><th>Pedidos</th><th>Status</th><th>Cadastro</th><th>Ações</th></tr>
+            <tr><th>Cliente</th><th>Documento</th><th>Contato</th><th>Pedidos</th><th>Tabela de preço</th><th>Status</th><th>Cadastro</th><th>Ações</th></tr>
           </thead>
           <tbody>
             {dados?.map((c) => (
@@ -100,6 +120,16 @@ export function Clientes() {
                 <td className="mono">{fmtDocumento(c.documento)}</td>
                 <td>{c.email ?? '—'}{c.telefone ? ` · ${c.telefone}` : ''}</td>
                 <td>{c.pedidos}</td>
+                <td>
+                  {c.status === 'excluido' ? '—' : (
+                    <select value={c.tabela_preco_id ?? ''} onChange={(e) => mudarTabela(c.id, e.target.value)} title="Tabela de preço que este cliente vê no app. Sem tabela = padrão." style={{ maxWidth: 260 }}>
+                      <option value="">Padrão{padrao ? ` (${padrao.codigo ?? ''} · ${padrao.nome})` : ''}</option>
+                      {tabelas.map((t) => (
+                        <option key={t.id} value={t.id}>{t.codigo ? `${t.codigo} · ` : ''}{t.nome}{t.precos ? '' : ' (sem preços)'}</option>
+                      ))}
+                    </select>
+                  )}
+                </td>
                 <td><span className={`badge ${c.status}`}>{c.status}</span></td>
                 <td>{fmtData(c.criado_em)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
@@ -118,7 +148,7 @@ export function Clientes() {
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={7} className="vazio">Nenhum cliente encontrado</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={8} className="vazio">Nenhum cliente encontrado</td></tr>}
           </tbody>
         </table>
       </div>

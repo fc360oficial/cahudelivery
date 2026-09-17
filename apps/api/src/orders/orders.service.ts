@@ -37,7 +37,12 @@ export class OrdersService {
          from carrinho_itens ci
          join produtos p on p.id = ci.produto_id
          left join estoques e on e.produto_id = p.id
-         left join precos pr on pr.produto_id = p.id and pr.tabela_preco_id = $2
+         left join lateral (
+      select x.preco, x.percentual_max_desconto, x.percentual_max_acrescimo from precos x
+       where x.produto_id = p.id
+         and (x.tabela_preco_id = $2 or x.tabela_preco_id = (select id from tabelas_preco where padrao limit 1))
+       order by (x.tabela_preco_id = $2) desc limit 1
+    ) pr on true
          left join lateral (
            select pp.preco_promocional from promocao_produtos pp
              join promocoes pm on pm.id = pp.promocao_id
@@ -58,7 +63,10 @@ export class OrdersService {
     } else {
       const tabela = await this.catalog.tabelaPrecoDe(dono.clienteId);
       const preco = await pool.query(
-        `select preco from precos where produto_id = $1 and tabela_preco_id = $2`,
+        `select preco from precos
+          where produto_id = $1
+            and (tabela_preco_id = $2 or tabela_preco_id = (select id from tabelas_preco where padrao limit 1))
+          order by (tabela_preco_id = $2) desc limit 1`,
         [produtoId, tabela],
       );
       await pool.query(

@@ -25,7 +25,12 @@ const SELECT_PRODUTO_BASE = `
     left join marcas m on m.id = p.marca_id
     left join categorias c on c.id = p.categoria_id
     left join estoques e on e.produto_id = p.id
-    left join precos pr on pr.produto_id = p.id and pr.tabela_preco_id = $1
+    left join lateral (
+      select x.preco, x.percentual_max_desconto, x.percentual_max_acrescimo from precos x
+       where x.produto_id = p.id
+         and (x.tabela_preco_id = $1 or x.tabela_preco_id = (select id from tabelas_preco where padrao limit 1))
+       order by (x.tabela_preco_id = $1) desc limit 1
+    ) pr on true
     left join lateral (
       select pp.preco_promocional
         from promocao_produtos pp
@@ -113,7 +118,12 @@ export class CatalogService {
                    from patrocinador_produtos pp
                    join produtos p on p.id = pp.produto_id and p.ativo
                    join estoques e on e.produto_id = p.id and e.quantidade > 0
-                   left join precos pr on pr.produto_id = p.id and pr.tabela_preco_id = $1
+                   left join lateral (
+      select x.preco, x.percentual_max_desconto, x.percentual_max_acrescimo from precos x
+       where x.produto_id = p.id
+         and (x.tabela_preco_id = $1 or x.tabela_preco_id = (select id from tabelas_preco where padrao limit 1))
+       order by (x.tabela_preco_id = $1) desc limit 1
+    ) pr on true
                    left join lateral (
                      select ppo.preco_promocional from promocao_produtos ppo
                        join promocoes pm on pm.id = ppo.promocao_id

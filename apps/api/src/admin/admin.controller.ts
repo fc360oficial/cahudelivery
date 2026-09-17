@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
-import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
 import { AdminService } from './admin.service';
@@ -14,6 +14,11 @@ class StatusClienteDto {
 
 class AtivoDto {
   @IsBoolean() ativo!: boolean;
+}
+
+class TabelaClienteDto {
+  /** null/ausente = volta para a tabela padrão do tenant */
+  @IsOptional() @IsUUID() tabelaPrecoId?: string | null;
 }
 
 class DescontoQtdDto {
@@ -79,6 +84,16 @@ export class AdminController {
   @Patch('clientes/:id/status')
   statusCliente(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: StatusClienteDto) {
     return this.admin.mudarStatusCliente(id, dto.status, req.admin.usuarioId);
+  }
+
+  @Get('tabelas-preco')
+  tabelasPreco() {
+    return this.admin.tabelasPreco();
+  }
+
+  @Patch('clientes/:id/tabela-preco')
+  tabelaCliente(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: TabelaClienteDto) {
+    return this.admin.definirTabelaCliente(id, dto.tabelaPrecoId ?? null, req.admin.usuarioId);
   }
 
   @Delete('clientes/:id')

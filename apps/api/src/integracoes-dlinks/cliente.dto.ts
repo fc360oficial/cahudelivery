@@ -55,4 +55,9 @@ export class ClienteDto {
   @IsOptional()
   @IsNumber()
   saldo_titulos_aberto?: number;
+
+  /** Código da tabela de preço do cliente no ERP (o mesmo `id` enviado em /tabelas-de-precos). Opcional. */
+  @IsOptional()
+  @IsString()
+  tabela_preco_id?: string;
 }

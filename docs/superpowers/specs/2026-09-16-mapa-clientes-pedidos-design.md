@@ -181,3 +181,25 @@ Arquivos novos `apps/api/src/geo/geocodificacao.worker.ts`,
   pode ser adicionado depois sem mudar schema).
 - Mapa no app do cliente.
 - Área de entrega / raio de atendimento.
+
+## 5. Agrupamento por município (revisão de 16/09/2026, pedido do Tiago)
+
+Substitui o cluster automático por proximidade (markercluster), que juntava
+bairros diferentes numa bola só e sumia ao aproximar.
+
+- **Pinos de alfinete** no lugar dos círculos: cliente com a cor do município
+  (miolo branco), pedido amarelo CAHU com borda pela cor do status. Sempre
+  visíveis na posição real.
+- **Uma bolha por município**, no centro geométrico dos pontos daquele
+  município, com nome e contagem ("Recife · 107"). Tamanho proporcional à
+  contagem. Só aparece a partir de **3** itens. Cada município recebe uma cor
+  fixa de uma paleta de 12, atribuída em ordem alfabética.
+- A bolha **segue o filtro**: em Clientes conta clientes, em Pedidos conta
+  pedidos do período, em Ambos mostra "clientes · pedidos".
+- **Clicar na bolha** abre um painel lateral à direita do mapa com a lista do
+  município (clientes: nome, bairro, documento; pedidos: nº, cliente, status,
+  total), com busca. Clicar num item centraliza o pino e abre o balão.
+- API: `pedidos[]` passa a trazer também `cidade` (campo separado), para o
+  agrupamento no cliente. Nada mais muda no endpoint.
+- Dependências `leaflet.markercluster` e `@types/leaflet.markercluster`
+  removidas.

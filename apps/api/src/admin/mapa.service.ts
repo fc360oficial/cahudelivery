@@ -25,6 +25,7 @@ export class MapaService {
         `select p.id, p.numero, p.cliente_id as "clienteId", c.nome_fantasia as cliente, p.status,
                 p.total::float as total, p.criado_em as "criadoEm",
                 concat_ws(', ', e.logradouro, e.numero) || ' - ' || e.bairro || ', ' || e.cidade as endereco,
+                e.cidade, e.bairro,
                 e.latitude as lat, e.longitude as lng, e.geo_precisao as precisao
            from pedidos p
            join clientes c on c.id = p.cliente_id

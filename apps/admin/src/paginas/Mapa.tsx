@@ -285,7 +285,7 @@ export function Mapa() {
              <strong>${esc(c.nome)}</strong><br>
              <span class="mono">${esc(fmtDocumento(c.documento))}</span><br>
              ${esc(c.endereco)} - ${esc(c.bairro)}, ${esc(c.cidade)}<br>
-             ${c.precisao === 'cep' ? '<small>Localização aproximada pelo CEP</small><br>' : ''}
+             ${c.precisao === 'cep' ? '<small>Localização aproximada (CEP ou bairro)</small><br>' : ''}
              <a href="/clientes?busca=${encodeURIComponent(c.documento)}">Abrir cliente</a>
            </div>`,
         );
@@ -304,7 +304,7 @@ export function Mapa() {
              ${esc(p.cliente)}<br>
              ${esc(fmtMoeda(p.total))} · ${esc(fmtData(p.criadoEm))}<br>
              ${esc(p.endereco)}<br>
-             ${p.precisao === 'cep' ? '<small>Localização aproximada pelo CEP</small><br>' : ''}
+             ${p.precisao === 'cep' ? '<small>Localização aproximada (CEP ou bairro)</small><br>' : ''}
              <a href="/pedidos/${p.id}">Abrir pedido</a>
            </div>`,
         );

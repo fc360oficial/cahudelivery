@@ -84,7 +84,7 @@ export class GeocodificacaoWorker implements OnModuleInit, OnModuleDestroy {
         try {
           const pool = await this.db.getTenantPool(slug);
           const { rows } = await pool.query(
-            `select id, cep, logradouro, numero, cidade, uf from cliente_enderecos
+            `select id, cep, logradouro, numero, bairro, cidade, uf from cliente_enderecos
               where latitude is null and geo_tentativas < $1
               order by geo_ultima_tentativa_em nulls first limit $2`,
             [MAX_TENTATIVAS, LOTE],

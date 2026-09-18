@@ -154,17 +154,23 @@ export class DlinksSyncService {
         ignorados.push({ item, motivo: !produto.rowCount ? 'produto_nao_encontrado' : 'tabela_nao_encontrada' });
         continue;
       }
-      await pool.query(
-        `insert into precos (produto_id, tabela_preco_id, preco, percentual_max_desconto, percentual_max_acrescimo)
-         values ($1, $2, $3, $4, $5)
-         on conflict (produto_id, tabela_preco_id) do update set
-           preco = excluded.preco,
-           percentual_max_desconto = excluded.percentual_max_desconto,
-           percentual_max_acrescimo = excluded.percentual_max_acrescimo,
-           atualizado_em = now()`,
-        [produto.rows[0].id, tabela.rows[0].id, item.valor, item.percentual_max_desconto ?? null, item.percentual_max_acrescimo ?? null],
-      );
-      processados++;
+      // Um item ruim (ex.: percentual >= 1000 estourava numeric(5,2) em 18/09/2026 e
+      // derrubava o bloco inteiro com 500) vira `ignorado` com o motivo; o resto do bloco segue.
+      try {
+        await pool.query(
+          `insert into precos (produto_id, tabela_preco_id, preco, percentual_max_desconto, percentual_max_acrescimo)
+           values ($1, $2, $3, $4, $5)
+           on conflict (produto_id, tabela_preco_id) do update set
+             preco = excluded.preco,
+             percentual_max_desconto = excluded.percentual_max_desconto,
+             percentual_max_acrescimo = excluded.percentual_max_acrescimo,
+             atualizado_em = now()`,
+          [produto.rows[0].id, tabela.rows[0].id, item.valor, percentualValido(item.percentual_max_desconto), percentualValido(item.percentual_max_acrescimo)],
+        );
+        processados++;
+      } catch (e) {
+        ignorados.push({ item, motivo: `erro_ao_gravar: ${(e as Error).message}` });
+      }
     }
     await this.registrarLog('sync_precos', `${processados} preço(s), ${ignorados.length} ignorado(s)${resumoIgnorados(ignorados)}`, ignorados.length === 0);
     await this.promoverTabelaPadraoArmada();
@@ -317,6 +323,12 @@ export class DlinksSyncService {
     await this.registrarLog('sync_titulos', `${processados} título(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
     return { processados, ignorados };
   }
+}
+
+/** Percentual de negociação só faz sentido entre 0 e 100; fora disso (ou não numérico) grava nulo. */
+function percentualValido(v: number | undefined | null): number | null {
+  if (v == null || !Number.isFinite(v) || v < 0 || v > 100) return null;
+  return v;
 }
 
 /** Resume os ignorados por motivo com amostra dos códigos, pra diagnóstico no integracao_logs. */

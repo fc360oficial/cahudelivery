@@ -19,6 +19,7 @@ export class ProdutoSyncDto {
   @IsNumber()
   multiplo_venda?: number;
 
+  /** Quantidade em estoque. Omitido = zerado (o produto some do app). */
   @IsOptional()
   @IsNumber()
   estoque?: number;

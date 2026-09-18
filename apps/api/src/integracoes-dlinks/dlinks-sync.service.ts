@@ -107,13 +107,14 @@ export class DlinksSyncService {
         [item.codigo, item.descricao, item.fornecedor_codigo, item.grupo_codigo, item.unidade, item.multiplo_venda, item.ativo ?? null],
       );
       const produtoId = rows[0].id;
-      if (item.estoque != null) {
-        await pool.query(
-          `insert into estoques (produto_id, quantidade) values ($1, $2)
-           on conflict (produto_id) do update set quantidade = excluded.quantidade, atualizado_em = now()`,
-          [produtoId, item.estoque],
-        );
-      }
+      // O Dlinks manda a carga completa e OMITE o campo `estoque` quando o produto
+      // está zerado (visto em 18/09/2026: 26 produtos sem o campo ficaram com o
+      // estoque antigo e continuaram no app). Produto enviado sem estoque = zerado.
+      await pool.query(
+        `insert into estoques (produto_id, quantidade) values ($1, $2)
+         on conflict (produto_id) do update set quantidade = excluded.quantidade, atualizado_em = now()`,
+        [produtoId, item.estoque ?? 0],
+      );
       processados++;
     }
     await this.registrarLog('sync_produtos', `${processados} produto(s)`, true);

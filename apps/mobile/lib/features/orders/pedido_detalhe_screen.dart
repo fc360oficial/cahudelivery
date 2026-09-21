@@ -146,10 +146,10 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
                       ),
                     ),
                     Text(moeda(p['total']),
-                        style: TextStyle(
+                        style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Theme.of(context).colorScheme.primary)),
+                            color: Colors.black87)),
                   ],
                 ),
               ),
@@ -266,6 +266,8 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(52),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                foregroundColor: Colors.black87,
+                side: BorderSide(color: Colors.grey.shade400),
               ),
               icon: _repetindo
                   ? const SizedBox(

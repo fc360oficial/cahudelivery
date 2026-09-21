@@ -104,9 +104,10 @@ export class DlinksPedidosService {
   }
 
   /**
-   * POST /pedidos-faturados: ABERTO/EM_FATURAMENTO ainda não têm status
-   * nosso correspondente (o pedido já está em ENVIADO_ERP) — só registramos
-   * no log de integração. CANCELADO reaproveita o mesmo caminho de
+   * POST /pedidos-faturados: o app reflete o status que o Dlinks está
+   * enviando. ABERTO/EM_FATURAMENTO sobrescrevem até um pedido já FATURADO
+   * (reabertura + nova carga no ERP) — só não sobrepõem estados finais
+   * (ENTREGUE/CANCELADO). CANCELADO reaproveita o mesmo caminho de
    * /pedidos/cancelado (estorno de saldo incluso). FATURADO credita a
    * indicação, se houver.
    */
@@ -115,13 +116,13 @@ export class DlinksPedidosService {
     if (statusErp === 'CANCELADO') {
       return this.marcarCancelado([pedidoCodigo]);
     }
-    if (statusErp !== 'FATURADO') {
-      const { pool } = tenantCtx();
-      await pool.query(
-        `insert into integracao_logs (operacao, direcao, request_resumo, sucesso) values ('pedido_faturado_status','erp_para_fluxo',$1,true)`,
-        [`${pedidoCodigo}: ${statusErp}`],
-      );
-      return { processados: [pedidoCodigo], ignorados: [] };
+    if (statusErp === 'ABERTO' || statusErp === 'EM_FATURAMENTO') {
+      return this.transicionar([pedidoCodigo], {
+        statusPermitido: (status) => status !== 'CANCELADO' && status !== 'ENTREGUE',
+        novoStatus: statusErp,
+        detalhe: '',
+        operacao: 'pedido_status_erp',
+      });
     }
     return this.transicionar([pedidoCodigo], {
       statusPermitido: (status) => status !== 'FATURADO' && status !== 'CANCELADO' && status !== 'ENTREGUE',

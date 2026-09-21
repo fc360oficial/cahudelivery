@@ -10,6 +10,9 @@ class StatusPedido {
   static StatusPedido de(String? status) => switch (status) {
         'RECEBIDO' => StatusPedido._('Recebido', Colors.blueGrey, Icons.inbox_outlined),
         'ENVIADO_ERP' => StatusPedido._('Em processamento', Colors.blue, Icons.sync),
+        'ABERTO' => StatusPedido._('Em processamento', Colors.blue, Icons.sync),
+        'EM_FATURAMENTO' =>
+          StatusPedido._('Em faturamento', Colors.deepPurple, Icons.receipt_long_outlined),
         'FATURADO' => StatusPedido._('Faturado', Colors.indigo, Icons.request_quote_outlined),
         'EM_SEPARACAO' =>
           StatusPedido._('Em separação', Colors.orange, Icons.inventory_outlined),

@@ -114,35 +114,33 @@ class _CategoriaCard extends StatelessWidget {
             if (imagem != null)
               Image.network(imagem, fit: BoxFit.cover,
                   errorBuilder: (_, e, s) => Container(color: cor.withValues(alpha: 0.08)))
-            else
+            else ...[
               Container(color: cor.withValues(alpha: 0.08)),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.55)],
+                  ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 12,
-              right: 12,
-              bottom: 10,
-              child: Text(
-                categoria['nome'] ?? '',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: imagem != null ? Colors.white : Colors.black87,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  shadows: imagem != null
-                      ? [const Shadow(color: Colors.black45, blurRadius: 6)]
-                      : null,
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 10,
+                child: Text(
+                  categoria['nome'] ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),

@@ -13,6 +13,9 @@ cahudelivery.duckdns.org {
     redir /app /app/ 301
     handle_path /app/* {
         root * C:/cahudelivery/web-app
+        # Sem isso o navegador/service worker segura o build antigo por dias após um deploy.
+        @semcache path / /index.html /flutter_service_worker.js /flutter_bootstrap.js /version.json /cahu-delivery.apk
+        header @semcache Cache-Control "no-cache"
         try_files {path} /index.html
         file_server
     }

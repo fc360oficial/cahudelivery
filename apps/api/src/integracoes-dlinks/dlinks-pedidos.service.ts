@@ -182,6 +182,12 @@ export class DlinksPedidosService {
           ignorados.push({ codigo, motivo: 'status_invalido' });
           continue;
         }
+        // Dlinks reenvia o mesmo status várias vezes; sem isso cada envio vira uma linha na linha do tempo do cliente.
+        if (atual.rows[0].status === opts.novoStatus) {
+          await client.query('rollback');
+          processados.push(codigo);
+          continue;
+        }
         await client.query(`update pedidos set status = $2 where id = $1`, [codigo, opts.novoStatus]);
         await client.query(
           `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'erp')`,

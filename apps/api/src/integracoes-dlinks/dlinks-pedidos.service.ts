@@ -88,7 +88,7 @@ export class DlinksPedidosService {
     return this.transicionar(codigos, {
       statusPermitido: (status) => status === 'RECEBIDO',
       novoStatus: 'ENVIADO_ERP',
-      detalhe: 'Confirmado pelo Dlinks',
+      detalhe: '',
       operacao: 'pedido_recebido',
     });
   }
@@ -97,7 +97,7 @@ export class DlinksPedidosService {
     return this.transicionar(codigos, {
       statusPermitido: (status) => status !== 'ENTREGUE' && status !== 'CANCELADO',
       novoStatus: 'CANCELADO',
-      detalhe: 'Cancelado pelo Dlinks',
+      detalhe: '',
       operacao: 'pedido_cancelado',
       estornarSaldo: true,
     });
@@ -126,7 +126,7 @@ export class DlinksPedidosService {
     return this.transicionar([pedidoCodigo], {
       statusPermitido: (status) => status !== 'FATURADO' && status !== 'CANCELADO' && status !== 'ENTREGUE',
       novoStatus: 'FATURADO',
-      detalhe: 'Faturado pelo Dlinks',
+      detalhe: '',
       operacao: 'pedido_faturado',
       aposCommit: async (client, codigo) => {
         await creditarIndicacao(client, codigo);

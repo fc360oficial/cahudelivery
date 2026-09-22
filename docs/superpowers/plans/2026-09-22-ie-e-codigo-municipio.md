@@ -1279,11 +1279,13 @@ Acrescentar o estado junto dos outros `useState` do componente `Clientes`:
   const [fichaId, setFichaId] = useState<string | null>(null);
 ```
 
-Na coluna de Ações, como **primeiro** botão do fragmento `{c.status !== 'excluido' && (<>`:
+Na coluna de Ações, como **primeiro** filho do `<div className="acoes">` (introduzido no commit `f613331`, que trocou o fragmento antigo com separadores `{' '}` por um flex — não reintroduzir os `{' '}`, o espaçamento agora é `gap` do CSS):
 
 ```tsx
-                      <button className="btn-mini" onClick={() => setFichaId(c.id)}>Ficha</button>{' '}
+                      <button className="btn-mini" onClick={() => setFichaId(c.id)}>Ficha</button>
 ```
+
+> A tabela passou a usar `table-layout: fixed` com um `colgroup` de 8 larguras percentuais no mesmo commit. Por isso o botão entra na coluna que já existe e **nenhuma coluna nova é adicionada** — acrescentar uma exigiria refazer o `colgroup` inteiro.
 
 Antes do `</>` final do `return` do componente (junto do `<Paginacao …/>`):
 

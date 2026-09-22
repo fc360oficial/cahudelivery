@@ -54,6 +54,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
   String? _categoria;
   bool _enviando = false;
   bool _buscandoCep = false;
+  /// Só a busca de CEP mais recente pode escrever no formulário: sem isso, duas
+  /// buscas em voo podem responder fora de ordem e a do CEP antigo vence.
+  int _buscaCepSeq = 0;
 
   @override
   void dispose() {
@@ -82,13 +85,14 @@ class _CadastroScreenState extends State<CadastroScreen> {
   Future<void> _buscarCep() async {
     final cep = _cep.text.replaceAll(RegExp(r'\D'), '');
     if (cep.length != 8) return;
+    final seq = ++_buscaCepSeq;
     setState(() => _buscandoCep = true);
     try {
       final r = await http
           .get(Uri.parse('https://viacep.com.br/ws/$cep/json/'))
           .timeout(const Duration(seconds: 6));
       final d = jsonDecode(r.body) as Map<String, dynamic>;
-      if (d['erro'] != true && mounted) {
+      if (d['erro'] != true && mounted && seq == _buscaCepSeq) {
         _logradouro.text = d['logradouro'] ?? _logradouro.text;
         _bairro.text = d['bairro'] ?? _bairro.text;
         _cidade.text = d['localidade'] ?? _cidade.text;
@@ -100,7 +104,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
     } catch (_) {
       // ViaCEP fora do ar não bloqueia o preenchimento manual
     } finally {
-      if (mounted) setState(() => _buscandoCep = false);
+      if (mounted && seq == _buscaCepSeq) setState(() => _buscandoCep = false);
     }
   }
 

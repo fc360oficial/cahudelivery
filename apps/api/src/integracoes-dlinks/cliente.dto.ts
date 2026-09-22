@@ -60,4 +60,9 @@ export class ClienteDto {
   @IsOptional()
   @IsString()
   tabela_preco_id?: string;
+
+  /** Inscrição Estadual do cliente no ERP. Opcional: ausente nunca apaga a IE já gravada. */
+  @IsOptional()
+  @IsString()
+  inscricao_estadual?: string;
 }

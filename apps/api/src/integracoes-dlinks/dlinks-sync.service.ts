@@ -198,22 +198,24 @@ export class DlinksSyncService {
       const documento = item.cnpj_cpf.replace(/\D/g, '');
       const tipo = documento.length === 11 ? 'CPF' : 'CNPJ';
       const email = (item.email ?? item.Email ?? null)?.trim().toLowerCase() || null;
+      const inscricaoEstadual = (item.inscricao_estadual ?? '').replace(/\D/g, '') || null;
       try {
         const { rows } = await pool.query(
           // Tabela de preço: o ERP é o dono do vínculo. Só mexe quando vier no payload
           // (e a tabela existir aqui); sem o campo, mantém o que está.
-          `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao, tabela_preco_id)
+          `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, status, erp_cliente_id, limite_credito, saldo_titulos_aberto, codigo_indicacao, tabela_preco_id, inscricao_estadual)
            values ($1, $2, $3, $3, $4, 'aprovado', $5, $6, $7, upper(substring(md5(random()::text) from 1 for 6)),
-                   (select id from tabelas_preco where erp_tabela_id = $8))
+                   (select id from tabelas_preco where erp_tabela_id = $8), $9)
            on conflict (documento) do update set
              razao_social = excluded.razao_social,
              email = coalesce(excluded.email, clientes.email),
              erp_cliente_id = excluded.erp_cliente_id,
              limite_credito = excluded.limite_credito,
              saldo_titulos_aberto = excluded.saldo_titulos_aberto,
+             inscricao_estadual = coalesce(excluded.inscricao_estadual, clientes.inscricao_estadual),
              tabela_preco_id = case when $8::text is null then clientes.tabela_preco_id else coalesce(excluded.tabela_preco_id, clientes.tabela_preco_id) end
            returning id, (xmax = 0) as inserido`,
-          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, item.tabela_preco_id ?? null],
+          [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, item.tabela_preco_id ?? null, inscricaoEstadual],
         );
         const { id: clienteId, inserido } = rows[0];
         if (inserido) {

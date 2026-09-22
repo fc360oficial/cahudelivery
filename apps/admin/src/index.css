@@ -98,16 +98,19 @@ tbody tr:last-child td { border-bottom: 0; }
 .tabela-produtos .remover-foto { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--borda); background: #fff; color: #b91c1c; font-size: 12px; line-height: 16px; padding: 0; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 .tabela-produtos .remover-foto:hover { background: #fee2e2; }
 .tabela-produtos .situacao { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-/* Lista de clientes: larguras fixas por colgroup, nome/e-mail longos quebram
-   em vez de esticar a tabela e empurrar Cadastro e Ações pra fora da tela. */
-.tabela-clientes { table-layout: fixed; }
-/* Padrão: nada quebra no meio — data, documento e badge de status ficariam
-   ilegíveis partidos ("22/09/202" / "6 10:31"). Sobra vira reticências. */
-.tabela-clientes th, .tabela-clientes td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Só nome e contato quebram: são os campos de texto livre que puxam a largura. */
-.tabela-clientes .col-quebra { white-space: normal; overflow-wrap: anywhere; }
-.tabela-clientes select { width: 100%; }
-.tabela-clientes .acoes { display: flex; flex-wrap: wrap; gap: 6px; white-space: normal; }
+/* Lista de clientes: 6 colunas. Só a coluna Cliente cresce (width 100% numa
+   tabela auto = absorve a sobra); as outras ficam do tamanho do conteúdo e
+   nunca quebram. Se a tela for estreita demais, a tabela rola pro lado em
+   vez de cortar Ações (o wrapper não é o -fixa). */
+.tabela-clientes th, .tabela-clientes td { white-space: nowrap; vertical-align: top; }
+.tabela-clientes .col-cliente { white-space: normal; width: 100%; min-width: 260px; }
+.tabela-clientes .col-cliente .nome { font-weight: 600; line-height: 1.25; }
+.tabela-clientes .col-cliente .sub { color: var(--texto-2); font-size: 12px; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 0 8px; }
+/* CNPJ/CPF nunca parte no hífen; o contato pode ir pra linha de baixo se faltar espaço. */
+.tabela-clientes .col-cliente .sub .mono { white-space: nowrap; font-size: 12px; }
+.tabela-clientes .col-cliente .sub .contato { overflow-wrap: anywhere; }
+.tabela-clientes select { width: auto; max-width: 240px; }
+.tabela-clientes .acoes { display: flex; flex-wrap: nowrap; gap: 6px; }
 .tabela-clientes .acoes .btn-mini { white-space: nowrap; }
 .tabela-produtos .col-produto .nome { font-weight: 600; line-height: 1.25; }
 .tabela-produtos .col-produto .sub { color: var(--texto-2); font-size: 12px; margin-top: 2px; }

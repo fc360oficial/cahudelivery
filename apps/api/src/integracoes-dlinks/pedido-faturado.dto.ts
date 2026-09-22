@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import {
-  IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Matches, ValidateNested,
+  IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength, ValidateNested,
 } from 'class-validator';
 
 const STATUS = ['ABERTO', 'EM_FATURAMENTO', 'FATURADO', 'CANCELADO'] as const;
@@ -48,6 +48,7 @@ export class NotaFiscalDto {
   emitida_em?: string;
 
   @IsString()
+  @MaxLength(2_000_000, { message: 'xml_base64 excede o tamanho máximo permitido' })
   xml_base64!: string;
 }
 

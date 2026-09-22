@@ -91,7 +91,7 @@ export class AdminService {
         (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'origem', e.origem,
             'em', e.criado_em) order by e.criado_em) from pedido_eventos e where e.pedido_id = p.id) as eventos,
         (select row_to_json(co) from pedido_cobrancas co where co.pedido_id = p.id) as cobranca,
-        (select row_to_json(n) from pedido_notas n where n.pedido_id = p.id) as nota
+        (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota
          from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
       [id],
     );

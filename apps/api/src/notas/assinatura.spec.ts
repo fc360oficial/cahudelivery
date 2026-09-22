@@ -13,6 +13,10 @@ describe('assinatura das URLs de nota', () => {
     expect(assinarNota('cahu', PEDIDO, 'pdf')).toBe(assinarNota('cahu', PEDIDO, 'pdf'));
   });
 
+  it('ignora maiusculas no slug do tenant', () => {
+    expect(assinarNota('CAHU', PEDIDO, 'pdf')).toBe(assinarNota('cahu', PEDIDO, 'pdf'));
+  });
+
   it('separa tipo, pedido e tenant', () => {
     const pdf = assinarNota('cahu', PEDIDO, 'pdf');
     expect(assinarNota('cahu', PEDIDO, 'xml')).not.toBe(pdf);

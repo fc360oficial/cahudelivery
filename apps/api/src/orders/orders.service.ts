@@ -244,7 +244,7 @@ export class OrdersService {
         (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'em', e.criado_em) order by e.criado_em)
            from pedido_eventos e where e.pedido_id = p.id) as eventos,
         (select row_to_json(c) from pedido_cobrancas c where c.pedido_id = p.id) as cobranca,
-        (select row_to_json(n) from pedido_notas n where n.pedido_id = p.id) as nota
+        (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota
          from pedidos p where p.id = $1 and p.cliente_id = $2`,
       [pedidoId, clienteId],
     );

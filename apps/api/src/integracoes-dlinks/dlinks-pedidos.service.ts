@@ -5,7 +5,12 @@ import { creditarIndicacao } from '../orders/creditar-indicacao';
 import { urlNota } from '../notas/assinatura';
 import { PedidoFaturadoDto, NotaFiscalDto } from './pedido-faturado.dto';
 
-const parserChave = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@', parseTagValue: false });
+const parserChave = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@',
+  parseTagValue: false,
+  processEntities: false,
+});
 
 /** Chave de acesso do próprio XML (atributo Id de infNFe, sem o prefixo "NFe"). */
 export function extrairChaveDoXml(xml: string): string | null {
@@ -151,6 +156,13 @@ export class DlinksPedidosService {
       });
     }
 
+    // Valida a nota ANTES de comitar a transição de status: uma chave
+    // incoerente (ou XML sem infNFe) não pode virar 400 depois que o pedido
+    // já mudou de status — bug visto na revisão final de 22/09/2026. O XML
+    // já decodificado/validado segue para gravarFaturamento/gravarNota, que
+    // não precisam decodificar de novo.
+    const xmlNota = notaFiscal ? await this.validarNota(pedidoCodigo, notaFiscal) : undefined;
+
     const resultado = await this.transicionar([pedidoCodigo], {
       statusPermitido: (status) => status !== 'FATURADO' && status !== 'CANCELADO' && status !== 'ENTREGUE',
       novoStatus: 'FATURADO',
@@ -167,10 +179,40 @@ export class DlinksPedidosService {
     // saber que o pedido existe estouraria violação de chave estrangeira.
     const inexistente = resultado.ignorados.some((i) => i.codigo === pedidoCodigo && i.motivo === 'nao_encontrado');
     if (!inexistente) {
-      if (valores) await this.gravarFaturamento(pedidoCodigo, valores, itens ?? [], notaFiscal);
-      if (notaFiscal) await this.gravarNota(pedidoCodigo, notaFiscal);
+      if (valores) await this.gravarFaturamento(pedidoCodigo, valores, itens ?? [], notaFiscal, xmlNota);
+      if (notaFiscal) await this.gravarNota(pedidoCodigo, notaFiscal, xmlNota!);
     }
     return resultado;
+  }
+
+  /**
+   * Decodifica o xml_base64 e confere a chave contra o payload ANTES de
+   * qualquer transição de status ser comitada. Loga 'nota_xml_invalido' e
+   * 'nota_chave_divergente' em integracao_logs — o mesmo par de logs que
+   * gravarNota fazia antes, só que agora antes do commit.
+   */
+  private async validarNota(codigo: string, nota: NotaFiscalDto): Promise<string> {
+    const { pool } = tenantCtx();
+    const xml = Buffer.from(nota.xml_base64, 'base64').toString('utf8');
+    const chaveXml = extrairChaveDoXml(xml);
+
+    if (!chaveXml) {
+      await pool.query(
+        `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+         values ('nota_xml_invalido','erp_para_fluxo',$1,$2,false)`,
+        [codigo, 'xml_base64 não contém uma NF-e válida'],
+      );
+      throw new BadRequestException('xml_base64 não contém uma NF-e válida');
+    }
+    if (chaveXml !== nota.chave) {
+      await pool.query(
+        `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+         values ('nota_chave_divergente','erp_para_fluxo',$1,$2,false)`,
+        [codigo, `payload ${nota.chave} vs XML ${chaveXml}`],
+      );
+      throw new BadRequestException('chave da nota_fiscal diverge da chave do XML');
+    }
+    return xml;
   }
 
   /** Valores reais do faturamento, normalizados de centavos para reais. */
@@ -179,6 +221,7 @@ export class DlinksPedidosService {
     valores: NonNullable<PedidoFaturadoDto['valores']>,
     itens: NonNullable<PedidoFaturadoDto['itens']>,
     notaFiscal: NotaFiscalDto | undefined,
+    xmlNota: string | undefined,
   ): Promise<void> {
     const { pool } = tenantCtx();
     const total = normalizarCentavos(valores.total);
@@ -186,9 +229,8 @@ export class DlinksPedidosService {
     // Confere contra o XML quando há nota. Se o Dlinks mudar o formato de
     // `valores` um dia, a gente descobre por este log em vez de voltar a
     // gravar 100x errado em silêncio.
-    if (notaFiscal) {
-      const xml = Buffer.from(notaFiscal.xml_base64, 'base64').toString('utf8');
-      const vNF = Number(/<vNF>([\d.]+)<\/vNF>/.exec(xml)?.[1]);
+    if (notaFiscal && xmlNota) {
+      const vNF = Number(/<vNF>([\d.]+)<\/vNF>/.exec(xmlNota)?.[1]);
       if (Number.isFinite(vNF) && Math.abs(vNF - total) > 0.01) {
         this.log.warn(`pedido ${codigo}: total do payload (${total}) diverge do vNF do XML (${vNF})`);
         await pool.query(
@@ -215,25 +257,9 @@ export class DlinksPedidosService {
     );
   }
 
-  /** Guarda a NF-e e as URLs assinadas de XML e DANFE. */
-  private async gravarNota(codigo: string, nota: NotaFiscalDto): Promise<void> {
+  /** Guarda a NF-e e as URLs assinadas de XML e DANFE. Chave já validada por validarNota(). */
+  private async gravarNota(codigo: string, nota: NotaFiscalDto, xml: string): Promise<void> {
     const { pool, tenant } = tenantCtx();
-    const xml = Buffer.from(nota.xml_base64, 'base64').toString('utf8');
-    const chaveXml = extrairChaveDoXml(xml);
-
-    // Impede a nota ser pendurada no pedido errado — o tipo de erro que só
-    // apareceria meses depois, na contabilidade do cliente.
-    if (!chaveXml) {
-      throw new BadRequestException('xml_base64 não contém uma NF-e válida');
-    }
-    if (chaveXml !== nota.chave) {
-      await pool.query(
-        `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
-         values ('nota_chave_divergente','erp_para_fluxo',$1,$2,false)`,
-        [codigo, `payload ${nota.chave} vs XML ${chaveXml}`],
-      );
-      throw new BadRequestException('chave da nota_fiscal diverge da chave do XML');
-    }
 
     const xmlUrl = urlNota(tenant.slug, codigo, 'xml');
     const pdfUrl = urlNota(tenant.slug, codigo, 'pdf');

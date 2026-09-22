@@ -74,6 +74,7 @@ const parser = new XMLParser({
   parseTagValue: false,
   parseAttributeValue: false,
   trimValues: true,
+  processEntities: false,
 });
 
 const texto = (v: unknown): string => (v === undefined || v === null ? '' : String(v));

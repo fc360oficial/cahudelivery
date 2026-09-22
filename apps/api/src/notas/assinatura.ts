@@ -13,7 +13,10 @@ const ARQUIVO: Record<TipoArquivo, string> = { xml: 'nota.xml', pdf: 'danfe.pdf'
  */
 export function assinarNota(slug: string, pedidoId: string, tipo: TipoArquivo): string {
   const segredo = process.env.JWT_SECRET ?? 'dev-secret-trocar-em-producao';
-  return createHmac('sha256', segredo).update(`${slug}:${pedidoId}:${tipo}`).digest('hex').slice(0, 32);
+  // Normaliza pra minúsculas: quem grava a URL (o service, com tenant.slug
+  // cru) e quem confere (o controller, que já faz toLowerCase()) precisam
+  // bater sempre, mesmo se o slug estiver salvo com maiúscula no banco.
+  return createHmac('sha256', segredo).update(`${slug.toLowerCase()}:${pedidoId}:${tipo}`).digest('hex').slice(0, 32);
 }
 
 export function assinaturaConfere(
@@ -37,5 +40,6 @@ export function assinaturaConfere(
 export function urlNota(slug: string, pedidoId: string, tipo: TipoArquivo): string | null {
   const base = process.env.PUBLIC_URL?.replace(/\/+$/, '');
   if (!base) return null;
-  return `${base}/v1/notas/${slug}/${pedidoId}/${ARQUIVO[tipo]}?t=${assinarNota(slug, pedidoId, tipo)}`;
+  const slugNormalizado = slug.toLowerCase();
+  return `${base}/v1/notas/${slugNormalizado}/${pedidoId}/${ARQUIVO[tipo]}?t=${assinarNota(slugNormalizado, pedidoId, tipo)}`;
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { lerNfe } from './nfe-xml.parser';
 import { renderizarDanfe } from './danfe.renderer';
@@ -11,6 +11,8 @@ export interface NotaGuardada {
 
 @Injectable()
 export class NotasService {
+  private readonly log = new Logger('NotasService');
+
   private async buscar(pedidoId: string): Promise<NotaGuardada> {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
@@ -28,6 +30,13 @@ export class NotasService {
   /** Gera o DANFE na hora: volume baixo e nunca entrega PDF de um layout velho. */
   async danfe(pedidoId: string): Promise<{ pdf: Buffer; numero: string }> {
     const nota = await this.buscar(pedidoId);
-    return { pdf: await renderizarDanfe(lerNfe(nota.xml)), numero: nota.numero };
+    try {
+      return { pdf: await renderizarDanfe(lerNfe(nota.xml)), numero: nota.numero };
+    } catch (e) {
+      // Quem abre o link é o cliente no navegador — nunca 500 com stack trace,
+      // sempre 404 (mesmo tratamento de "nota não encontrada").
+      this.log.error(`falha ao gerar o DANFE do pedido ${pedidoId}: ${e}`);
+      throw new NotFoundException();
+    }
   }
 }

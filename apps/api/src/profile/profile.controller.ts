@@ -110,7 +110,10 @@ export class ProfileController {
     }
     const { rows } = await pool.query(
       `update cliente_enderecos
-          set apelido=$3, cep=$4, logradouro=$5, numero=$6, complemento=$7, bairro=$8, cidade=$9, uf=$10, padrao=$11
+          set apelido=$3, cep=$4, logradouro=$5, numero=$6, complemento=$7, bairro=$8, cidade=$9, uf=$10, padrao=$11,
+              -- mudou a cidade: o codigo_municipio antigo nao vale mais pro endereco novo,
+              -- entao devolve pra fila do worker (que so pega where codigo_municipio is null)
+              codigo_municipio = null, municipio_tentativas = 0, municipio_ultima_tentativa_em = null
         where id = $1 and cliente_id = $2 returning *`,
       [
         id,

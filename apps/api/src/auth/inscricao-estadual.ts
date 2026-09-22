@@ -19,7 +19,7 @@ export function resolverInscricaoEstadual(e: EntradaIe): ResultadoIe {
   if (e.tipo !== 'CNPJ') return { ok: true, valor: null };
   if (e.isentoIe === true) return { ok: true, valor: 'ISENTO' };
   const digitos = (e.inscricaoEstadual ?? '').replace(/\D/g, '');
-  if (!digitos) return { ok: false, erro: 'Informe a Inscricao Estadual ou marque Isento' };
-  if (digitos.length < 8 || digitos.length > 14) return { ok: false, erro: 'Inscricao Estadual invalida' };
+  if (!digitos) return { ok: false, erro: 'Informe a Inscrição Estadual ou marque Isento' };
+  if (digitos.length < 8 || digitos.length > 14) return { ok: false, erro: 'Inscrição Estadual inválida' };
   return { ok: true, valor: digitos };
 }

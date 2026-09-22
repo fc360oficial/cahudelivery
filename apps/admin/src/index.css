@@ -213,5 +213,6 @@ a.mapa-painel-item { text-decoration: none; color: inherit; }
 .modal-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
 .ficha-bloco { font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; color: var(--texto-2); margin: 14px 0 6px; }
 .ficha-linha { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--borda); }
+.ficha-linha .btn-mini { flex: none; white-space: nowrap; }
 .ficha-rotulo { width: 130px; flex: none; color: var(--texto-2); font-size: 12.5px; }
 .ficha-valor { flex: 1; font-family: ui-monospace, Consolas, monospace; word-break: break-word; }

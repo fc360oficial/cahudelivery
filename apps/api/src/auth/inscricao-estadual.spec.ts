@@ -20,7 +20,7 @@ describe('resolverInscricaoEstadual', () => {
   it('CNPJ sem IE e sem isento e recusado', () => {
     const r = resolverInscricaoEstadual({ tipo: 'CNPJ' });
     expect(r.ok).toBe(false);
-    expect(r).toEqual({ ok: false, erro: 'Informe a Inscricao Estadual ou marque Isento' });
+    expect(r).toEqual({ ok: false, erro: 'Informe a Inscrição Estadual ou marque Isento' });
   });
 
   it('IE curta ou longa demais e recusada', () => {

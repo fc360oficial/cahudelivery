@@ -176,7 +176,7 @@ export class AdminService {
         where c.id = $1`,
       [id],
     );
-    if (!rows[0]) throw new NotFoundException('Cliente nao encontrado');
+    if (!rows[0]) throw new NotFoundException('Cliente não encontrado');
     return rows[0];
   }
 

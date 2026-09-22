@@ -2,8 +2,8 @@ import PDFDocument from 'pdfkit';
 import { barrasCode128C } from './codigo-barras';
 import { NotaFiscalLida, ItemNfe } from './nfe-xml.parser';
 
-const MARGEM = 28;
-const LARGURA = 595.28 - MARGEM * 2; // A4 retrato menos as margens
+export const MARGEM = 28;
+export const LARGURA = 595.28 - MARGEM * 2; // A4 retrato menos as margens
 
 const moeda = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const qtd = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
@@ -99,7 +99,7 @@ function impostos(doc: Doc, nota: NotaFiscalLida, y: number): number {
   doc.fontSize(6).font('Helvetica-Bold').text('CÁLCULO DO IMPOSTO', MARGEM, y + 1);
   const t = nota.totais;
   const linha: Array<[string, number]> = [
-    ['Base de cálculo do ICMS', t.baseIcms],
+    ['Base cálc. ICMS', t.baseIcms],
     ['Valor do ICMS', t.valorIcms],
     ['Valor do frete', t.valorFrete],
     ['Valor do seguro', t.valorSeguro],
@@ -115,19 +115,19 @@ function impostos(doc: Doc, nota: NotaFiscalLida, y: number): number {
   return y + 9 + 20 + 4;
 }
 
-const COLUNAS: Array<{ titulo: string; largura: number; alinhar: 'left' | 'right' | 'center'; valor: (i: ItemNfe) => string }> = [
-  { titulo: 'Código', largura: 62, alinhar: 'left', valor: (i) => i.codigo },
-  { titulo: 'Descrição', largura: 168, alinhar: 'left', valor: (i) => i.descricao },
-  { titulo: 'NCM', largura: 42, alinhar: 'center', valor: (i) => i.ncm },
-  { titulo: 'CST', largura: 26, alinhar: 'center', valor: (i) => i.cst },
-  { titulo: 'CFOP', largura: 28, alinhar: 'center', valor: (i) => i.cfop },
-  { titulo: 'Un', largura: 22, alinhar: 'center', valor: (i) => i.unidade },
-  { titulo: 'Qtd', largura: 36, alinhar: 'right', valor: (i) => qtd(i.quantidade) },
-  { titulo: 'Vl. unit', largura: 46, alinhar: 'right', valor: (i) => moeda(i.valorUnitario) },
-  { titulo: 'Vl. total', largura: 50, alinhar: 'right', valor: (i) => moeda(i.valorTotal) },
-  { titulo: 'BC ICMS', largura: 44, alinhar: 'right', valor: (i) => moeda(i.baseIcms) },
-  { titulo: 'Vl. ICMS', largura: 44, alinhar: 'right', valor: (i) => moeda(i.valorIcms) },
-  { titulo: '%', largura: 26, alinhar: 'right', valor: (i) => qtd(i.aliquotaIcms) },
+export const COLUNAS: Array<{ titulo: string; largura: number; alinhar: 'left' | 'right' | 'center'; valor: (i: ItemNfe) => string }> = [
+  { titulo: 'Código', largura: 58, alinhar: 'left', valor: (i) => i.codigo },
+  { titulo: 'Descrição', largura: 150, alinhar: 'left', valor: (i) => i.descricao },
+  { titulo: 'NCM', largura: 38, alinhar: 'center', valor: (i) => i.ncm },
+  { titulo: 'CST', largura: 22, alinhar: 'center', valor: (i) => i.cst },
+  { titulo: 'CFOP', largura: 26, alinhar: 'center', valor: (i) => i.cfop },
+  { titulo: 'Un', largura: 20, alinhar: 'center', valor: (i) => i.unidade },
+  { titulo: 'Qtd', largura: 32, alinhar: 'right', valor: (i) => qtd(i.quantidade) },
+  { titulo: 'Vl. unit', largura: 42, alinhar: 'right', valor: (i) => moeda(i.valorUnitario) },
+  { titulo: 'Vl. total', largura: 46, alinhar: 'right', valor: (i) => moeda(i.valorTotal) },
+  { titulo: 'BC ICMS', largura: 38, alinhar: 'right', valor: (i) => moeda(i.baseIcms) },
+  { titulo: 'Vl. ICMS', largura: 38, alinhar: 'right', valor: (i) => moeda(i.valorIcms) },
+  { titulo: '%', largura: 29.28, alinhar: 'right', valor: (i) => qtd(i.aliquotaIcms) },
 ];
 
 function cabecalhoItens(doc: Doc, y: number): number {

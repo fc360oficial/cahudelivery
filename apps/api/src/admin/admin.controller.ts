@@ -5,6 +5,8 @@ import { AdminGuard, AdminLogado } from './admin.guard';
 import { AdminService } from './admin.service';
 import { MapaService } from './mapa.service';
 import { parseFiltrosMapa } from './mapa-filtros';
+import { MunicipiosWorker } from '../municipios/municipios.worker';
+import { tenantCtx } from '../tenancy/tenant-context';
 
 type ReqAdmin = Request & { admin: AdminLogado };
 
@@ -43,7 +45,11 @@ class MovimentoCarteiraDto {
 @Controller('admin')
 @UseGuards(AdminGuard)
 export class AdminController {
-  constructor(private readonly admin: AdminService, private readonly mapa: MapaService) {}
+  constructor(
+    private readonly admin: AdminService,
+    private readonly mapa: MapaService,
+    private readonly municipios: MunicipiosWorker,
+  ) {}
 
   @Get('dashboard')
   dashboard() {
@@ -69,6 +75,18 @@ export class AdminController {
   @HttpCode(200)
   mapaGeocodificar(@Query('refazer') refazer?: string) {
     return this.mapa.geocodificarAgora(refazer === '1');
+  }
+
+  /** Dispara agora o worker de municípios (que normalmente só roda às 04:00) só para este tenant. */
+  @Post('clientes/municipios/resolver')
+  @HttpCode(200)
+  resolverMunicipios() {
+    return this.municipios.dispararAgora(tenantCtx().tenant.slug);
+  }
+
+  @Get('clientes/municipios/estado')
+  estadoMunicipios() {
+    return this.municipios.estado();
   }
 
   @Post('pedidos/:id/reenviar-erp')

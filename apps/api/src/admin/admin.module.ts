@@ -8,10 +8,11 @@ import { AdminController } from './admin.controller';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import { GeoModule } from '../geo/geo.module';
+import { MunicipiosModule } from '../municipios/municipios.module';
 import { MapaService } from './mapa.service';
 
 @Module({
-  imports: [GeoModule],
+  imports: [GeoModule, MunicipiosModule],
   controllers: [
     AdminAuthController,
     AdminController,

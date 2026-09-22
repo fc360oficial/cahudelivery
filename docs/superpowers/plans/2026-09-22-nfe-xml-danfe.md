@@ -211,7 +211,7 @@ describe('assinatura das URLs de nota', () => {
 
   it('tira a barra final de PUBLIC_URL para nao gerar URL com barra dupla', () => {
     process.env.PUBLIC_URL = 'https://cahudelivery.duckdns.org/';
-    expect(urlNota('cahu', PEDIDO, 'pdf')).toContain('.br/v1/notas/');
+    expect(urlNota('cahu', PEDIDO, 'pdf')).toContain('.org/v1/notas/');
     expect(urlNota('cahu', PEDIDO, 'pdf')).not.toContain('//v1/');
   });
 });

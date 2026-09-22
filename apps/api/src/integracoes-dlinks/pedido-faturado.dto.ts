@@ -1,5 +1,7 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsIn, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import {
+  IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Matches, ValidateNested,
+} from 'class-validator';
 
 const STATUS = ['ABERTO', 'EM_FATURAMENTO', 'FATURADO', 'CANCELADO'] as const;
 
@@ -26,6 +28,29 @@ export class ValoresFaturadoDto {
   total!: number;
 }
 
+/**
+ * NF-e que o Dlinks manda junto do faturamento (desde 22/09/2026).
+ * `numero` e `serie` ficam como texto de propósito: a série pode ter zero à
+ * esquerda e nada aqui é usado em conta.
+ */
+export class NotaFiscalDto {
+  @Matches(/^\d{44}$/, { message: 'chave da NF-e deve ter 44 dígitos' })
+  chave!: string;
+
+  @IsString()
+  numero!: string;
+
+  @IsString()
+  serie!: string;
+
+  @IsOptional()
+  @IsDateString()
+  emitida_em?: string;
+
+  @IsString()
+  xml_base64!: string;
+}
+
 export class PedidoFaturadoDto {
   @IsString()
   pedido_codigo!: string;
@@ -43,4 +68,12 @@ export class PedidoFaturadoDto {
   @ValidateNested({ each: true })
   @Type(() => ItemFaturadoDto)
   itens?: ItemFaturadoDto[];
+
+  // Sem este campo declarado, o `whitelist: true` do ValidationPipe
+  // (main.ts) descarta o bloco inteiro em silêncio — foi a causa da NF-e
+  // não aparecer no app em 22/09/2026.
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NotaFiscalDto)
+  nota_fiscal?: NotaFiscalDto;
 }

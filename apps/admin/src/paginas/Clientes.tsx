@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, fmtData, fmtDocumento } from '../api';
 import { Paginacao } from '../Paginacao';
+import { FichaCliente } from '../FichaCliente';
 
 interface LinhaCliente {
   id: string;
@@ -28,6 +29,7 @@ export function Clientes() {
   const [dados, setDados] = useState<LinhaCliente[] | null>(null);
   const [resumo, setResumo] = useState<Record<string, number> | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [fichaId, setFichaId] = useState<string | null>(null);
 
   useEffect(() => setPagina(1), [status, busca]);
 
@@ -145,6 +147,7 @@ export function Clientes() {
                 <td>
                   {c.status !== 'excluido' && (
                     <div className="acoes">
+                      <button className="btn-mini" onClick={() => setFichaId(c.id)}>Ficha</button>
                       {c.status !== 'aprovado' && (
                         <button className="btn-mini btn-ok" onClick={() => mudar(c.id, 'aprovado')}>Aprovar</button>
                       )}
@@ -163,6 +166,7 @@ export function Clientes() {
         </table>
       </div>
       {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} onMudar={setPagina} />}
+      {fichaId && <FichaCliente id={fichaId} onFechar={() => setFichaId(null)} />}
     </>
   );
 }

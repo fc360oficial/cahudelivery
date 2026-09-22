@@ -1,7 +1,33 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { XMLParser } from 'fast-xml-parser';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { creditarIndicacao } from '../orders/creditar-indicacao';
-import { PedidoFaturadoDto } from './pedido-faturado.dto';
+import { urlNota } from '../notas/assinatura';
+import { PedidoFaturadoDto, NotaFiscalDto } from './pedido-faturado.dto';
+
+const parserChave = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@', parseTagValue: false });
+
+/** Chave de acesso do próprio XML (atributo Id de infNFe, sem o prefixo "NFe"). */
+export function extrairChaveDoXml(xml: string): string | null {
+  try {
+    const raiz = parserChave.parse(xml) as Record<string, any>;
+    const id = (raiz?.nfeProc?.NFe ?? raiz?.NFe)?.infNFe?.['@Id'];
+    if (!id) return null;
+    const chave = String(id).replace(/^NFe/, '');
+    return /^\d{44}$/.test(chave) ? chave : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * O Dlinks manda `valores` em centavos e `itens` em reais — confirmado contra
+ * o XML em 22/09/2026 (total 23400 para uma nota de R$ 234,00). Ver
+ * docs/superpowers/specs/2026-09-22-nfe-xml-danfe-design.md.
+ */
+export function normalizarCentavos(valor: number): number {
+  return Math.round(valor) / 100;
+}
 
 export interface PedidoDlinks {
   codigo: string;
@@ -112,7 +138,7 @@ export class DlinksPedidosService {
    * indicação, se houver.
    */
   async marcarFaturado(dto: PedidoFaturadoDto): Promise<ResultadoLote> {
-    const { pedido_codigo: pedidoCodigo, status: statusErp, valores, itens } = dto;
+    const { pedido_codigo: pedidoCodigo, status: statusErp, valores, itens, nota_fiscal: notaFiscal } = dto;
     if (statusErp === 'CANCELADO') {
       return this.marcarCancelado([pedidoCodigo]);
     }
@@ -124,25 +150,112 @@ export class DlinksPedidosService {
         operacao: 'pedido_status_erp',
       });
     }
-    return this.transicionar([pedidoCodigo], {
+
+    const resultado = await this.transicionar([pedidoCodigo], {
       statusPermitido: (status) => status !== 'FATURADO' && status !== 'CANCELADO' && status !== 'ENTREGUE',
       novoStatus: 'FATURADO',
       detalhe: '',
       operacao: 'pedido_faturado',
       aposCommit: async (client, codigo) => {
         await creditarIndicacao(client, codigo);
-        if (valores) {
-          await client.query(
-            `insert into pedido_faturamentos (pedido_id, subtotal, desconto, total, itens_json)
-             values ($1, $2, $3, $4, $5)
-             on conflict (pedido_id) do update set
-               subtotal = excluded.subtotal, desconto = excluded.desconto,
-               total = excluded.total, itens_json = excluded.itens_json, faturado_em = now()`,
-            [codigo, valores.subtotal, valores.desconto ?? 0, valores.total, JSON.stringify(itens ?? [])],
-          );
-        }
       },
     });
+
+    // A nota grava fora do caminho de transição: no reenvio de FATURADO não há
+    // transição, e mesmo assim queremos a NF-e. Só 'nao_encontrado' impede —
+    // pedido_notas.pedido_id tem FK para pedidos(id), então gravar antes de
+    // saber que o pedido existe estouraria violação de chave estrangeira.
+    const inexistente = resultado.ignorados.some((i) => i.codigo === pedidoCodigo && i.motivo === 'nao_encontrado');
+    if (!inexistente) {
+      if (valores) await this.gravarFaturamento(pedidoCodigo, valores, itens ?? [], notaFiscal);
+      if (notaFiscal) await this.gravarNota(pedidoCodigo, notaFiscal);
+    }
+    return resultado;
+  }
+
+  /** Valores reais do faturamento, normalizados de centavos para reais. */
+  private async gravarFaturamento(
+    codigo: string,
+    valores: NonNullable<PedidoFaturadoDto['valores']>,
+    itens: NonNullable<PedidoFaturadoDto['itens']>,
+    notaFiscal: NotaFiscalDto | undefined,
+  ): Promise<void> {
+    const { pool } = tenantCtx();
+    const total = normalizarCentavos(valores.total);
+
+    // Confere contra o XML quando há nota. Se o Dlinks mudar o formato de
+    // `valores` um dia, a gente descobre por este log em vez de voltar a
+    // gravar 100x errado em silêncio.
+    if (notaFiscal) {
+      const xml = Buffer.from(notaFiscal.xml_base64, 'base64').toString('utf8');
+      const vNF = Number(/<vNF>([\d.]+)<\/vNF>/.exec(xml)?.[1]);
+      if (Number.isFinite(vNF) && Math.abs(vNF - total) > 0.01) {
+        this.log.warn(`pedido ${codigo}: total do payload (${total}) diverge do vNF do XML (${vNF})`);
+        await pool.query(
+          `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+           values ('faturamento_divergente','erp_para_fluxo',$1,$2,false)`,
+          [codigo, `payload ${total} vs XML ${vNF}`],
+        );
+      }
+    }
+
+    await pool.query(
+      `insert into pedido_faturamentos (pedido_id, subtotal, desconto, total, itens_json)
+       values ($1, $2, $3, $4, $5)
+       on conflict (pedido_id) do update set
+         subtotal = excluded.subtotal, desconto = excluded.desconto,
+         total = excluded.total, itens_json = excluded.itens_json, faturado_em = now()`,
+      [
+        codigo,
+        normalizarCentavos(valores.subtotal),
+        normalizarCentavos(valores.desconto ?? 0),
+        total,
+        JSON.stringify(itens),
+      ],
+    );
+  }
+
+  /** Guarda a NF-e e as URLs assinadas de XML e DANFE. */
+  private async gravarNota(codigo: string, nota: NotaFiscalDto): Promise<void> {
+    const { pool, tenant } = tenantCtx();
+    const xml = Buffer.from(nota.xml_base64, 'base64').toString('utf8');
+    const chaveXml = extrairChaveDoXml(xml);
+
+    // Impede a nota ser pendurada no pedido errado — o tipo de erro que só
+    // apareceria meses depois, na contabilidade do cliente.
+    if (!chaveXml) {
+      throw new BadRequestException('xml_base64 não contém uma NF-e válida');
+    }
+    if (chaveXml !== nota.chave) {
+      await pool.query(
+        `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+         values ('nota_chave_divergente','erp_para_fluxo',$1,$2,false)`,
+        [codigo, `payload ${nota.chave} vs XML ${chaveXml}`],
+      );
+      throw new BadRequestException('chave da nota_fiscal diverge da chave do XML');
+    }
+
+    const xmlUrl = urlNota(tenant.slug, codigo, 'xml');
+    const pdfUrl = urlNota(tenant.slug, codigo, 'pdf');
+    if (!xmlUrl || !pdfUrl) {
+      this.log.error(`PUBLIC_URL não configurada — nota do pedido ${codigo} fica sem link de download`);
+    }
+
+    await pool.query(
+      `insert into pedido_notas (pedido_id, numero_nf, serie, chave_acesso, xml, xml_url, pdf_url, emitida_em)
+       values ($1,$2,$3,$4,$5,$6,$7,$8)
+       on conflict (pedido_id) do update set
+         numero_nf = excluded.numero_nf, serie = excluded.serie,
+         chave_acesso = excluded.chave_acesso, xml = excluded.xml,
+         xml_url = excluded.xml_url, pdf_url = excluded.pdf_url,
+         emitida_em = excluded.emitida_em`,
+      [codigo, nota.numero, nota.serie, nota.chave, xml, xmlUrl, pdfUrl, nota.emitida_em ?? null],
+    );
+    await pool.query(
+      `insert into integracao_logs (operacao, direcao, request_resumo, sucesso)
+       values ('nota_fiscal_recebida','erp_para_fluxo',$1,true)`,
+      [`${codigo} NF ${nota.numero}/${nota.serie}`],
+    );
   }
 
   /**
@@ -177,15 +290,19 @@ export class DlinksPedidosService {
           ignorados.push({ codigo, motivo: 'nao_encontrado' });
           continue;
         }
-        if (!opts.statusPermitido(atual.rows[0].status)) {
-          await client.query('rollback');
-          ignorados.push({ codigo, motivo: 'status_invalido' });
-          continue;
-        }
-        // Dlinks reenvia o mesmo status várias vezes; sem isso cada envio vira uma linha na linha do tempo do cliente.
+        // Dlinks reenvia o mesmo status várias vezes; sem isso cada envio vira
+        // uma linha na linha do tempo do cliente. Esta checagem vem ANTES do
+        // statusPermitido de propósito: para FATURADO o guard exige
+        // status !== 'FATURADO', então um reenvio caía em 'status_invalido'
+        // em vez de ser idempotente (bug visto em 22/09/2026).
         if (atual.rows[0].status === opts.novoStatus) {
           await client.query('rollback');
           processados.push(codigo);
+          continue;
+        }
+        if (!opts.statusPermitido(atual.rows[0].status)) {
+          await client.query('rollback');
+          ignorados.push({ codigo, motivo: 'status_invalido' });
           continue;
         }
         await client.query(`update pedidos set status = $2 where id = $1`, [codigo, opts.novoStatus]);

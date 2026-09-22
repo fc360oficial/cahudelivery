@@ -4,6 +4,7 @@ import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { SENHA_PROVISORIA } from './senha-provisoria';
+import { resolverInscricaoEstadual } from './inscricao-estadual';
 
 export interface TokenPair {
   accessToken: string;
@@ -32,8 +33,11 @@ export class AuthService {
         bairro: string;
         cidade: string;
         uf: string;
+        codigoMunicipio?: string;
       };
       categoria?: string;
+      inscricaoEstadual?: string;
+      isentoIe?: boolean;
       senha: string;
       codigoIndicacao?: string;
     },
@@ -41,6 +45,8 @@ export class AuthService {
   ) {
     const { pool } = tenantCtx();
     const doc = dados.documento.replace(/\D/g, '');
+    const ie = resolverInscricaoEstadual(dados);
+    if (!ie.ok) throw new BadRequestException(ie.erro);
     const client = await pool.connect();
     let novo: { id: string; status: string };
     try {
@@ -71,8 +77,8 @@ export class AuthService {
       }
       const codigoIndicacao = await this.gerarCodigoIndicacao(client);
       const { rows } = await client.query(
-        `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, telefone, categoria, codigo_indicacao, indicado_por_cliente_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning id, status`,
+        `insert into clientes (tipo, documento, razao_social, nome_fantasia, email, telefone, categoria, codigo_indicacao, indicado_por_cliente_id, inscricao_estadual)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning id, status`,
         [
           dados.tipo,
           doc,
@@ -83,12 +89,13 @@ export class AuthService {
           dados.categoria ?? null,
           codigoIndicacao,
           indicadoPorClienteId,
+          ie.valor,
         ],
       );
       const e = dados.endereco;
       await client.query(
-        `insert into cliente_enderecos (cliente_id, cep, logradouro, numero, complemento, bairro, cidade, uf, padrao)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,true)`,
+        `insert into cliente_enderecos (cliente_id, cep, logradouro, numero, complemento, bairro, cidade, uf, padrao, codigo_municipio)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,true,$9)`,
         [
           rows[0].id,
           e.cep.replace(/\D/g, ''),
@@ -98,6 +105,7 @@ export class AuthService {
           e.bairro.trim(),
           e.cidade.trim(),
           e.uf.trim().toUpperCase(),
+          e.codigoMunicipio?.replace(/\D/g, '') || null,
         ],
       );
       await client.query(`insert into cliente_credenciais (cliente_id, senha_hash) values ($1,$2)`, [

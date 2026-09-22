@@ -1,5 +1,5 @@
 import { Body, Controller, Headers, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
-import { IsDefined, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, MinLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsDefined, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Length, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
@@ -15,6 +15,8 @@ class EnderecoCadastroDto {
   @IsNotEmpty() bairro!: string;
   @IsNotEmpty() cidade!: string;
   @Length(2, 2) uf!: string;
+  /** Código IBGE do município, capturado do ViaCEP pelo app. O cliente nunca digita. */
+  @IsOptional() @IsString() codigoMunicipio?: string;
 }
 
 // Telefone e endereço são obrigatórios: alimentam o CRM da distribuidora.
@@ -27,6 +29,8 @@ class RegistrarDto {
   @IsNotEmpty() telefone!: string;
   @IsDefined() @ValidateNested() @Type(() => EnderecoCadastroDto) endereco!: EnderecoCadastroDto;
   @IsOptional() @IsString() categoria?: string;
+  @IsOptional() @IsString() inscricaoEstadual?: string;
+  @IsOptional() @IsBoolean() isentoIe?: boolean;
   @MinLength(6) senha!: string;
   @IsOptional() @IsString() codigoIndicacao?: string;
 }

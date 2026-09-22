@@ -14,6 +14,8 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
   app.useBodyParser('json', { limit: '20mb' });
   app.useBodyParser('urlencoded', { extended: true, limit: '20mb' });
+  // O callback da MaxiPago pode vir em XML; sem isto o corpo chega vazio no controller.
+  app.useBodyParser('text', { type: ['application/xml', 'text/xml', 'text/plain'], limit: '2mb' });
   app.setGlobalPrefix('v1');
   app.enableCors();
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

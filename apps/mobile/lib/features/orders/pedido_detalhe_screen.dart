@@ -496,6 +496,19 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
                     label: const Text('Abrir DANFE (PDF)'),
                   ),
                 ],
+                if (n['xml_url'] != null) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _abrirUrl('${n['xml_url']}'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.download_outlined, size: 18),
+                    label: const Text('Baixar XML da nota'),
+                  ),
+                ],
               ],
             ),
           ),

@@ -43,9 +43,10 @@ const PEDIDO = '2a2d9a5b-5008-4016-bc23-dd8105434d6e';
 const XML_B64 = Buffer.from(XML).toString('base64');
 
 function montar() {
-  const query = jest.fn(async () => ({ rows: [], rowCount: 0 }));
+  // Parametros tipados: sem eles o TS tipa mock.calls como [] e o `([sql])` nao compila.
+  const query = jest.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] as unknown[], rowCount: 0 }));
   // `transicionar` usa pool.connect(); aqui só interessa o caminho pós-transição.
-  const client = { query: jest.fn(async () => ({ rows: [{ status: 'ENVIADO_ERP' }], rowCount: 1 })), release: jest.fn() };
+  const client = { query: jest.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [{ status: 'ENVIADO_ERP' }], rowCount: 1 })), release: jest.fn() };
   const pool = { query, connect: jest.fn(async () => client) };
   return { servico: new DlinksPedidosService(), pool, query };
 }

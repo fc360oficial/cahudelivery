@@ -223,7 +223,7 @@ export class OrdersService {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
       `select p.id as pedido_id, p.numero, p.total,
-              n.numero_nf, n.chave_acesso, n.pdf_url, n.emitida_em
+              n.numero_nf, n.chave_acesso, n.pdf_url, n.xml_url, n.emitida_em
          from pedidos p
          join pedido_notas n on n.pedido_id = p.id
         where p.cliente_id = $1

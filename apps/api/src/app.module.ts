@@ -9,12 +9,13 @@ import { DlinksModule } from './integracoes-dlinks/dlinks.module';
 import { GeoModule } from './geo/geo.module';
 import { IntegrationModule } from './integration/integration.module';
 import { MaxipagoModule } from './integracoes-maxipago/maxipago.module';
+import { MunicipiosModule } from './municipios/municipios.module';
 import { OrdersModule } from './orders/orders.module';
 import { ProfileModule } from './profile/profile.module';
 import { TenancyMiddleware } from './tenancy/tenant-context';
 
 @Module({
-  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -21,7 +21,13 @@ interface Detalhe {
   itens: { descricao: string; quantidade: string; precoUnit: string; total: string }[] | null;
   eventos: { status: string; detalhe?: string; origem: string; em: string }[] | null;
   cobranca?: { tipo: string; pix_copia_cola?: string; linha_digitavel?: string; valor: string; pago_em?: string } | null;
-  nota?: { numero_nf: string } | null;
+  nota?: {
+    numero_nf: string;
+    serie?: string | null;
+    chave_acesso?: string | null;
+    xml_url?: string | null;
+    pdf_url?: string | null;
+  } | null;
 }
 
 export function PedidoDetalhe() {
@@ -138,7 +144,27 @@ export function PedidoDetalhe() {
                 <span style={{ color: 'var(--texto-2)' }}>Aguardando o ERP gerar a cobrança</span>
               )}
             </div>
-            {p.nota && <div style={{ marginTop: 8 }}>NF: <span className="mono">{p.nota.numero_nf}</span></div>}
+            {p.nota && (
+              <div style={{ marginTop: 8 }}>
+                <div>
+                  NF: <span className="mono">{p.nota.numero_nf}</span>
+                  {p.nota.serie && <span className="mono"> / {p.nota.serie}</span>}
+                </div>
+                {p.nota.chave_acesso && (
+                  <div className="mono" style={{ fontSize: 11, color: 'var(--texto-2)', marginTop: 2 }}>
+                    {p.nota.chave_acesso}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
+                  {p.nota.pdf_url && (
+                    <a href={p.nota.pdf_url} target="_blank" rel="noreferrer">Abrir DANFE</a>
+                  )}
+                  {p.nota.xml_url && (
+                    <a href={p.nota.xml_url} target="_blank" rel="noreferrer">Baixar XML</a>
+                  )}
+                </div>
+              </div>
+            )}
             {p.erp_pedido_id && <div style={{ marginTop: 8 }}>Pedido ERP: <span className="mono">{p.erp_pedido_id}</span></div>}
           </div>
         </div>

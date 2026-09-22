@@ -57,9 +57,26 @@ String cep(String? v) {
   return d.length == 8 ? '${d.substring(0, 5)}-${d.substring(5)}' : (v ?? '');
 }
 
+/// Múltiplo de venda > 1 = o produto só sai em embalagem fechada. Com múltiplo
+/// 1 a venda é avulsa, por mais que o ERP tenha cadastrado o item como "CX":
+/// o Dlinks manda unidade = "CX" pro catálogo inteiro, então a sigla sozinha
+/// não distingue uma caixa de cerveja de um saco de ração vendido na unidade.
+bool vendidoEmEmbalagemFechada(Map<String, dynamic> p) =>
+    asDouble(p['qtd_por_embalagem']) > 1;
+
+/// Siglas de embalagem (agrupam N unidades) — só elas caem na regra do múltiplo.
+/// KG/LT são medida, não embalagem: "R$ 8,90 /kg" vale com múltiplo 1.
+const _siglasDeEmbalagem = {'CX', 'FD', 'PC', 'PCT', 'PT', 'DP', 'DISP', 'SC', 'BD', 'BDJ'};
+
+/// Embalagem cadastrada no ERP que, com múltiplo 1, na prática é venda avulsa.
+bool _embalagemSemMultiplo(Map<String, dynamic> p) =>
+    !vendidoEmEmbalagemFechada(p) &&
+    _siglasDeEmbalagem.contains((p['unidade_venda'] as String? ?? 'UN').toUpperCase());
+
 /// Sigla curta pro "R$X/sigla" no preço (ex.: /fd, /cx, /un, /kg) — mesmo
 /// padrão de precificação que o comprador B2B já reconhece.
 String siglaUnidade(Map<String, dynamic> p) {
+  if (_embalagemSemMultiplo(p)) return 'un';
   switch (p['unidade_venda']) {
     case 'CX':
       return 'cx';
@@ -109,10 +126,16 @@ String nomeUnidade(String? sigla) {
   }
 }
 
+/// Nome da unidade de venda de um produto, já corrigido pelo múltiplo: item
+/// cadastrado como "CX" mas com múltiplo 1 é vendido avulso, então o cliente
+/// lê "UNIDADE" — mostrar "CAIXA" ali faz ele achar que leva a caixa inteira.
+String nomeUnidadeDe(Map<String, dynamic> p) =>
+    _embalagemSemMultiplo(p) ? 'UNIDADE' : nomeUnidade(p['unidade_venda'] as String?);
+
 /// "CAIXA C/ 12 UN", "FARDO C/ 6 UN" ou só "UNIDADE" — texto pro cliente,
 /// em caixa alta como o nome do produto, no lugar do jargão "CX c/ 12".
 String descricaoEmbalagem(Map<String, dynamic> p) {
-  final nome = nomeUnidade(p['unidade_venda'] as String?);
+  final nome = nomeUnidadeDe(p);
   final porEmb = asDouble(p['qtd_por_embalagem']);
   return porEmb > 1 ? '$nome C/ ${porEmb.toInt()} UN' : nome;
 }

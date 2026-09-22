@@ -213,7 +213,7 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                             fontWeight: FontWeight.w800,
                             color: emPromocao ? Colors.red.shade600 : const Color(0xFF1A1A1A))),
                     const SizedBox(width: 8),
-                    Text(nomeUnidade(p['unidade_venda'] as String?),
+                    Text(nomeUnidadeDe(p),
                         style: TextStyle(
                             fontSize: 14, fontWeight: FontWeight.w800, color: Colors.grey.shade700)),
                   ],
@@ -236,7 +236,7 @@ class _ProdutoScreenState extends State<ProdutoScreen> {
                       _info('Embalagem', descricaoEmbalagem(p)),
                       if (p['ean'] != null && '${p['ean']}'.isNotEmpty) _info('Código de barras (EAN)', '${p['ean']}'),
                       if (p['sku'] != null && '${p['sku']}' != '${p['ean']}') _info('Código interno', '${p['sku']}'),
-                      if (minima > 1) _info('Pedido mínimo', '${minima.toInt()} ${nomeUnidade(p['unidade_venda'] as String?).toLowerCase()}(s)'),
+                      if (minima > 1) _info('Pedido mínimo', '${minima.toInt()} ${nomeUnidadeDe(p).toLowerCase()}(s)'),
                       if (p['data_validade'] != null) _info('Validade', dataCurta(p['data_validade'])),
                       if (p['categoria'] != null) _info('Categoria', '${p['categoria']}', ultimo: true),
                     ],

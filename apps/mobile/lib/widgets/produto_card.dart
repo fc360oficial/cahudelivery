@@ -197,7 +197,7 @@ class ProdutoCard extends StatelessWidget {
         if (porEmb > 1)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('${moeda(produto['preco'])} ${nomeUnidade(produto['unidade_venda'] as String?)}',
+            child: Text('${moeda(produto['preco'])} ${nomeUnidadeDe(produto)}',
                 style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
           ),
       ],

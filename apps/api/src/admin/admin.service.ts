@@ -156,6 +156,30 @@ export class AdminService {
     return { dados: rows, pagina: f.pagina, resumo: resumo.rows[0] };
   }
 
+  /**
+   * Dados que o operador precisa para cadastrar o cliente no ERP: bloco fiscal
+   * e endereço padrão. `codigo_municipio` pode vir null enquanto o worker de
+   * municípios não resolveu — a tela mostra isso como pendência, não como vazio.
+   */
+  async fichaCliente(id: string) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select c.id, c.tipo, c.documento, c.razao_social, c.nome_fantasia, c.inscricao_estadual,
+              e.cep, e.logradouro, e.numero, e.complemento, e.bairro, e.cidade, e.uf,
+              e.codigo_municipio, e.municipio_tentativas
+         from clientes c
+         left join lateral (
+           select * from cliente_enderecos ce
+            where ce.cliente_id = c.id
+            order by ce.padrao desc limit 1
+         ) e on true
+        where c.id = $1`,
+      [id],
+    );
+    if (!rows[0]) throw new NotFoundException('Cliente nao encontrado');
+    return rows[0];
+  }
+
   /** Tabelas de preço do tenant, com código do ERP e quantos preços/clientes têm. */
   async tabelasPreco() {
     const { pool } = tenantCtx();

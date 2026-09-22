@@ -81,6 +81,11 @@ export class AdminController {
     return this.admin.clientes({ status, busca, pagina: Math.max(1, Number(pagina) || 1) });
   }
 
+  @Get('clientes/:id/ficha')
+  fichaCliente(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.fichaCliente(id);
+  }
+
   @Patch('clientes/:id/status')
   statusCliente(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: StatusClienteDto) {
     return this.admin.mudarStatusCliente(id, dto.status, req.admin.usuarioId);

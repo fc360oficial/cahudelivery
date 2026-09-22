@@ -42,13 +42,20 @@ beforeAll(() => {
 const PEDIDO = '2a2d9a5b-5008-4016-bc23-dd8105434d6e';
 const XML_B64 = Buffer.from(XML).toString('base64');
 
-function montar() {
+function montar(opts: { status?: string; existe?: boolean } = {}) {
+  const status = opts.status ?? 'ENVIADO_ERP';
+  const existe = opts.existe ?? true;
   // Parametros tipados: sem eles o TS tipa mock.calls como [] e o `([sql])` nao compila.
   const query = jest.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [] as unknown[], rowCount: 0 }));
   // `transicionar` usa pool.connect(); aqui só interessa o caminho pós-transição.
-  const client = { query: jest.fn(async (_sql: string, _params?: unknown[]) => ({ rows: [{ status: 'ENVIADO_ERP' }], rowCount: 1 })), release: jest.fn() };
+  const client = {
+    query: jest.fn(async (_sql: string, _params?: unknown[]) =>
+      existe ? { rows: [{ status }], rowCount: 1 } : { rows: [], rowCount: 0 },
+    ),
+    release: jest.fn(),
+  };
   const pool = { query, connect: jest.fn(async () => client) };
-  return { servico: new DlinksPedidosService(), pool, query };
+  return { servico: new DlinksPedidosService(), pool, query, client };
 }
 
 const comTenant = (pool: unknown, fn: () => Promise<unknown>) =>
@@ -126,5 +133,45 @@ describe('gravacao da nota fiscal', () => {
     const { servico, pool, query } = montar();
     await comTenant(pool, () => servico.marcarFaturado(dto({ status: 'EM_FATURAMENTO' }) as never));
     expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_notas'))).toBe(false);
+  });
+
+  it('reenvio de pedido ja FATURADO e idempotente mas mesmo assim regrava a nota', async () => {
+    const { servico, pool, query, client } = montar({ status: 'FATURADO' });
+    const resultado = await comTenant(pool, () => servico.marcarFaturado(dto() as never));
+    expect(resultado.processados).toEqual([PEDIDO]);
+    expect(resultado.ignorados).toEqual([]);
+    expect(client.query.mock.calls.some(([sql]) => String(sql).includes('update pedidos'))).toBe(false);
+    expect(client.query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_eventos'))).toBe(false);
+    // Mesmo idempotente pro status, a nota grava/atualiza de novo.
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_notas'))).toBe(true);
+  });
+
+  it('pedido inexistente nao grava nota nem faturamento', async () => {
+    const { servico, pool, query } = montar({ existe: false });
+    const resultado = await comTenant(pool, () => servico.marcarFaturado(dto() as never));
+    expect(resultado.ignorados).toEqual([{ codigo: PEDIDO, motivo: 'nao_encontrado' }]);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_notas'))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_faturamentos'))).toBe(false);
+  });
+
+  it('diverge do vNF do XML quando o total do payload esta errado, mas grava o valor do payload mesmo assim', async () => {
+    const { servico, pool, query } = montar();
+    // XML da fixture tem vNF 234,00; total do payload aqui e 999,00 (99900 centavos).
+    await comTenant(pool, () =>
+      servico.marcarFaturado(dto({ valores: { subtotal: 99900, desconto: 0, total: 99900 } }) as never),
+    );
+    const insertFaturamento = query.mock.calls.find(([sql]) => String(sql).includes('insert into pedido_faturamentos'));
+    expect((insertFaturamento![1] as unknown[])[3]).toBe(999); // total gravado e o do payload
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('faturamento_divergente'))).toBe(true);
+  });
+
+  it('rejeita chave divergente antes de tocar na transicao de status', async () => {
+    const { servico, pool, client } = montar();
+    const chaveErrada = { ...nota, chave: `1${CHAVE.slice(1)}` };
+    await expect(
+      comTenant(pool, () => servico.marcarFaturado(dto({ nota_fiscal: chaveErrada }) as never)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    // A validacao acontece antes de transicionar() pegar uma conexao/cliente.
+    expect(client.query.mock.calls.some(([sql]) => String(sql).includes('update pedidos'))).toBe(false);
   });
 });

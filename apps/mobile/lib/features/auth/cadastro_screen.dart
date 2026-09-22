@@ -48,6 +48,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _bairro = TextEditingController();
   final _cidade = TextEditingController();
   final _uf = TextEditingController();
+  final _inscricaoEstadual = TextEditingController();
+  bool _isentoIe = false;
+  String? _codigoMunicipio;
   String? _categoria;
   bool _enviando = false;
   bool _buscandoCep = false;
@@ -69,6 +72,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
       _bairro,
       _cidade,
       _uf,
+      _inscricaoEstadual,
     ]) {
       c.dispose();
     }
@@ -89,6 +93,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
         _bairro.text = d['bairro'] ?? _bairro.text;
         _cidade.text = d['localidade'] ?? _cidade.text;
         _uf.text = d['uf'] ?? _uf.text;
+        // O ViaCEP já devolve o código IBGE do município: o ERP precisa dele e
+        // o cliente não saberia informar. Nenhum campo é mostrado na tela.
+        _codigoMunicipio = (d['ibge'] as String?)?.trim();
       }
     } catch (_) {
       // ViaCEP fora do ar não bloqueia o preenchimento manual
@@ -99,6 +106,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
 
   Future<void> _cadastrar() async {
     if (!_form.currentState!.validate()) return;
+    final ehCnpjSelecionado = _tipo == 'CNPJ';
     setState(() => _enviando = true);
     try {
       final r =
@@ -119,8 +127,13 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   'bairro': _bairro.text.trim(),
                   'cidade': _cidade.text.trim(),
                   'uf': _uf.text.trim().toUpperCase(),
+                  if (_codigoMunicipio != null && _codigoMunicipio!.isNotEmpty)
+                    'codigoMunicipio': _codigoMunicipio,
                 },
                 if (_categoria != null) 'categoria': _categoria,
+                if (ehCnpjSelecionado && _isentoIe) 'isentoIe': true,
+                if (ehCnpjSelecionado && !_isentoIe && _inscricaoEstadual.text.trim().isNotEmpty)
+                  'inscricaoEstadual': _inscricaoEstadual.text.replaceAll(RegExp(r'\D'), ''),
                 'senha': _senha.text,
                 if (_codigoIndicacao.text.trim().isNotEmpty)
                   'codigoIndicacao': _codigoIndicacao.text.trim(),
@@ -209,7 +222,14 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   ),
                 ],
                 selected: {_tipo},
-                onSelectionChanged: (s) => setState(() => _tipo = s.first),
+                onSelectionChanged: (s) => setState(() {
+                  _tipo = s.first;
+                  // CPF não tem IE: limpar evita mandar IE de pessoa física no payload.
+                  if (_tipo != 'CNPJ') {
+                    _inscricaoEstadual.clear();
+                    _isentoIe = false;
+                  }
+                }),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -239,6 +259,33 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Razão social (opcional)',
                   ),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _inscricaoEstadual,
+                  enabled: !_isentoIe,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Inscrição Estadual',
+                  ),
+                  validator: (v) {
+                    if (!ehCnpj || _isentoIe) return null;
+                    final d = (v ?? '').replaceAll(RegExp(r'\D'), '');
+                    if (d.isEmpty) return 'Informe a IE ou marque Isento';
+                    return d.length >= 8 && d.length <= 14
+                        ? null
+                        : 'Inscrição Estadual inválida';
+                  },
+                ),
+                CheckboxListTile(
+                  value: _isentoIe,
+                  onChanged: (v) => setState(() {
+                    _isentoIe = v ?? false;
+                    if (_isentoIe) _inscricaoEstadual.clear();
+                  }),
+                  title: const Text('Isento de Inscrição Estadual'),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
                 ),
               ],
               const SizedBox(height: 14),
@@ -289,6 +336,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
                       : null,
                 ),
                 onChanged: (v) {
+                  _codigoMunicipio = null;
                   if (v.replaceAll(RegExp(r'\D'), '').length == 8) _buscarCep();
                 },
                 validator: (v) =>

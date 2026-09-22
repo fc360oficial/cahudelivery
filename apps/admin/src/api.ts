@@ -87,8 +87,8 @@ export const PAGAMENTO_LABEL: Record<string, string> = {
 
 export const STATUS_LABEL: Record<string, string> = {
   RECEBIDO: 'Recebido',
-  ENVIADO_ERP: 'No ERP',
-  ABERTO: 'No ERP',
+  ENVIADO_ERP: 'Enviado ao ERP',
+  ABERTO: 'Aberto',
   EM_FATURAMENTO: 'Em faturamento',
   FATURADO: 'Faturado',
   EM_SEPARACAO: 'Em separação',

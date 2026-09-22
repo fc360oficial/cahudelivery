@@ -175,20 +175,23 @@ dia, a gente descobre pelo log em vez de voltar a gravar 100× errado em silênc
 > a leitura correta do payload observado em 22/09/2026 (batida contra o XML), mas é uma
 > inferência nossa — não está escrita em contrato nenhum.
 
-### 4. Banco — migração `028_nfe_xml_serie.sql`
+### 4. Banco — migração `029_nfe_xml_serie.sql`
 
 ```sql
 alter table pedido_notas add column if not exists serie text;
 alter table pedido_notas add column if not exists xml   text;
 
-insert into schema_migrations (versao) values ('028') on conflict do nothing;
+insert into schema_migrations (versao) values ('029') on conflict do nothing;
 ```
 
 O XML é guardado **decodificado**, não em base64: ocupa ~25% menos, é legível num `select`
 na hora de investigar, e o base64 não agrega nada.
 
-Não existe runner de migração no projeto — a 028 é aplicada à mão no .254 via `psql`
+Não existe runner de migração no projeto — a 029 é aplicada à mão no .254 via `psql`
 (arquivo enviado por `scp`), como as anteriores.
+
+> A 028 ficou com `028_ie_e_municipio.sql` (IE do cliente + código IBGE do município),
+> desenvolvida em paralelo em 22/09/2026. Por isso a da NF-e é a 029.
 
 ### 5. Servir os arquivos — módulo novo `apps/api/src/notas/`
 

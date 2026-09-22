@@ -118,7 +118,7 @@ tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .badge.RECEBIDO { background: #eef2ff; color: var(--azul); }
 .badge.ENVIADO_ERP { background: #f0f9ff; color: #0369a1; }
-.badge.ABERTO { background: #f0f9ff; color: #0369a1; }
+.badge.ABERTO { background: #ecfeff; color: #0e7490; }
 .badge.EM_FATURAMENTO { background: #f5f3ff; color: #6d28d9; }
 .badge.FATURADO { background: #fefce8; color: #a16207; }
 .badge.EM_SEPARACAO { background: #fff7ed; color: var(--laranja); }

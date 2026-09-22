@@ -36,7 +36,7 @@ export function Pedidos() {
       <h1>Pedidos</h1>
       <div className="filtros">
         <input placeholder="Buscar por nº, cliente ou CNPJ…" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ flex: 1, maxWidth: 340 }} />
-        {['', 'RECEBIDO', 'ENVIADO_ERP', 'ABERTO', 'EM_FATURAMENTO', 'FATURADO', 'EM_SEPARACAO', 'SAIU_ENTREGA', 'ENTREGUE', 'FALHA_INTEGRACAO'].map((s) => (
+        {['', 'RECEBIDO', 'ENVIADO_ERP', 'ABERTO', 'EM_FATURAMENTO', 'FATURADO', 'CANCELADO', 'FALHA_INTEGRACAO'].map((s) => (
           <button
             key={s || 'todos'}
             className={`pill-filtro ${status === s ? 'ativo' : ''}`}

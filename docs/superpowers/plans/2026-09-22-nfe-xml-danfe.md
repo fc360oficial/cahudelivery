@@ -1078,11 +1078,93 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `apps/api/src/integracoes-dlinks/pedido-faturado.dto.ts`
+- Test: `apps/api/src/integracoes-dlinks/pedido-faturado.dto.spec.ts`
 
 **Interfaces:**
 - Produces: `NotaFiscalDto` e `PedidoFaturadoDto.nota_fiscal?: NotaFiscalDto` — consumido pela Task 8.
 
-- [ ] **Step 1: Substituir o arquivo inteiro**
+- [ ] **Step 1: Escrever o teste que falha**
+
+O teste mais importante desta tarefa é o do `whitelist`: é ele que trava a regressão do bug de 22/09/2026, em que o bloco `nota_fiscal` era descartado em silêncio.
+
+```ts
+// apps/api/src/integracoes-dlinks/pedido-faturado.dto.spec.ts
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { PedidoFaturadoDto } from './pedido-faturado.dto';
+
+const CHAVE = '26260961920643000148550030000050601000073367';
+
+const payload = (nota?: Record<string, unknown>) => ({
+  pedido_codigo: '2a2d9a5b-5008-4016-bc23-dd8105434d6e',
+  status: 'FATURADO',
+  valores: { subtotal: 23400, desconto: 0, total: 23400 },
+  itens: [{ produto_codigo: '7891008367027', quantidade: 6, valor_unitario: 39 }],
+  ...(nota === undefined ? {} : { nota_fiscal: nota }),
+});
+
+const notaValida = {
+  chave: CHAVE,
+  numero: '5060',
+  serie: '3',
+  emitida_em: '2026-09-22T00:00:00-03:00',
+  xml_base64: 'PG5mZVByb2MvPg==',
+};
+
+const converter = (bruto: unknown) =>
+  plainToInstance(PedidoFaturadoDto, bruto, { excludeExtraneousValues: false });
+
+describe('PedidoFaturadoDto e o bloco nota_fiscal', () => {
+  it('nao perde nota_fiscal na conversao (regressao do bug de 22/09/2026)', async () => {
+    const dto = converter(payload(notaValida));
+    expect(dto.nota_fiscal).toBeDefined();
+    expect(dto.nota_fiscal!.chave).toBe(CHAVE);
+    expect(dto.nota_fiscal!.numero).toBe('5060');
+    expect(dto.nota_fiscal!.serie).toBe('3');
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('continua aceitando payload sem nota_fiscal', async () => {
+    const dto = converter(payload());
+    expect(dto.nota_fiscal).toBeUndefined();
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it('recusa chave com menos de 44 digitos', async () => {
+    const erros = await validate(converter(payload({ ...notaValida, chave: '2626096192064300014855003000005060100007336' })));
+    expect(erros).not.toHaveLength(0);
+  });
+
+  it('recusa chave com letra', async () => {
+    const erros = await validate(converter(payload({ ...notaValida, chave: `X${CHAVE.slice(1)}` })));
+    expect(erros).not.toHaveLength(0);
+  });
+
+  it('recusa nota_fiscal sem xml_base64', async () => {
+    const { xml_base64, ...semXml } = notaValida;
+    const erros = await validate(converter(payload(semXml)));
+    expect(erros).not.toHaveLength(0);
+  });
+
+  it('aceita nota_fiscal sem emitida_em, que e opcional', async () => {
+    const { emitida_em, ...semData } = notaValida;
+    expect(await validate(converter(payload(semData)))).toHaveLength(0);
+  });
+
+  it('mantem numero e serie como texto, sem virar numero', async () => {
+    const dto = converter(payload({ ...notaValida, serie: '03' }));
+    expect(dto.nota_fiscal!.serie).toBe('03'); // zero à esquerda preservado
+    expect(typeof dto.nota_fiscal!.numero).toBe('string');
+  });
+});
+```
+
+- [ ] **Step 2: Rodar e ver falhar**
+
+Run: `cd apps/api && npx jest src/integracoes-dlinks/pedido-faturado.dto.spec.ts`
+Expected: FAIL — `dto.nota_fiscal` é `undefined` porque o campo ainda não existe no DTO.
+
+- [ ] **Step 3: Substituir o arquivo inteiro**
 
 ```ts
 // apps/api/src/integracoes-dlinks/pedido-faturado.dto.ts
@@ -1167,15 +1249,15 @@ export class PedidoFaturadoDto {
 }
 ```
 
-- [ ] **Step 2: Compilar**
+- [ ] **Step 4: Rodar e ver passar**
 
-Run: `cd apps/api && npx tsc --noEmit`
-Expected: sem erros.
+Run: `cd apps/api && npx tsc --noEmit && npx jest src/integracoes-dlinks/pedido-faturado.dto.spec.ts`
+Expected: compila e os 7 testes passam.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add apps/api/src/integracoes-dlinks/pedido-faturado.dto.ts
+git add apps/api/src/integracoes-dlinks/pedido-faturado.dto.ts apps/api/src/integracoes-dlinks/pedido-faturado.dto.spec.ts
 git commit -m "Aceita o bloco nota_fiscal no payload de pedido faturado
 
 Sem o campo declarado o whitelist do ValidationPipe descartava a NF-e
@@ -1444,12 +1526,119 @@ Expected: PASS — 5 testes.
 
 Acrescentar `BadRequestException` ao import de `@nestjs/common` no topo do arquivo.
 
-- [ ] **Step 7: Compilar e rodar toda a suíte**
+- [ ] **Step 7: Testar a gravação com pool mockado**
+
+Mesmo padrão de `dlinks-sync-clientes.spec.ts`: `runComTenant` com um `pool` falso, sem banco de verdade. Acrescentar ao fim de `nota-fiscal.spec.ts`:
+
+```ts
+import { readFileSync } from 'node:fs';
+import { Logger, BadRequestException } from '@nestjs/common';
+import { DlinksPedidosService } from './dlinks-pedidos.service';
+import { runComTenant } from '../tenancy/tenant-context';
+
+beforeAll(() => {
+  jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+  jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+});
+
+const PEDIDO = '2a2d9a5b-5008-4016-bc23-dd8105434d6e';
+const XML_B64 = Buffer.from(XML).toString('base64');
+
+function montar() {
+  const query = jest.fn(async () => ({ rows: [], rowCount: 0 }));
+  // `transicionar` usa pool.connect(); aqui só interessa o caminho pós-transição.
+  const client = { query: jest.fn(async () => ({ rows: [{ status: 'ENVIADO_ERP' }], rowCount: 1 })), release: jest.fn() };
+  const pool = { query, connect: jest.fn(async () => client) };
+  return { servico: new DlinksPedidosService(), pool, query };
+}
+
+const comTenant = (pool: unknown, fn: () => Promise<unknown>) =>
+  runComTenant({ tenant: { slug: 'cahu' }, pool } as never, fn);
+
+describe('gravacao da nota fiscal', () => {
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'segredo-de-teste';
+    process.env.PUBLIC_URL = 'https://cahudelivery.duckdns.org';
+  });
+
+  const nota = { chave: CHAVE, numero: '5060', serie: '3', emitida_em: '2026-09-22T00:00:00-03:00', xml_base64: XML_B64 };
+  const dto = (extra: Record<string, unknown> = {}) => ({
+    pedido_codigo: PEDIDO,
+    status: 'FATURADO' as const,
+    valores: { subtotal: 23400, desconto: 0, total: 23400 },
+    itens: [{ produto_codigo: '7891008367027', quantidade: 6, valor_unitario: 39 }],
+    nota_fiscal: nota,
+    ...extra,
+  });
+
+  it('grava a nota com XML decodificado e URLs assinadas', async () => {
+    const { servico, pool, query } = montar();
+    await comTenant(pool, () => servico.marcarFaturado(dto() as never));
+    const insert = query.mock.calls.find(([sql]) => String(sql).includes('insert into pedido_notas'));
+    expect(insert).toBeDefined();
+    const params = insert![1] as unknown[];
+    expect(params[1]).toBe('5060');          // numero_nf
+    expect(params[2]).toBe('3');             // serie
+    expect(params[3]).toBe(CHAVE);           // chave_acesso
+    expect(String(params[4])).toContain('<nNF>5060</nNF>'); // xml decodificado, nao base64
+    expect(String(params[5])).toContain(`/v1/notas/cahu/${PEDIDO}/nota.xml?t=`);
+    expect(String(params[6])).toContain(`/v1/notas/cahu/${PEDIDO}/danfe.pdf?t=`);
+    expect(String(insert![0])).toContain('on conflict (pedido_id) do update'); // reenvio atualiza
+  });
+
+  it('normaliza os centavos do payload ao gravar o faturamento', async () => {
+    const { servico, pool, query } = montar();
+    await comTenant(pool, () => servico.marcarFaturado(dto() as never));
+    const insert = query.mock.calls.find(([sql]) => String(sql).includes('insert into pedido_faturamentos'));
+    const params = insert![1] as unknown[];
+    expect(params[1]).toBe(234); // subtotal, nao 23400
+    expect(params[3]).toBe(234); // total
+  });
+
+  it('recusa quando a chave do payload diverge da chave do XML', async () => {
+    const { servico, pool, query } = montar();
+    const chaveErrada = { ...nota, chave: `1${CHAVE.slice(1)}` };
+    await expect(
+      comTenant(pool, () => servico.marcarFaturado(dto({ nota_fiscal: chaveErrada }) as never)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_notas'))).toBe(false);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('nota_chave_divergente'))).toBe(true);
+  });
+
+  it('recusa quando o xml_base64 nao contem uma NF-e', async () => {
+    const { servico, pool } = montar();
+    const lixo = { ...nota, xml_base64: Buffer.from('nao e xml').toString('base64') };
+    await expect(
+      comTenant(pool, () => servico.marcarFaturado(dto({ nota_fiscal: lixo }) as never)),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('grava a nota sem URLs quando PUBLIC_URL nao esta configurada', async () => {
+    delete process.env.PUBLIC_URL;
+    const { servico, pool, query } = montar();
+    await comTenant(pool, () => servico.marcarFaturado(dto() as never));
+    const insert = query.mock.calls.find(([sql]) => String(sql).includes('insert into pedido_notas'));
+    const params = insert![1] as unknown[];
+    expect(params[5]).toBeNull(); // xml_url
+    expect(params[6]).toBeNull(); // pdf_url
+  });
+
+  it('nao grava nota quando o status do payload nao e FATURADO', async () => {
+    const { servico, pool, query } = montar();
+    await comTenant(pool, () => servico.marcarFaturado(dto({ status: 'EM_FATURAMENTO' }) as never));
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into pedido_notas'))).toBe(false);
+  });
+});
+```
+
+> Se `marcarFaturado` estiver gravando a nota para status diferente de `FATURADO`, o último teste falha — o guard está no início do método, que desvia `ABERTO`/`EM_FATURAMENTO`/`CANCELADO` antes de chegar na gravação.
+
+- [ ] **Step 8: Compilar e rodar toda a suíte**
 
 Run: `cd apps/api && npx tsc --noEmit && npx jest`
-Expected: compila e todos os testes passam.
+Expected: compila e todos os testes passam (5 dos helpers + 6 da gravação + os pré-existentes).
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add apps/api/src/integracoes-dlinks/dlinks-pedidos.service.ts apps/api/src/integracoes-dlinks/nota-fiscal.spec.ts

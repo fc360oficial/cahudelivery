@@ -108,21 +108,31 @@ export function Clientes() {
         })}
       </div>
       {erro && <div className="erro-texto">{erro}</div>}
-      <div className="tabela-wrap">
-        <table>
+      <div className="tabela-wrap tabela-wrap-fixa">
+        <table className="tabela-clientes">
+          <colgroup>
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '7%' }} />
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '9%' }} />
+            <col style={{ width: '17%' }} />
+          </colgroup>
           <thead>
             <tr><th>Cliente</th><th>Documento</th><th>Contato</th><th>Pedidos</th><th>Tabela de preço</th><th>Status</th><th>Cadastro</th><th>Ações</th></tr>
           </thead>
           <tbody>
             {dados?.map((c) => (
               <tr key={c.id}>
-                <td><strong>{c.nome_fantasia}</strong></td>
-                <td className="mono">{fmtDocumento(c.documento)}</td>
-                <td>{c.email ?? '—'}{c.telefone ? ` · ${c.telefone}` : ''}</td>
+                <td className="col-quebra"><strong>{c.nome_fantasia}</strong></td>
+                <td className="mono col-quebra">{fmtDocumento(c.documento)}</td>
+                <td className="col-quebra">{c.email ?? '—'}{c.telefone ? ` · ${c.telefone}` : ''}</td>
                 <td>{c.pedidos}</td>
                 <td>
                   {c.status === 'excluido' ? '—' : (
-                    <select value={c.tabela_preco_id ?? ''} onChange={(e) => mudarTabela(c.id, e.target.value)} title="Tabela de preço que este cliente vê no app. Sem tabela = padrão." style={{ maxWidth: 260 }}>
+                    <select value={c.tabela_preco_id ?? ''} onChange={(e) => mudarTabela(c.id, e.target.value)} title="Tabela de preço que este cliente vê no app. Sem tabela = padrão.">
                       <option value="">Padrão{padrao ? ` (${padrao.codigo ?? ''} · ${padrao.nome})` : ''}</option>
                       {tabelas.map((t) => (
                         <option key={t.id} value={t.id}>{t.codigo ? `${t.codigo} · ` : ''}{t.nome}{t.precos ? '' : ' (sem preços)'}</option>
@@ -132,18 +142,18 @@ export function Clientes() {
                 </td>
                 <td><span className={`badge ${c.status}`}>{c.status}</span></td>
                 <td>{fmtData(c.criado_em)}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
+                <td>
                   {c.status !== 'excluido' && (
-                    <>
+                    <div className="acoes">
                       {c.status !== 'aprovado' && (
                         <button className="btn-mini btn-ok" onClick={() => mudar(c.id, 'aprovado')}>Aprovar</button>
-                      )}{' '}
+                      )}
                       {c.status !== 'bloqueado' && (
                         <button className="btn-mini btn-perigo" onClick={() => mudar(c.id, 'bloqueado')}>Bloquear</button>
-                      )}{' '}
-                      <button className="btn-mini" onClick={() => redefinirSenha(c)}>Redefinir senha</button>{' '}
+                      )}
+                      <button className="btn-mini" onClick={() => redefinirSenha(c)}>Redefinir senha</button>
                       <button className="btn-mini btn-perigo" onClick={() => excluir(c)}>Excluir</button>
-                    </>
+                    </div>
                   )}
                 </td>
               </tr>

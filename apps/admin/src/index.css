@@ -67,7 +67,9 @@ button { font: inherit; cursor: pointer; }
 .sidebar .rodape button { background: none; border: 0; color: #d5d8dd; padding: 4px 0; }
 .sidebar .rodape button:hover { color: var(--acento); }
 
-.conteudo { flex: 1; padding: 26px 30px; max-width: 1180px; }
+/* 1600px aproveita a tela cheia num monitor comum sem deixar a linha longa
+   demais pro olho acompanhar do nome até o último botão num ultrawide. */
+.conteudo { flex: 1; padding: 26px 30px; max-width: 1600px; }
 .conteudo h1 { margin: 0 0 18px; font-size: 21px; }
 
 /* Cards e grid de KPIs */
@@ -96,6 +98,17 @@ tbody tr:last-child td { border-bottom: 0; }
 .tabela-produtos .remover-foto { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--borda); background: #fff; color: #b91c1c; font-size: 12px; line-height: 16px; padding: 0; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
 .tabela-produtos .remover-foto:hover { background: #fee2e2; }
 .tabela-produtos .situacao { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Lista de clientes: larguras fixas por colgroup, nome/e-mail longos quebram
+   em vez de esticar a tabela e empurrar Cadastro e Ações pra fora da tela. */
+.tabela-clientes { table-layout: fixed; }
+/* Padrão: nada quebra no meio — data, documento e badge de status ficariam
+   ilegíveis partidos ("22/09/202" / "6 10:31"). Sobra vira reticências. */
+.tabela-clientes th, .tabela-clientes td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Só nome e contato quebram: são os campos de texto livre que puxam a largura. */
+.tabela-clientes .col-quebra { white-space: normal; overflow-wrap: anywhere; }
+.tabela-clientes select { width: 100%; }
+.tabela-clientes .acoes { display: flex; flex-wrap: wrap; gap: 6px; white-space: normal; }
+.tabela-clientes .acoes .btn-mini { white-space: nowrap; }
 .tabela-produtos .col-produto .nome { font-weight: 600; line-height: 1.25; }
 .tabela-produtos .col-produto .sub { color: var(--texto-2); font-size: 12px; margin-top: 2px; }
 .tabela-produtos .nowrap { white-space: nowrap; }

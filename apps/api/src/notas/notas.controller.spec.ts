@@ -1,0 +1,67 @@
+import { NotFoundException } from '@nestjs/common';
+import { NotasController } from './notas.controller';
+import { assinarNota } from './assinatura';
+
+const PEDIDO = '2a2d9a5b-5008-4016-bc23-dd8105434d6e';
+const OUTRO = '11111111-2222-3333-4444-555555555555';
+
+function montar() {
+  const notas = { xml: jest.fn(), danfe: jest.fn() };
+  const controller = new NotasController(notas as never);
+  const res = { setHeader: jest.fn(), send: jest.fn() };
+  return { controller, notas, res };
+}
+
+describe('NotasController', () => {
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'teste';
+  });
+
+  it('abre o DANFE com assinatura valida', async () => {
+    const { controller, notas, res } = montar();
+    const t = assinarNota('cahu', PEDIDO, 'pdf');
+    notas.danfe.mockResolvedValue({ pdf: Buffer.from('pdf'), numero: '5060' });
+
+    await controller.danfe('cahu', PEDIDO, t, res as never);
+
+    expect(notas.danfe).toHaveBeenCalledWith(PEDIDO);
+    expect(res.send).toHaveBeenCalledWith(Buffer.from('pdf'));
+  });
+
+  it('recusa assinatura gerada para outro pedido, sem chamar o service', async () => {
+    const { controller, notas, res } = montar();
+    const t = assinarNota('cahu', OUTRO, 'pdf');
+
+    await expect(controller.danfe('cahu', PEDIDO, t, res as never)).rejects.toBeInstanceOf(NotFoundException);
+    expect(notas.danfe).not.toHaveBeenCalled();
+  });
+
+  it('recusa quando falta o parametro t', async () => {
+    const { controller, notas, res } = montar();
+
+    await expect(controller.danfe('cahu', PEDIDO, undefined, res as never)).rejects.toBeInstanceOf(NotFoundException);
+    expect(notas.danfe).not.toHaveBeenCalled();
+  });
+
+  it('aceita o slug do tenant em maiuscula na URL quando a assinatura foi gerada em minuscula', async () => {
+    const { controller, notas, res } = montar();
+    const t = assinarNota('cahu', PEDIDO, 'pdf');
+    notas.danfe.mockResolvedValue({ pdf: Buffer.from('pdf'), numero: '5060' });
+
+    await controller.danfe('CAHU', PEDIDO, t, res as never);
+
+    expect(notas.danfe).toHaveBeenCalledWith(PEDIDO);
+    expect(res.send).toHaveBeenCalledWith(Buffer.from('pdf'));
+  });
+
+  it('abre o XML com assinatura valida', async () => {
+    const { controller, notas, res } = montar();
+    const t = assinarNota('cahu', PEDIDO, 'xml');
+    notas.xml.mockResolvedValue({ xml: '<nfeProc/>', chave: '123', numero: '5060' });
+
+    await controller.xml('cahu', PEDIDO, t, res as never);
+
+    expect(notas.xml).toHaveBeenCalledWith(PEDIDO);
+    expect(res.send).toHaveBeenCalledWith('<nfeProc/>');
+  });
+});

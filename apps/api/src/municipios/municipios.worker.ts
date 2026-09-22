@@ -3,7 +3,11 @@ import { DatabaseService } from '../database/database.service';
 import { municipiosDaUf as municipiosDaUfPadrao, normalizarNomeMunicipio } from './municipios-ibge';
 
 const MAX_TENTATIVAS = 5;
-const LOTE = 200;
+// Aqui o IBGE é consultado uma vez por UF (no máximo 27 por execução), não uma
+// por endereço — então não há motivo para o lote pequeno que a geocodificação usa,
+// onde cada endereço custa uma requisição a 1/s. Com 2000 a base inteira de um
+// tenant cabe numa noite só; o teto continua existindo para limitar disparada.
+const LOTE = 2_000;
 const HORA_AGENDADA = 4; // 04:00 local. 03:xx é a janela da geocodificação.
 const INTERVALO_MS = 1_000; // 1 req/s no IBGE
 const DESLIGADO = process.env.MUNICIPIOS_DESLIGADO === 'true';
@@ -80,7 +84,7 @@ export class MunicipiosWorker implements OnModuleInit, OnModuleDestroy {
     if (this.emAndamento) return;
     this.emAndamento = true;
     this.ultimaDataRodada = dataLocal(new Date());
-    const contagem = { processados: 0, resolvidos: 0, semCidade: 0, semLista: 0 };
+    const contagem = { processados: 0, resolvidos: 0, semCidade: 0, semLista: 0, ufInvalida: 0 };
     // Cache por execução: são 27 UFs no máximo, não uma requisição por endereço.
     const listas = new Map<string, Map<string, string> | null>();
     try {
@@ -97,6 +101,21 @@ export class MunicipiosWorker implements OnModuleInit, OnModuleDestroy {
           for (const end of rows as { id: string; cidade: string; uf: string }[]) {
             try {
               const uf = (end.uf ?? '').trim().toUpperCase();
+              // UF vazia ou malformada não é falha de rede: é dado ruim, que não se
+              // resolve sozinho nunca. Tratar como rede faria o endereço ficar com
+              // municipio_ultima_tentativa_em nulo pra sempre e, com o "nulls first"
+              // da consulta, furar a fila toda noite ocupando vaga de quem tem jeito.
+              if (!/^[A-Z]{2}$/.test(uf)) {
+                contagem.processados++;
+                await pool.query(
+                  `update cliente_enderecos
+                      set municipio_tentativas = municipio_tentativas + 1, municipio_ultima_tentativa_em = now()
+                    where id = $1`,
+                  [end.id],
+                );
+                contagem.ufInvalida++;
+                continue;
+              }
               if (!listas.has(uf)) {
                 listas.set(uf, await this.deps.municipiosDaUf(uf));
                 await this.deps.esperar(INTERVALO_MS);
@@ -136,7 +155,7 @@ export class MunicipiosWorker implements OnModuleInit, OnModuleDestroy {
         }
       }
       this.log.log(
-        `municipios: ${contagem.processados} processados, ${contagem.resolvidos} resolvidos, ${contagem.semCidade} sem cidade correspondente, ${contagem.semLista} sem lista do IBGE`,
+        `municipios: ${contagem.processados} processados, ${contagem.resolvidos} resolvidos, ${contagem.semCidade} sem cidade correspondente, ${contagem.semLista} sem lista do IBGE, ${contagem.ufInvalida} com UF invalida`,
       );
     } finally {
       this.emAndamento = false;

@@ -65,6 +65,24 @@ describe('MunicipiosWorker.processarPendentes', () => {
     expect(update).toBeUndefined();
   });
 
+  it('gasta tentativa quando a UF e invalida, e nao consulta o IBGE', async () => {
+    // UF vazia nao e falha de rede: e dado ruim, que nunca se resolve sozinho.
+    // Sem gastar tentativa, o endereco ficaria com municipio_ultima_tentativa_em
+    // nulo pra sempre e, com o "nulls first" da consulta, furaria a fila toda noite.
+    const { w, query, municipiosDaUf } = montar([{ id: 'e9', cidade: 'Recife', uf: '' }], new Map([['recife', '2611606']]));
+    await w.processarPendentes();
+    expect(municipiosDaUf).not.toHaveBeenCalled();
+    const update = query.mock.calls.find(([sql]) => String(sql).includes('municipio_tentativas = municipio_tentativas + 1'));
+    expect(update).toBeDefined();
+    expect(update![1]).toEqual(['e9']);
+  });
+
+  it('trata UF com lixo como invalida', async () => {
+    const { w, municipiosDaUf } = montar([{ id: 'e10', cidade: 'Recife', uf: 'PERNAMBUCO' }], new Map());
+    await w.processarPendentes();
+    expect(municipiosDaUf).not.toHaveBeenCalled();
+  });
+
   it('busca a lista de cada UF uma vez so', async () => {
     const { w, municipiosDaUf } = montar(
       [linha, { id: 'e2', cidade: 'Recife', uf: 'PE' }, { id: 'e3', cidade: 'Petrolina', uf: 'PE' }],

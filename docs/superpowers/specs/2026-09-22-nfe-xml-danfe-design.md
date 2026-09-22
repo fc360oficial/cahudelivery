@@ -195,17 +195,34 @@ Não existe runner de migração no projeto — a 028 é aplicada à mão no .25
 Endpoints **sem** `JwtAuthGuard` — validam só a assinatura:
 
 ```
-GET /v1/pedidos/:id/nota.xml?t=<hmac>
-GET /v1/pedidos/:id/danfe.pdf?t=<hmac>
+GET /v1/notas/:tenant/:pedidoId/nota.xml?t=<hmac>
+GET /v1/notas/:tenant/:pedidoId/danfe.pdf?t=<hmac>
 ```
 
-`t` = HMAC-SHA256 de `` `${pedidoId}:${tipo}` `` com `JWT_SECRET`, em hex truncado em 32
-caracteres. Comparação com `timingSafeEqual`. Propriedades:
+**O tenant vai no caminho da URL, não no header.** `TenancyMiddleware` resolve o tenant pelo
+header `X-Tenant` e `tenantCtx()` lança 400 quando ele falta (`tenant-context.ts:17`) — mas
+o navegador externo não manda header nenhum. É exatamente o problema que a MaxiPago já
+tem, e a solução aqui é a mesma (`maxipago-auth.middleware.ts`): um `NotasTenantMiddleware`
+lê o slug do path e chama `runComTenant()`. Diferença: no caso da MaxiPago o valor no path é
+um segredo (credencial + identificação); aqui o slug é público e quem credencia é o HMAC.
+
+`app.module.ts` precisa incluir `'notas/(.*)'` na lista de `exclude()` do `TenancyMiddleware`,
+junto de `integracoes/dlinks/(.*)` e `integracoes/maxipago/(.*)`.
+
+`t` = HMAC-SHA256 de `` `${tenantSlug}:${pedidoId}:${tipo}` `` com `JWT_SECRET`, em hex
+truncado em 32 caracteres. Comparação com `timingSafeEqual`. O slug entra no HMAC pra que
+uma assinatura válida num tenant não valha noutro. Propriedades:
 
 - **Estável** — pode ser calculada no faturamento e gravada em `xml_url`/`pdf_url`, que é o
   que o app e a retaguarda já leem.
 - **Abre no navegador externo** sem login, que é o requisito do `launchUrl`.
-- **Trocar o `:id` na URL não abre a nota de outro cliente** — a assinatura não confere.
+- **Trocar o `:pedidoId` na URL não abre a nota de outro cliente** — a assinatura não confere.
+
+**URL absoluta:** montada com `process.env.PUBLIC_URL`, mesmo padrão já usado para fotos
+(`admin-upload.controller.ts:39`). Aqui não há `req` disponível (a URL é gravada no momento
+do faturamento, dentro do service), então `PUBLIC_URL` é **obrigatória** — se estiver vazia,
+o service loga erro e grava a nota com `xml_url`/`pdf_url` nulos, em vez de gravar uma URL
+quebrada. No .254 o valor é `https://cahudelivery.duckdns.org`.
 
 Headers: `Content-Disposition: attachment; filename="NFe<chave>.xml"` pro XML (o cliente
 repassa pro contador) e `inline; filename="DANFE-<numero>.pdf"` pro PDF (abre no visualizador).
@@ -219,16 +236,19 @@ repassa pro contador) e `inline; filename="DANFE-<numero>.pdf"` pro PDF (abre no
 
 ```
 apps/api/src/notas/
-  nfe-xml.parser.ts      XML (string) → NotaFiscalLida (objeto tipado)
+  nfe-xml.parser.ts          XML (string) → NotaFiscalLida (objeto tipado)
   nfe-xml.parser.spec.ts
-  danfe.renderer.ts      NotaFiscalLida → Buffer (PDF)
+  danfe.renderer.ts          NotaFiscalLida → Buffer (PDF)
   danfe.renderer.spec.ts
-  codigo-barras.ts       chave (44 dígitos) → barras Code128C pro pdfkit
+  codigo-barras.ts           chave (44 dígitos) → barras Code128C pro pdfkit
   codigo-barras.spec.ts
-  notas.service.ts       busca XML no banco → parser → renderer
-  notas.controller.ts    valida HMAC, responde o arquivo
+  assinatura.ts              assina/verifica o HMAC das URLs
+  assinatura.spec.ts
+  notas-tenant.middleware.ts resolve o tenant pelo slug no path
+  notas.service.ts           busca XML no banco → parser → renderer
+  notas.controller.ts        valida HMAC, responde o arquivo
   notas.module.ts
-  fixtures/nfe-5060.xml  XML real do pedido 5060 (22/09/2026)
+  fixtures/nfe-5060.xml      XML real do pedido 5060 (22/09/2026)
 ```
 
 Cada peça tem uma responsabilidade e é testável sozinha:

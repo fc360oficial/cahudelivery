@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { lerNfe, NotaFiscalLida } from './nfe-xml.parser';
-import { COLUNAS, LARGURA, renderizarDanfe } from './danfe.renderer';
+import { ALTURA_DADOS_ADICIONAIS, COLUNAS, LARGURA, renderizarDanfe } from './danfe.renderer';
 
 const nota = lerNfe(readFileSync(join(__dirname, 'fixtures', 'nfe-5060.xml'), 'utf8'));
 
@@ -96,10 +96,11 @@ describe('a nota preenche a folha', () => {
     expect(textos).toContain('TRANSPORTADOR / VOLUMES TRANSPORTADOS');
     expect(textos).toContain('DADOS ADICIONAIS');
     expect(textos).toContain('9 - Sem frete');
-    // O texto do último quadro fica no topo dele; quem chega ao rodapé é o RETÂNGULO:
-    // o fundo do quadro tem que encostar na margem inferior (841.89 - 28 = 813.89).
-    const fundoMaisBaixo = Math.max(...retangulosDoPdf(pdf).map((r) => r.y + r.h));
-    expect(fundoMaisBaixo).toBeGreaterThan(810);
+    // O quadro de dados adicionais tem altura fixa (não estica até o rodapé — na
+    // tela do celular virava um retângulo vazio enorme) e tudo fica dentro da folha.
+    const rects = retangulosDoPdf(pdf);
+    expect(rects.some((r) => r.h === ALTURA_DADOS_ADICIONAIS)).toBe(true);
+    expect(Math.max(...rects.map((r) => r.y + r.h))).toBeLessThanOrEqual(841.89 - 28 + 0.01);
     expect(textos.length).toBeGreaterThan(90);
   });
 });

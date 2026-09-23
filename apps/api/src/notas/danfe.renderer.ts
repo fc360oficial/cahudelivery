@@ -212,16 +212,20 @@ function transportador(doc: Doc, nota: NotaFiscalLida, y: number): number {
   return yy + 20 + 4;
 }
 
+/** Altura fixa do quadro de dados adicionais: o suficiente para 6-7 linhas de texto. */
+export const ALTURA_DADOS_ADICIONAIS = 64;
+
 function dadosAdicionais(doc: Doc, nota: NotaFiscalLida, y: number): void {
-  // O quadro ocupa o que sobrar da folha, como no DANFE impresso — é isso que
-  // faz a nota "preencher a página" mesmo com um item só.
-  if (y + 9 + 60 > RODAPE) {
+  // O DANFE impresso estica este quadro até o rodapé; na tela do celular isso
+  // virava um retângulo vazio enorme (feedback do Tiago, 22/09/2026). Altura
+  // fixa e a página termina onde o conteúdo termina.
+  if (y + 9 + ALTURA_DADOS_ADICIONAIS > RODAPE) {
     doc.addPage();
     y = MARGEM;
   }
   doc.fontSize(6).font('Helvetica-Bold').text('DADOS ADICIONAIS', MARGEM, y + 1);
   const yy = y + 9;
-  const altura = RODAPE - yy;
+  const altura = ALTURA_DADOS_ADICIONAIS;
   const wInfo = Math.round(LARGURA * 0.65);
   campo(doc, MARGEM, yy, wInfo, altura, 'Informações complementares', nota.informacoesAdicionais ?? '', { tamanho: 6 });
   campo(doc, MARGEM + wInfo, yy, LARGURA - wInfo, altura, 'Reservado ao fisco', '');

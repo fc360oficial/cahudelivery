@@ -47,3 +47,59 @@ describe('tabela de itens', () => {
     expect(soma).toBeCloseTo(LARGURA, 2);
   });
 });
+
+import { inflateSync } from 'node:zlib';
+
+/** Streams de conteúdo do PDF já descomprimidos (pdfkit usa FlateDecode). */
+function streamsDoPdf(pdf: Buffer): string[] {
+  const bruto = pdf.toString('latin1');
+  const saida: string[] = [];
+  for (const m of bruto.matchAll(/stream\r?\n([\s\S]*?)endstream/g)) {
+    try {
+      saida.push(inflateSync(Buffer.from(m[1], 'latin1')).toString('latin1'));
+    } catch {
+      // stream não comprimido (fontes etc.) — não interessa aqui
+    }
+  }
+  return saida;
+}
+
+/** Blocos de texto (pdfkit escreve `TJ` com strings hex) em { y, texto }. */
+function textosDoPdf(pdf: Buffer): Array<{ y: number; texto: string }> {
+  const blocos: Array<{ y: number; texto: string }> = [];
+  for (const conteudo of streamsDoPdf(pdf)) {
+    for (const b of conteudo.matchAll(/1 0 0 1 [\d.]+ ([\d.]+) Tm\s*\n\/\w+ [\d.]+ Tf\s*\n\[(.*?)\] TJ/gs)) {
+      const texto = [...b[2].matchAll(/<([0-9a-fA-F]+)>/g)].map((h) => Buffer.from(h[1], 'hex').toString('latin1')).join('');
+      blocos.push({ y: Number(b[1]), texto });
+    }
+  }
+  return blocos;
+}
+
+/** Retângulos desenhados (operador `re`), em coordenadas do pdfkit (y cresce para baixo). */
+function retangulosDoPdf(pdf: Buffer): Array<{ y: number; h: number }> {
+  const rects: Array<{ y: number; h: number }> = [];
+  for (const conteudo of streamsDoPdf(pdf)) {
+    for (const r of conteudo.matchAll(/([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+) re\b/g)) {
+      rects.push({ y: Number(r[2]), h: Number(r[4]) });
+    }
+  }
+  return rects;
+}
+
+describe('a nota preenche a folha', () => {
+  it('traz os quadros de transportador e dados adicionais e o último quadro encosta no rodapé', async () => {
+    // Bug real de 22/09/2026: o PDF parava logo após os itens e 2/3 da folha
+    // ficavam em branco — o cliente via "metade da nota".
+    const pdf = await renderizarDanfe(nota);
+    const textos = textosDoPdf(pdf).map((b) => b.texto);
+    expect(textos).toContain('TRANSPORTADOR / VOLUMES TRANSPORTADOS');
+    expect(textos).toContain('DADOS ADICIONAIS');
+    expect(textos).toContain('9 - Sem frete');
+    // O texto do último quadro fica no topo dele; quem chega ao rodapé é o RETÂNGULO:
+    // o fundo do quadro tem que encostar na margem inferior (841.89 - 28 = 813.89).
+    const fundoMaisBaixo = Math.max(...retangulosDoPdf(pdf).map((r) => r.y + r.h));
+    expect(fundoMaisBaixo).toBeGreaterThan(810);
+    expect(textos.length).toBeGreaterThan(90);
+  });
+});

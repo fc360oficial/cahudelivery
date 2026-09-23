@@ -86,3 +86,30 @@ describe('lerNfe', () => {
     expect(() => lerNfe('<nfeProc><nada/></nfeProc>')).toThrow('XML sem infNFe');
   });
 });
+
+describe('transportador e volumes', () => {
+  it('devolve null quando a nota só tem a modalidade do frete (caso do fixture)', () => {
+    const n = lerNfe(XML);
+    expect(n.modalidadeFrete).toBe('9');
+    expect(n.transportadora).toBeNull();
+    expect(n.volumes).toBeNull();
+  });
+
+  it('lê transportadora e o primeiro volume quando existem', () => {
+    const comTransp = XML.replace(
+      '<transp><modFrete>9</modFrete></transp>',
+      '<transp><modFrete>1</modFrete>' +
+        '<transporta><CNPJ>12345678000199</CNPJ><xNome>TRANSPORTES EXEMPLO</xNome><IE>123456</IE>' +
+        '<xEnder>RUA A, 10</xEnder><xMun>RECIFE</xMun><UF>PE</UF></transporta>' +
+        '<vol><qVol>3</qVol><esp>CAIXA</esp><marca>CAHU</marca><nVol>1-3</nVol><pesoL>12.500</pesoL><pesoB>13.000</pesoB></vol>' +
+        '<vol><qVol>9</qVol></vol></transp>',
+    );
+    const n = lerNfe(comTransp);
+    expect(n.modalidadeFrete).toBe('1');
+    expect(n.transportadora).toEqual({
+      nome: 'TRANSPORTES EXEMPLO', documento: '12345678000199', ie: '123456',
+      endereco: 'RUA A, 10', municipio: 'RECIFE', uf: 'PE',
+    });
+    expect(n.volumes).toEqual({ quantidade: '3', especie: 'CAIXA', marca: 'CAHU', numeracao: '1-3', pesoBruto: '13.000', pesoLiquido: '12.500' });
+  });
+});

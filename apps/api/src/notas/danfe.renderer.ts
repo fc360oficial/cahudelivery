@@ -166,6 +166,67 @@ function itens(doc: Doc, nota: NotaFiscalLida, y: number): number {
   return yy + 4;
 }
 
+const FRETE: Record<string, string> = {
+  '0': '0 - Emitente',
+  '1': '1 - Destinatário',
+  '2': '2 - Terceiros',
+  '3': '3 - Próprio remetente',
+  '4': '4 - Próprio destinatário',
+  '9': '9 - Sem frete',
+};
+
+const RODAPE = 841.89 - MARGEM;
+
+function transportador(doc: Doc, nota: NotaFiscalLida, y: number): number {
+  // 3 linhas de 20pt + título: se não couber, vai para a próxima página inteiro.
+  if (y + 9 + 60 > RODAPE) {
+    doc.addPage();
+    y = MARGEM;
+  }
+  doc.fontSize(6).font('Helvetica-Bold').text('TRANSPORTADOR / VOLUMES TRANSPORTADOS', MARGEM, y + 1);
+  const t = nota.transportadora;
+  const v = nota.volumes;
+  let yy = y + 9;
+  campo(doc, MARGEM, yy, LARGURA - 320, 20, 'Razão social', t?.nome ?? '');
+  campo(doc, MARGEM + LARGURA - 320, yy, 110, 20, 'Frete por conta', FRETE[nota.modalidadeFrete] ?? nota.modalidadeFrete);
+  campo(doc, MARGEM + LARGURA - 210, yy, 60, 20, 'Código ANTT', '');
+  campo(doc, MARGEM + LARGURA - 150, yy, 50, 20, 'Placa', '');
+  campo(doc, MARGEM + LARGURA - 100, yy, 20, 20, 'UF', '', { alinhar: 'center' });
+  campo(doc, MARGEM + LARGURA - 80, yy, 80, 20, 'CNPJ / CPF', t?.documento ? doc11(t.documento) : '');
+  yy += 20;
+  campo(doc, MARGEM, yy, LARGURA - 260, 20, 'Endereço', t?.endereco ?? '');
+  campo(doc, MARGEM + LARGURA - 260, yy, 140, 20, 'Município', t?.municipio ?? '');
+  campo(doc, MARGEM + LARGURA - 120, yy, 40, 20, 'UF', t?.uf ?? '', { alinhar: 'center' });
+  campo(doc, MARGEM + LARGURA - 80, yy, 80, 20, 'Inscrição estadual', t?.ie ?? '');
+  yy += 20;
+  const w = LARGURA / 6;
+  const linha: Array<[string, string]> = [
+    ['Quantidade', v?.quantidade ?? ''],
+    ['Espécie', v?.especie ?? ''],
+    ['Marca', v?.marca ?? ''],
+    ['Numeração', v?.numeracao ?? ''],
+    ['Peso bruto', v?.pesoBruto ?? ''],
+    ['Peso líquido', v?.pesoLiquido ?? ''],
+  ];
+  linha.forEach(([rotulo, valor], i) => campo(doc, MARGEM + i * w, yy, w, 20, rotulo, valor));
+  return yy + 20 + 4;
+}
+
+function dadosAdicionais(doc: Doc, nota: NotaFiscalLida, y: number): void {
+  // O quadro ocupa o que sobrar da folha, como no DANFE impresso — é isso que
+  // faz a nota "preencher a página" mesmo com um item só.
+  if (y + 9 + 60 > RODAPE) {
+    doc.addPage();
+    y = MARGEM;
+  }
+  doc.fontSize(6).font('Helvetica-Bold').text('DADOS ADICIONAIS', MARGEM, y + 1);
+  const yy = y + 9;
+  const altura = RODAPE - yy;
+  const wInfo = Math.round(LARGURA * 0.65);
+  campo(doc, MARGEM, yy, wInfo, altura, 'Informações complementares', nota.informacoesAdicionais ?? '', { tamanho: 6 });
+  campo(doc, MARGEM + wInfo, yy, LARGURA - wInfo, altura, 'Reservado ao fisco', '');
+}
+
 /**
  * Monta o DANFE em A4 retrato a partir do XML já lido. Não toca em banco nem
  * em HTTP — recebe objeto, devolve bytes; é o que permite testar o layout
@@ -194,7 +255,10 @@ export function renderizarDanfe(nota: NotaFiscalLida): Promise<Buffer> {
       doc.moveTo(MARGEM + 104, y).lineTo(MARGEM + 104, y + 26).stroke();
       doc.rect(MARGEM + LARGURA - 70, y, 70, 26).stroke();
       doc.fontSize(7).font('Helvetica-Bold').text(`NF-e\nNº ${nota.numero}\nSÉRIE ${nota.serie}`, MARGEM + LARGURA - 68, y + 3, { width: 66, align: 'center' });
-      y += 32;
+      y += 28;
+      // Linha pontilhada de corte entre o canhoto e a nota.
+      doc.save().dash(2, { space: 2 }).moveTo(MARGEM, y).lineTo(MARGEM + LARGURA, y).stroke().restore();
+      y += 4;
 
       y = cabecalho(doc, nota, y);
       y += 4;
@@ -205,10 +269,8 @@ export function renderizarDanfe(nota: NotaFiscalLida): Promise<Buffer> {
       ]);
       y = impostos(doc, nota, y);
       y = itens(doc, nota, y);
-
-      if (nota.informacoesAdicionais) {
-        campo(doc, MARGEM, y, LARGURA, 40, 'Informações complementares', nota.informacoesAdicionais, { tamanho: 6 });
-      }
+      y = transportador(doc, nota, y);
+      dadosAdicionais(doc, nota, y);
 
       doc.end();
     } catch (e) {

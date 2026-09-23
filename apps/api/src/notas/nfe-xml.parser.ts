@@ -50,6 +50,24 @@ export interface TotaisNfe {
   valorTotal: number;
 }
 
+export interface TransportadoraNfe {
+  nome: string;
+  documento: string | null;
+  ie: string | null;
+  endereco: string;
+  municipio: string;
+  uf: string;
+}
+
+export interface VolumesNfe {
+  quantidade: string;
+  especie: string;
+  marca: string;
+  numeracao: string;
+  pesoBruto: string;
+  pesoLiquido: string;
+}
+
 export interface NotaFiscalLida {
   chave: string;
   numero: string;
@@ -63,6 +81,8 @@ export interface NotaFiscalLida {
   itens: ItemNfe[];
   totais: TotaisNfe;
   modalidadeFrete: string;
+  transportadora: TransportadoraNfe | null;
+  volumes: VolumesNfe | null;
   informacoesAdicionais: string | null;
 }
 
@@ -158,6 +178,9 @@ export function lerNfe(xml: string): NotaFiscalLida {
   const total = ((inf.total ?? {}) as Record<string, unknown>).ICMSTot as Record<string, unknown> | undefined;
   const tot = total ?? {};
   const infProt = raiz?.nfeProc?.protNFe?.infProt as Record<string, unknown> | undefined;
+  const transp = (inf.transp ?? {}) as Record<string, unknown>;
+  const transporta = transp.transporta as Record<string, unknown> | undefined;
+  const vol = lista<Record<string, unknown>>(transp.vol as Record<string, unknown> | Record<string, unknown>[] | undefined)[0];
 
   return {
     // O Id vem como "NFe26260..." — a chave são os 44 dígitos depois do prefixo.
@@ -184,7 +207,28 @@ export function lerNfe(xml: string): NotaFiscalLida {
       valorOutros: numero(tot.vOutro),
       valorTotal: numero(tot.vNF),
     },
-    modalidadeFrete: texto(((inf.transp ?? {}) as Record<string, unknown>).modFrete),
+    modalidadeFrete: texto(transp.modFrete),
+    transportadora: transporta
+      ? {
+          nome: texto(transporta.xNome),
+          documento: ouNulo(transporta.CNPJ) ?? ouNulo(transporta.CPF),
+          ie: ouNulo(transporta.IE),
+          endereco: texto(transporta.xEnder),
+          municipio: texto(transporta.xMun),
+          uf: texto(transporta.UF),
+        }
+      : null,
+    // A NF-e permite vários <vol>; o DANFE resume no primeiro.
+    volumes: vol
+      ? {
+          quantidade: texto(vol.qVol),
+          especie: texto(vol.esp),
+          marca: texto(vol.marca),
+          numeracao: texto(vol.nVol),
+          pesoBruto: texto(vol.pesoB),
+          pesoLiquido: texto(vol.pesoL),
+        }
+      : null,
     informacoesAdicionais: ouNulo(((inf.infAdic ?? {}) as Record<string, unknown>).infCpl),
   };
 }

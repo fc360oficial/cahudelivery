@@ -65,3 +65,23 @@ describe('NotasController', () => {
     expect(res.send).toHaveBeenCalledWith('<nfeProc/>');
   });
 });
+
+describe('cache das respostas', () => {
+  beforeEach(() => {
+    process.env.JWT_SECRET = 'teste';
+  });
+
+  it('manda no-store no DANFE e no XML: a URL e fixa, o conteudo pode mudar', async () => {
+    // 22/09/2026: apos o deploy do layout novo, o Chrome do celular seguiu
+    // mostrando o DANFE antigo porque a resposta nao tinha Cache-Control.
+    const { controller, notas, res } = montar();
+    notas.danfe.mockResolvedValue({ pdf: Buffer.from('pdf'), numero: '5060' });
+    notas.xml.mockResolvedValue({ xml: '<nfe/>', chave: '1'.repeat(44), numero: '5060' });
+
+    await controller.danfe('cahu', PEDIDO, assinarNota('cahu', PEDIDO, 'pdf'), res as never);
+    await controller.xml('cahu', PEDIDO, assinarNota('cahu', PEDIDO, 'xml'), res as never);
+
+    const noStore = res.setHeader.mock.calls.filter(([nome, valor]) => nome === 'Cache-Control' && valor === 'no-store');
+    expect(noStore).toHaveLength(2);
+  });
+});

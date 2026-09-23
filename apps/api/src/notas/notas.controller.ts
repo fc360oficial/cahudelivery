@@ -23,6 +23,10 @@ export class NotasController {
     const nota = await this.notas.xml(pedidoId);
     res.setHeader('Content-Type', 'application/xml; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="NFe${nota.chave}.xml"`);
+    // A URL é estável por desenho (assinada), mas o conteúdo pode mudar (nota
+    // reenviada pelo ERP, layout novo). Sem isto o Chrome do celular mostrava
+    // a cópia antiga do DANFE dez minutos depois do deploy (22/09/2026).
+    res.setHeader('Cache-Control', 'no-store');
     res.send(nota.xml);
   }
 
@@ -37,6 +41,7 @@ export class NotasController {
     const { pdf, numero } = await this.notas.danfe(pedidoId);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="DANFE-${numero}.pdf"`);
+    res.setHeader('Cache-Control', 'no-store');
     res.send(pdf);
   }
 }

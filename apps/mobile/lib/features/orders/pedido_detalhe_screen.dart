@@ -33,25 +33,29 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
     _carregar();
   }
 
-  Future<void> _carregar() async {
-    setState(() {
-      _p = null;
-      _erro = null;
-    });
+  Future<void> _carregar({bool silencioso = false}) async {
+    if (!silencioso) {
+      setState(() {
+        _p = null;
+        _erro = null;
+      });
+    }
     try {
       final r = await ApiClient.instance.get('/pedidos/${widget.pedidoId}')
           as Map<String, dynamic>;
       if (!mounted) return;
       setState(() => _p = r);
       if (r['status'] == 'AGUARDANDO_PAGAMENTO') {
-        _poll ??= Timer.periodic(const Duration(seconds: 5), (_) => _carregar());
+        _poll ??= Timer.periodic(const Duration(seconds: 5), (_) => _carregar(silencioso: true));
       } else {
         _poll?.cancel();
         _poll = null;
       }
     } on ApiException catch (e) {
+      if (silencioso) return;
       if (mounted) setState(() => _erro = e.message);
     } catch (_) {
+      if (silencioso) return;
       if (mounted) setState(() => _erro = 'Sem conexão — verifique sua internet');
     }
   }

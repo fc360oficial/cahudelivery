@@ -75,9 +75,11 @@ class _BlocoPixState extends State<BlocoPix> {
           children: [
             Text('Pague ${moeda(p['valor'])} com PIX',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            Text(_restante == Duration.zero ? 'Prazo encerrado' : 'Expira em $mm:$ss',
-                style: TextStyle(color: cor, fontWeight: FontWeight.w700)),
+            if (_expiraEm != null) ...[
+              const SizedBox(height: 4),
+              Text(_restante == Duration.zero ? 'Prazo encerrado' : 'Expira em $mm:$ss',
+                  style: TextStyle(color: cor, fontWeight: FontWeight.w700)),
+            ],
             const SizedBox(height: 12),
             QrImageView(data: codigo, size: 220, backgroundColor: Colors.white),
             const SizedBox(height: 12),

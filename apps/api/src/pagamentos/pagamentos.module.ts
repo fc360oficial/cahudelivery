@@ -1,9 +1,17 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { PagamentosService } from './pagamentos.service';
 import { ProvedoresService } from './provedores.service';
+import { WebhookAuthMiddleware } from './webhook-auth.middleware';
+import { WebhookController } from './webhook.controller';
+import { WebhooksProcessor } from './webhooks.processor';
 
 @Module({
-  providers: [PagamentosService, ProvedoresService],
-  exports: [PagamentosService, ProvedoresService],
+  controllers: [WebhookController],
+  providers: [PagamentosService, ProvedoresService, WebhooksProcessor],
+  exports: [PagamentosService, ProvedoresService, WebhooksProcessor],
 })
-export class PagamentosModule {}
+export class PagamentosModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(WebhookAuthMiddleware).forRoutes(WebhookController);
+  }
+}

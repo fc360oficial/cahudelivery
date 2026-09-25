@@ -31,7 +31,7 @@ export class AppModule implements NestModule {
     // navegador externo que abre o XML/DANFE não manda header nenhum.
     consumer
       .apply(TenancyMiddleware)
-      .exclude('integracoes/dlinks/(.*)', 'integracoes/maxipago/(.*)', 'notas/(.*)')
+      .exclude('integracoes/dlinks/(.*)', 'integracoes/maxipago/(.*)', 'notas/(.*)', 'integracoes/pagamentos/(.*)')
       .forRoutes('*');
   }
 }

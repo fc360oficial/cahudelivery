@@ -16,7 +16,7 @@ describe('WebhooksProcessor', () => {
     expect(query.mock.calls[1][1]).toEqual(['mock', 'PED000001X']);
     expect(confirmar).toHaveBeenCalledWith(expect.anything(), 'pag-1', 10, expect.any(Date));
     const marca = query.mock.calls.find((c) => (c[0] as string).includes('set processado = true'));
-    expect(marca![1]).toEqual(['wh-1']);
+    expect(marca![1]).toEqual(['wh-1', null]);
   });
 
   it('webhook sem ref conhecida vira erro no registro, não explode', async () => {

@@ -14,7 +14,8 @@ export class WebhookController {
   @HttpCode(200)
   async webhook(@Req() req: Request, @Headers('content-type') contentType: string | undefined, @Ip() ip: string) {
     const { pool, tenant } = tenantCtx();
-    const corpo = typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? '');
+    const corpo = corpoComoTexto(req.body);
+    if (!corpo) this.log.warn(`webhook com corpo vazio (content-type=${contentType})`);
     const { rows } = await pool.query(
       `insert into pagamento_webhooks (origem, content_type, corpo_bruto, ip_origem) values ('itau_pix', $1, $2, $3) returning id`,
       [contentType ?? null, corpo, ip ?? null],
@@ -22,4 +23,11 @@ export class WebhookController {
     this.log.log(`webhook gravado (tenant=${tenant.slug}, id=${rows[0].id})`);
     return { recebido: true };
   }
+}
+
+/** JSON já vem desserializado pelo body parser; texto cru (registrado antes do json em main.ts) chega como string. */
+function corpoComoTexto(body: unknown): string {
+  if (typeof body === 'string') return body;
+  if (body === undefined || body === null) return '';
+  return JSON.stringify(body);
 }

@@ -30,7 +30,11 @@ export class WebhooksProcessor {
       } catch (e) {
         erros.push(String(e).slice(0, 300));
       }
-      await pool.query(`update pagamento_webhooks set processado = true, erro = $2 where id = $1`, [wh.id, erros.length ? erros.join('; ') : null]);
+      try {
+        await pool.query(`update pagamento_webhooks set processado = true, erro = $2 where id = $1`, [wh.id, erros.length ? erros.join('; ') : null]);
+      } catch (e) {
+        this.log.error(`falha ao marcar webhook ${wh.id} como processado: ${String(e).slice(0, 300)}`);
+      }
       if (erros.length) this.log.warn(`webhook ${wh.id}: ${erros.join('; ')}`);
     }
   }

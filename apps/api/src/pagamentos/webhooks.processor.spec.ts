@@ -30,4 +30,28 @@ describe('WebhooksProcessor', () => {
     expect(marca![1][0]).toBe('wh-2');
     expect(marca![1][1]).toContain('NAOEXISTE');
   });
+
+  it('confirmarPago do primeiro webhook lança; o segundo segue processado normalmente', async () => {
+    const query = jest.fn()
+      .mockResolvedValueOnce({ rows: [
+          { id: 'wh-1', corpo_bruto: JSON.stringify({ ref: 'REF1', valor: 5 }) },
+          { id: 'wh-2', corpo_bruto: JSON.stringify({ ref: 'REF2', valor: 7 }) },
+        ] })                                                                    // pendentes
+      .mockResolvedValueOnce({ rows: [{ id: 'pag-1', expira_em: new Date() }] }) // busca por provedor_ref (wh-1)
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })                          // set processado = true (wh-1)
+      .mockResolvedValueOnce({ rows: [{ id: 'pag-2', expira_em: new Date() }] }) // busca por provedor_ref (wh-2)
+      .mockResolvedValue({ rows: [], rowCount: 0 });                             // set processado = true (wh-2)
+    const pagamentos = new PagamentosService();
+    const confirmar = jest.spyOn(pagamentos, 'confirmarPago')
+      .mockRejectedValueOnce(new Error('falha ao confirmar pag-1'))
+      .mockResolvedValueOnce(true);
+    const proc = new WebhooksProcessor(pagamentos);
+    await proc.processar({ query } as unknown as Pool, new MockProvedor());
+    expect(confirmar).toHaveBeenCalledWith(expect.anything(), 'pag-2', 7, expect.any(Date));
+    const marcas = query.mock.calls.filter((c) => (c[0] as string).includes('set processado = true'));
+    expect(marcas).toHaveLength(2);
+    expect(marcas[0][1][0]).toBe('wh-1');
+    expect(marcas[0][1][1]).toContain('falha ao confirmar pag-1');
+    expect(marcas[1][1]).toEqual(['wh-2', null]);
+  });
 });

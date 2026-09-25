@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { text as textBody } from 'express';
 import { AppModule } from './app.module';
 
 export const PASTA_UPLOADS = join(process.cwd(), 'uploads');
@@ -12,6 +13,9 @@ async function bootstrap() {
   // bodyParser: false + useBodyParser: o limite padrão (100 KB) recusava com 413 as cargas
   // em bloco do Dlinks (ex.: 5.000 preços ≈ 350 KB) antes de chegar no controller (18/09/2026).
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+  // Webhook de pagamento: guarda o corpo cru seja qual for o Content-Type (o Itaú pode
+  // mandar application/json ou variantes); registrado antes do json pra ganhar a rota.
+  app.use('/v1/integracoes/pagamentos', textBody({ type: '*/*', limit: '2mb' }));
   app.useBodyParser('json', { limit: '20mb' });
   app.useBodyParser('urlencoded', { extended: true, limit: '20mb' });
   // O callback da MaxiPago pode vir em XML; sem isto o corpo chega vazio no controller.

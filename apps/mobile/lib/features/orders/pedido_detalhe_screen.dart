@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -5,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
 import '../../core/formatadores.dart';
+import '../../widgets/bloco_pix.dart';
 import '../../widgets/estados.dart';
 import 'status_pedido.dart';
 
@@ -22,6 +25,7 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
   Map<String, dynamic>? _p;
   String? _erro;
   bool _repetindo = false;
+  Timer? _poll;
 
   @override
   void initState() {
@@ -37,12 +41,25 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
     try {
       final r = await ApiClient.instance.get('/pedidos/${widget.pedidoId}')
           as Map<String, dynamic>;
-      if (mounted) setState(() => _p = r);
+      if (!mounted) return;
+      setState(() => _p = r);
+      if (r['status'] == 'AGUARDANDO_PAGAMENTO') {
+        _poll ??= Timer.periodic(const Duration(seconds: 5), (_) => _carregar());
+      } else {
+        _poll?.cancel();
+        _poll = null;
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _erro = e.message);
     } catch (_) {
       if (mounted) setState(() => _erro = 'Sem conexão — verifique sua internet');
     }
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
   }
 
   Future<void> _copiar(String texto, String aviso) async {
@@ -117,6 +134,7 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
     final eventos = List<Map<String, dynamic>>.from(p['eventos'] as List? ?? const []);
     final itens = List<Map<String, dynamic>>.from(p['itens'] as List? ?? const []);
     final cobranca = p['cobranca'] as Map<String, dynamic>?;
+    final pagamento = p['pagamento'] as Map<String, dynamic>?;
     final nota = p['nota'] as Map<String, dynamic>?;
     final endereco = p['endereco_snapshot_json'] as Map<String, dynamic>?;
 
@@ -155,6 +173,9 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
               ),
             ),
             const SizedBox(height: 12),
+
+            // PIX online (via API Itaú): aparece enquanto AGUARDANDO_PAGAMENTO
+            if (pagamento != null) BlocoPix(pagamento: pagamento),
 
             // Cobrança (aparece quando o ERP fatura)
             if (cobranca != null) _cartaoCobranca(cobranca),

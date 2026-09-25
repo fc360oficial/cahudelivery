@@ -6,6 +6,7 @@ import '../../core/formatadores.dart';
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../profile/endereco_form_screen.dart';
+import 'pagamento_pix_screen.dart';
 import 'pedido_sucesso_screen.dart';
 
 /// Checkout em 3 passos (fluxo aprovado): 1. endereço de entrega,
@@ -26,9 +27,9 @@ class _FormaPagamento {
 
 const _formasConhecidas = <_FormaPagamento>[
   _FormaPagamento('pix', Icons.qr_code_2, 'PIX',
-      'Código copia-e-cola liberado após o faturamento',
-      'A cobrança PIX é gerada pela distribuidora no faturamento do pedido. '
-      'Você acompanha tudo na aba Pedidos.'),
+      'Pague na hora pelo QR Code ou copia e cola',
+      'O código PIX aparece assim que você confirmar. O pedido segue para a distribuidora '
+      'depois do pagamento (você tem 30 minutos).'),
   _FormaPagamento('cartao', Icons.credit_card, 'Cartão na entrega',
       'Crédito ou débito na maquininha, ao receber o pedido',
       'Você paga na maquininha do entregador quando o pedido chegar. '
@@ -141,8 +142,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }) as Map<String, dynamic>;
       CarrinhoStore.instance.limpar();
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => PedidoSucessoScreen(pedido: pedido)));
+      final pagamento = pedido['pagamento'] as Map<String, dynamic>?;
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => pagamento != null && pagamento['status'] == 'pendente'
+              ? PagamentoPixScreen(pedido: pedido)
+              : PedidoSucessoScreen(pedido: pedido)));
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

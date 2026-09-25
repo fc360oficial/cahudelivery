@@ -8,6 +8,8 @@ class StatusPedido {
   final IconData icone;
 
   static StatusPedido de(String? status) => switch (status) {
+        'AGUARDANDO_PAGAMENTO' =>
+          StatusPedido._('Aguardando pagamento', Colors.amber.shade800, Icons.qr_code_2),
         'RECEBIDO' => StatusPedido._('Recebido', Colors.blueGrey, Icons.inbox_outlined),
         'ENVIADO_ERP' => StatusPedido._('Em processamento', Colors.blue, Icons.sync),
         'ABERTO' => StatusPedido._('Em processamento', Colors.blue, Icons.sync),

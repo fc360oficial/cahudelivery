@@ -86,6 +86,7 @@ export const PAGAMENTO_LABEL: Record<string, string> = {
 };
 
 export const STATUS_LABEL: Record<string, string> = {
+  AGUARDANDO_PAGAMENTO: 'Aguardando pagamento',
   RECEBIDO: 'Recebido',
   ENVIADO_ERP: 'Enviado ao ERP',
   ABERTO: 'Aberto',

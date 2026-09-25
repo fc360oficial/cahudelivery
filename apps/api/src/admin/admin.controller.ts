@@ -94,6 +94,16 @@ export class AdminController {
     return this.admin.reenviarErp(id, req.admin.usuarioId);
   }
 
+  @Post('pedidos/:id/pagamento/consultar')
+  consultarPagamento(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.consultarPagamento(id);
+  }
+
+  @Post('pedidos/:id/pagamento/simular-pago')
+  simularPagamento(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.simularPagamento(id);
+  }
+
   @Get('clientes')
   clientes(@Query('status') status?: string, @Query('busca') busca?: string, @Query('pagina') pagina = '1') {
     return this.admin.clientes({ status, busca, pagina: Math.max(1, Number(pagina) || 1) });

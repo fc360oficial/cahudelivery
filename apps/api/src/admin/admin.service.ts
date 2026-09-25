@@ -1,9 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { hashSenhaProvisoria } from '../auth/senha-provisoria';
+import { PagamentosService } from '../pagamentos/pagamentos.service';
+import { ProvedoresService } from '../pagamentos/provedores.service';
 import { tenantCtx } from '../tenancy/tenant-context';
 
 @Injectable()
 export class AdminService {
+  constructor(
+    private readonly provedores: ProvedoresService,
+    private readonly pagamentos: PagamentosService,
+  ) {}
+
   async dashboard() {
     const { pool } = tenantCtx();
     const [hoje, porStatus, mes, topProdutos, clientes, falhas] = await Promise.all([
@@ -91,12 +98,41 @@ export class AdminService {
         (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'origem', e.origem,
             'em', e.criado_em) order by e.criado_em) from pedido_eventos e where e.pedido_id = p.id) as eventos,
         (select row_to_json(co) from pedido_cobrancas co where co.pedido_id = p.id) as cobranca,
-        (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota
+        (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota,
+        (select row_to_json(g) from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento,
+        (select f.total from pedido_faturamentos f where f.pedido_id = p.id) as total_faturado
          from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');
     return rows[0];
+  }
+
+  async consultarPagamento(pedidoId: string) {
+    const { pool, tenant } = tenantCtx();
+    const pt = await this.provedores.obter(tenant.slug);
+    if (!pt) throw new BadRequestException('Tenant sem provedor de pagamento');
+    const { rows } = await pool.query(
+      `select id, provedor_ref, expira_em, status from pagamentos where pedido_id = $1 order by criado_em desc limit 1`,
+      [pedidoId],
+    );
+    if (!rows[0]) throw new NotFoundException('Pedido sem pagamento online');
+    if (rows[0].status !== 'pendente') return { status: rows[0].status };
+    const s = await pt.provedor.consultar(rows[0].provedor_ref);
+    await this.pagamentos.aplicarSituacao(pool, rows[0], s);
+    const depois = await pool.query(`select status from pagamentos where id = $1`, [rows[0].id]);
+    return { status: depois.rows[0].status };
+  }
+
+  /** Só com provedor mock (dev). */
+  async simularPagamento(pedidoId: string) {
+    const { pool, tenant } = tenantCtx();
+    const pt = await this.provedores.obter(tenant.slug);
+    if (!pt || pt.provedor.nome !== 'mock') throw new BadRequestException('Só disponível com provedor mock');
+    const { rows } = await pool.query(`select id, valor from pagamentos where pedido_id = $1 and status = 'pendente'`, [pedidoId]);
+    if (!rows[0]) throw new NotFoundException('Sem pagamento pendente');
+    await this.pagamentos.confirmarPago(pool, rows[0].id, Number(rows[0].valor), new Date());
+    return { status: 'pago' };
   }
 
   /** Reenfileira um pedido com falha de integração para novo envio ao ERP. */

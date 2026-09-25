@@ -119,6 +119,7 @@ tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
 
 /* Badges de status */
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge.AGUARDANDO_PAGAMENTO { background: #fff3cd; color: #7a5b00; }
 .badge.RECEBIDO { background: #eef2ff; color: var(--azul); }
 .badge.ENVIADO_ERP { background: #f0f9ff; color: #0369a1; }
 .badge.ABERTO { background: #ecfeff; color: #0e7490; }
@@ -134,6 +135,9 @@ tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
 .badge.bloqueado { background: #fef2f2; color: var(--vermelho); }
 .badge.excluido { background: #f3f4f6; color: var(--texto-2); }
 .badge.creditado { background: #dcfce7; color: var(--verde); }
+.badge.pag-pendente { background: #fff3cd; color: #7a5b00; }
+.badge.pag-pago { background: #d1e7dd; color: #0f5132; }
+.badge.pag-expirado, .badge.pag-cancelado, .badge.pag-falhou { background: #f8d7da; color: #842029; }
 
 /* Controles */
 .filtros { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }

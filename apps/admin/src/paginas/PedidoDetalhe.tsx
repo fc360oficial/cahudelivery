@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, fmtData, fmtDocumento, fmtMoeda, PAGAMENTO_LABEL, STATUS_LABEL } from '../api';
 
+const PAGAMENTO_STATUS_LABEL: Record<string, string> = {
+  pendente: 'Aguardando', pago: 'Pago', expirado: 'Expirado', cancelado: 'Cancelado', falhou: 'Falhou',
+};
+
 interface Detalhe {
   id: string;
   numero: number;
@@ -28,6 +32,11 @@ interface Detalhe {
     xml_url?: string | null;
     pdf_url?: string | null;
   } | null;
+  pagamento?: {
+    id: string; provedor: string; metodo: string; status: string; valor: string; valor_pago?: string | null;
+    provedor_ref?: string | null; expira_em?: string | null; pago_em?: string | null; criado_em: string;
+  } | null;
+  total_faturado?: string | null;
 }
 
 export function PedidoDetalhe() {
@@ -35,6 +44,7 @@ export function PedidoDetalhe() {
   const [p, setP] = useState<Detalhe | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [reenviando, setReenviando] = useState(false);
+  const [consultando, setConsultando] = useState(false);
 
   const carregar = useCallback(() => {
     api<Detalhe>(`/admin/pedidos/${id}`).then(setP).catch((e) => setErro(e.message));
@@ -51,6 +61,18 @@ export function PedidoDetalhe() {
       setErro((e as Error).message);
     } finally {
       setReenviando(false);
+    }
+  }
+
+  async function consultarPagamento() {
+    setConsultando(true);
+    try {
+      await api(`/admin/pedidos/${id}/pagamento/consultar`, { method: 'POST' });
+      carregar();
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setConsultando(false);
     }
   }
 
@@ -71,6 +93,42 @@ export function PedidoDetalhe() {
           <button className="btn btn-mini" onClick={reenviar} disabled={reenviando}>
             {reenviando ? 'Reenviando…' : 'Reenviar ao ERP'}
           </button>
+        </div>
+      )}
+
+      {p.pagamento && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="rotulo">Pagamento online</div>
+          <div style={{ marginTop: 8 }}>
+            <div>
+              {p.pagamento.metodo === 'pix' ? 'PIX' : 'Cartão'} · {p.pagamento.provedor === 'itau_pix' ? 'Itaú' : p.pagamento.provedor}
+              {' · '}
+              <span className={`badge pag-${p.pagamento.status}`}>{PAGAMENTO_STATUS_LABEL[p.pagamento.status] ?? p.pagamento.status}</span>
+            </div>
+            <div style={{ marginTop: 6 }}>
+              Valor cobrado: {fmtMoeda(p.pagamento.valor)}
+              {p.pagamento.valor_pago && <> · Valor pago: {fmtMoeda(p.pagamento.valor_pago)}</>}
+            </div>
+            {p.pagamento.provedor_ref && (
+              <div className="mono" style={{ marginTop: 6, wordBreak: 'break-all' }}>txid: {p.pagamento.provedor_ref}</div>
+            )}
+            <div style={{ marginTop: 6, color: 'var(--texto-2)' }}>
+              Criado {fmtData(p.pagamento.criado_em)}
+              {p.pagamento.expira_em && <> · Expira {fmtData(p.pagamento.expira_em)}</>}
+              {p.pagamento.pago_em && <> · Pago em {fmtData(p.pagamento.pago_em)}</>}
+            </div>
+            {p.pagamento.valor_pago && p.total_faturado && Number(p.pagamento.valor_pago) > Number(p.total_faturado) && (
+              <div className="valor alerta" style={{ fontSize: 15, marginTop: 8 }}>
+                A devolver: {fmtMoeda(Number(p.pagamento.valor_pago) - Number(p.total_faturado))}
+                <span style={{ fontWeight: 400, fontSize: 12.5 }}> (faturado menor que o pago)</span>
+              </div>
+            )}
+          </div>
+          {p.pagamento.status === 'pendente' && (
+            <button className="btn btn-mini" style={{ marginTop: 12 }} onClick={consultarPagamento} disabled={consultando}>
+              {consultando ? 'Consultando…' : 'Consultar no Itaú'}
+            </button>
+          )}
         </div>
       )}
 

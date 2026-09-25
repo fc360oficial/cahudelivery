@@ -9,10 +9,11 @@ import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import { GeoModule } from '../geo/geo.module';
 import { MunicipiosModule } from '../municipios/municipios.module';
+import { PagamentosModule } from '../pagamentos/pagamentos.module';
 import { MapaService } from './mapa.service';
 
 @Module({
-  imports: [GeoModule, MunicipiosModule],
+  imports: [GeoModule, MunicipiosModule, PagamentosModule],
   controllers: [
     AdminAuthController,
     AdminController,

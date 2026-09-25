@@ -50,17 +50,19 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
           try {
             const s = await pt.provedor.consultar(p.provedor_ref);
             await this.pagamentos.aplicarSituacao(pool, p, s);
-            await pool.query(
-              `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
-               values ('itau_pix_consulta','fluxo_para_erp',$1,$2,true,$3)`,
-              [p.provedor_ref, s.status, Date.now() - ini],
-            );
+            if (s.status !== 'pendente') {
+              await pool.query(
+                `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
+                 values ($4,'fluxo_para_erp',$1,$2,true,$3)`,
+                [p.provedor_ref, s.status, Date.now() - ini, `${pt.provedor.nome}_consulta`],
+              );
+            }
           } catch (e) {
             this.log.warn(`consulta ${slug}/${p.provedor_ref}: ${e}`);
             await pool.query(
               `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
-               values ('itau_pix_consulta','fluxo_para_erp',$1,$2,false,$3)`,
-              [p.provedor_ref, String(e).slice(0, 500), Date.now() - ini],
+               values ($4,'fluxo_para_erp',$1,$2,false,$3)`,
+              [p.provedor_ref, String(e).slice(0, 500), Date.now() - ini, `${pt.provedor.nome}_consulta`],
             );
           }
         }

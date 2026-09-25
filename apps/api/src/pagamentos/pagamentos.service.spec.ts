@@ -53,6 +53,7 @@ describe('PagamentosService', () => {
     expect(sqls[0]).toContain("status = 'pendente'");
     expect(sqls[1]).toContain("set status = 'RECEBIDO'");
     expect(sqls[2]).toContain('insert into pedido_eventos');
+    expect(sqls.some((s) => s.includes('insert into sync_outbox'))).toBe(true);
     const eventos = query.mock.calls.find((c) => (c[0] as string).includes('insert into pedido_eventos'));
     expect(eventos![1]).toEqual(['ped-1', 'RECEBIDO', 'PIX pago']);
     // Verify transactions
@@ -105,8 +106,9 @@ describe('PagamentosService', () => {
     const ok = await svc.confirmarPago(pool, 'pag-1', 99.9, new Date());
     expect(ok).toBe(true);
     const sqls = query.mock.calls.map((c) => c[0] as string).filter((s) => !['begin', 'commit', 'rollback'].includes(s));
-    expect(sqls).toHaveLength(2); // update pag + update ped (sem insert evento)
+    expect(sqls).toHaveLength(2); // update pag + update ped (sem insert evento, sem outbox)
     expect(sqls[1]).toContain("set status = 'RECEBIDO'");
+    expect(sqls.some((s) => s.includes('insert into sync_outbox'))).toBe(false);
   });
 
   it('aplicarSituacao: cancelado usa detalhe "PIX cancelado no banco"', async () => {

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { CatalogService } from '../catalog/catalog.service';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
@@ -8,6 +8,8 @@ export type DonoCarrinho = { clienteId?: string; deviceId?: string };
 
 @Injectable()
 export class OrdersService {
+  private readonly log = new Logger('OrdersService');
+
   constructor(
     private readonly catalog: CatalogService,
     private readonly pagamentos: PagamentosService,
@@ -205,20 +207,26 @@ export class OrdersService {
         `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'app')`,
         [pedidoId, statusInicial, pagarOnline ? 'Pedido recebido, aguardando pagamento PIX' : 'Pedido recebido'],
       );
-      // Outbox transacional: o worker envia ao ERP; pedido nunca se perde
-      await client.query(
-        `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
-        [pedidoId],
-      );
+      if (!pagarOnline) {
+        // Outbox transacional: o worker envia ao ERP; pedido nunca se perde.
+        // Pedido AGUARDANDO_PAGAMENTO só entra na outbox quando o PIX é pago (ver PagamentosService.confirmarPago).
+        await client.query(
+          `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
+          [pedidoId],
+        );
+      }
       let pagamento: import('../pagamentos/pagamentos.service').PagamentoResumo | null = null;
       if (pagarOnline) {
+        const pv = provedorTenant;
+        if (!pv) throw new Error('provedor ausente');
         // Falhou no Itaú => exceção => rollback: pedido não existe, app pede pra tentar de novo.
         try {
-          pagamento = await this.pagamentos.criarParaPedido(client, provedorTenant!.provedor, {
+          pagamento = await this.pagamentos.criarParaPedido(client, pv.provedor, {
             pedidoId, numero: ped.rows[0].numero, valor: valorACobrar,
-            expiracaoSegundos: provedorTenant!.expiracaoSegundos, appNome: tenant.appNome,
+            expiracaoSegundos: pv.expiracaoSegundos, appNome: tenant.appNome,
           });
         } catch (e) {
+          this.log.error(`falha ao criar cobranca PIX do pedido ${pedidoId}: ${e}`);
           throw new BadRequestException('Não foi possível gerar o PIX agora. Tente novamente em instantes.');
         }
       }

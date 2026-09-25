@@ -90,6 +90,12 @@ export class PagamentosService {
           `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'sistema')`,
           [pedidoId, 'RECEBIDO', 'PIX pago'],
         );
+        // Pedido PIX online só entra na outbox (e portanto no ERP) depois de pago — evita
+        // que o Dlinks veja um pedido AGUARDANDO_PAGAMENTO que ainda pode expirar/cancelar.
+        await q.query(
+          `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
+          [pedidoId],
+        );
       } else {
         this.log.warn(`pagamento ${pagamentoId} pago mas pedido ${pedidoId} não estava em AGUARDANDO_PAGAMENTO`);
       }

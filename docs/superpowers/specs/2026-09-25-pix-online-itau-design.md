@@ -17,7 +17,7 @@ Fora de escopo: boleto (desligado no app), cartão online (sem PV da Rede ainda)
 
 ## Credencial já pronta
 
-Certificado dinâmico gerado em 25/09/2026 no `.254`, pasta `C:\itau-cahu-pix\` (certificado.pfx senha `itau2026`, ClientID_e_Secret.txt, chave privada). Token OAuth testado: 200 com escopos `cob.write cob.read pix.read pix.write webhook.write webhook.read cobv.* payloadlocation.* lotecobv.write`. Validade do certificado: até 25/09/2027, renovar 30 dias antes.
+Certificado dinâmico gerado em 25/09/2026 no `.254`, pasta `C:\itau-cahu-pix\` (certificado.pfx senha `<senha do pfx — fora do repo>`, ClientID_e_Secret.txt, chave privada). Token OAuth testado: 200 com escopos `cob.write cob.read pix.read pix.write webhook.write webhook.read cobv.* payloadlocation.* lotecobv.write`. Validade do certificado: até 25/09/2027, renovar 30 dias antes.
 
 ## Fluxo do pedido
 
@@ -83,7 +83,7 @@ Módulo novo `apps/api/src/pagamentos/`:
 - `itau-pix.provedor.ts`: token OAuth `client_credentials` em `https://sts.itau.com.br/api/oauth/token` com mTLS (pfx), cache de 4 min (expira em 5). Cobrança em `https://secure.api.itau/pix_recebimentos/v2/cob/{txid}` (URL base confirmada no primeiro teste real; o devportal lista o endpoint de produção). Header `x-itau-apikey` = clientId e `x-itau-correlationID` uuid, mesmo padrão do Extrato. Se a resposta do `PUT /cob` não trouxer o BR Code pronto, monta a partir do `location` conforme o padrão BCB.
 - `mock.provedor.ts`: gera txid e copia-e-cola fake, nunca chama rede. Usado quando `pagamento_provedores` do tenant é `mock` (dev) e nos testes.
 - `pagamentos.service.ts`: `criarParaPedido(client, pedidoId, valor)` chamado dentro da transação do `OrdersService.criar`; `confirmarPago(pagamentoId, valorPago, pagoEm)`; `expirar(pagamentoId)`; `consultarAgora(pedidoId)` pro botão da retaguarda.
-- `pagamentos.worker.ts`: a cada 30 s, por tenant ativo com provedor configurado, consulta pendentes (limite 50, mais antigos primeiro), aplica pago/expirado. Desligável por `PAGAMENTOS_DESLIGADO=1` como os outros workers.
+- `pagamentos.worker.ts`: a cada 30 s, por tenant ativo com provedor configurado, consulta pendentes (limite 50, mais antigos primeiro), aplica pago/expirado. Desligável por `PAGAMENTOS_DESLIGADO=true` (não `=1`) como os outros workers.
 - `itau-pix-webhook.controller.ts` + middleware de segredo na URL, copiado do padrão MaxiPago (`integracao_credenciais` adaptador `itau_pix`). Responde 200 sempre que gravar.
 - Endpoint admin `POST /admin/pedidos/:id/pagamento/consultar` (retaguarda) e, só com provedor mock, `POST /admin/pedidos/:id/pagamento/simular-pago`.
 - Logs em `integracao_logs` com operações `itau_pix_cob`, `itau_pix_consulta`, `itau_pix_webhook`.
@@ -136,8 +136,9 @@ Nada muda do lado do Dlinks: nenhuma tela, tabela ou campo deles, e o contrato d
 
 ## Deploy
 
-1. Migrações 030 (tenant CAHU) e 004 (controle) via `psql` por arquivo no `.254`.
+1. Migração 030 aplicada em TODAS as bases de tenant (não só CAHU) e a 004 no controle, via `psql` por arquivo no `.254` — a query de listar/detalhe de pedidos do Dlinks (`orders.service.ts`) faz `join`/subselect em `pagamentos` incondicionalmente, então qualquer tenant sem a tabela 030 aplicada quebra a API assim que o build novo subir, mesmo tenant que nunca vai usar PIX online. Isso precisa acontecer ANTES do restart da API.
 2. `credencial.json` em `C:\itau-cahu-pix\`, linha em `pagamento_provedores`, segredo do webhook em `integracao_credenciais`.
 3. Registrar webhook no Itaú com o script.
 4. Deploy API + retaguarda (git pull, build, restart-api.flag). APK novo com `qr_flutter`.
 5. Atenção ao estado do git: main local está à frente 1 e atrás 22 de origin/main, e o servidor roda detached em b2a4268. Sincronizar antes de implementar.
+6. `PAGAMENTOS_DESLIGADO=true` (não `=1`) desliga o worker; conferir o `.env` do `.254` usa esse valor exato.

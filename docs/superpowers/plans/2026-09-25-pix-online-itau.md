@@ -15,7 +15,7 @@ Spec: `docs/superpowers/specs/2026-09-25-pix-online-itau-design.md`.
 - Segredos (client secret, senha do pfx, segredo do webhook em texto puro) NUNCA entram no repositório nem em log. Vivem em `C:\itau-cahu-pix\credencial.json` no `.254` e só o hash sha256 do segredo do webhook vai pro banco.
 - Nada muda no Dlinks: nenhuma tabela/tela deles, e o contrato dos endpoints `integracoes/dlinks/*` só ganha campos opcionais.
 - Migrações são arquivos SQL aplicados por `psql` (não há runner em código). Tenant: `infra/sql/tenant/030_pagamentos.sql`. Controle: `infra/sql/control/004_pagamento_provedores.sql`. Cada arquivo termina com `insert into schema_migrations (versao) values ('NNN') on conflict do nothing;`.
-- Expiração do PIX: 1800 s. Chave PIX: CNPJ `61920643000148`. Certificado em `C:\itau-cahu-pix\certificado.pfx`, senha `itau2026`.
+- Expiração do PIX: 1800 s. Chave PIX: CNPJ `61920643000148`. Certificado em `C:\itau-cahu-pix\certificado.pfx`, senha `<senha do pfx — fora do repo>`.
 - Testes: `npm test -- <arquivo>` dentro de `apps/api`. Estilo dos specs existentes: instanciar o service direto, `runComTenant({ tenant, pool }, ...)` com `pool.query` = `jest.fn()`.
 - Commits pequenos, mensagens em português, sem prefixo `feat:` (o repo usa frases: "Adiciona ...", "Corrige ...").
 - App sempre aponta pra `https://cahudelivery.duckdns.org`. Flutter em `C:\dev\flutter\bin\flutter`.
@@ -2058,16 +2058,16 @@ No `.254`, criar `C:\itau-cahu-pix\credencial.json` a partir de `ClientID_e_Secr
 $t = Get-Content C:\itau-cahu-pix\ClientID_e_Secret.txt -Raw
 $secret = [regex]::Match($t, 'Secret:\s*(\S+)').Groups[1].Value
 $cid = [regex]::Match($t, 'Client_ID:\s*(\S+)').Groups[1].Value
-@{ clientId = $cid; clientSecret = $secret; pfxArquivo = 'C:\itau-cahu-pix\certificado.pfx'; pfxSenha = 'itau2026' } | ConvertTo-Json | Set-Content -Encoding utf8 C:\itau-cahu-pix\credencial.json
+@{ clientId = $cid; clientSecret = $secret; pfxArquivo = 'C:\itau-cahu-pix\certificado.pfx'; pfxSenha = '<senha do pfx — fora do repo>' } | ConvertTo-Json | Set-Content -Encoding utf8 C:\itau-cahu-pix\credencial.json
 ```
 A conta que roda a API precisa de leitura nessa pasta.
 
 - [ ] **Step 4: Ordem de deploy no .254**
 
 1. `git pull` na pasta do app; `npm install` (novas deps só no mobile, mas o `dist` precisa do build novo); build de `apps/api` e `apps/admin`.
-2. Migrações por scp + `psql -w -f` (role `claude_migra`): `030_pagamentos.sql` no banco do tenant CAHU, `004_pagamento_provedores.sql` no controle.
+2. Migrações por scp + `psql -w -f` (role `claude_migra`): `030_pagamentos.sql` precisa rodar em TODAS as bases de tenant do `.254`, não só CAHU — `orders.service.ts` (listar/detalhe de pedidos) faz subselect em `pagamentos` sem condicional nenhuma, então qualquer tenant que ficar sem a 030 quebra a API assim que o build novo sobe, mesmo sem nunca ter usado PIX online. Aplicar a 030 em todo tenant ANTES do restart-api.flag do passo 4. `004_pagamento_provedores.sql` roda uma vez, no banco de controle.
 3. Gerar segredo do webhook + hash; rodar `itau-pix-provedor.sql` no controle.
-4. `restart-api.flag`.
+4. `restart-api.flag` — só depois de confirmar que a 030 já está aplicada em todo tenant (passo 2). Conferir que `PAGAMENTOS_DESLIGADO` no `.env` do `.254`, se setado, está como `PAGAMENTOS_DESLIGADO=true` (o código compara com a string `'true'`; `=1` não desliga o worker).
 5. `node infra/scripts/itau-pix-registrar-webhook.js ...` e conferir `status 200/201`.
 6. Teste real: pedido de R$ 0,01 no app pelo Tiago (o provedor cobra `valor` do pedido, então criar um produto de teste de R$ 0,01 ou usar saldo de carteira pra abater até sobrar R$ 0,01). Conferir: QR aparece, pagamento cai, pedido vira RECEBIDO em segundos, Dlinks lista o pedido com `pagamentoOnline`.
 7. Gerar APK (`flutter build apk --release`, comando registrado na memória "CAHU sempre usar URL pública") e distribuir.

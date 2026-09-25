@@ -116,4 +116,19 @@ describe('PagamentosService', () => {
     expect(exp).toHaveBeenCalledWith(pool, 'p1', 'PIX cancelado no banco');
     exp.mockRestore();
   });
+
+  it('confirmarPago: falha no meio da transação faz rollback e libera o client', async () => {
+    const release = jest.fn();
+    const query = jest.fn(async (sql: string) => {
+      if (sql === 'begin' || sql === 'rollback' || sql === 'commit') return { rows: [], rowCount: 0 };
+      if (sql.includes('update pagamentos')) return { rows: [{ pedido_id: 'ped-1' }], rowCount: 1 };
+      throw new Error('falha simulada');
+    });
+    const pool = { query, connect: async () => ({ query, release }) } as unknown as Pool;
+    await expect(svc.confirmarPago(pool, 'pag-1', 1, new Date())).rejects.toThrow('falha simulada');
+    const sqls = query.mock.calls.map((c) => c[0] as string);
+    expect(sqls).toContain('rollback');
+    expect(sqls).not.toContain('commit');
+    expect(release).toHaveBeenCalledTimes(1);
+  });
 });

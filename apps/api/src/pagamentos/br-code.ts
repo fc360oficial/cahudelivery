@@ -21,7 +21,7 @@ export function crc16(texto: string): string {
 }
 
 function semAcento(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '');
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '');
 }
 
 export function montarBrCode(o: { location: string; nomeRecebedor: string; cidade: string; txid: string }): string {

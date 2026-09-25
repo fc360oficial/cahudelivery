@@ -27,4 +27,10 @@ describe('br-code', () => {
     expect(codigo).toContain('5925' + 'A'.repeat(25));
     expect(codigo).toContain('6015' + 'B'.repeat(15));
   });
+
+  it('remove acentos do nome e da cidade', () => {
+    const codigo = montarBrCode({ location: 'x', nomeRecebedor: 'DISTRIBUIÇÃO JOÃO', cidade: 'SÃO PAULO', txid: 'T1' });
+    expect(codigo).toContain('5917DISTRIBUICAO JOAO');
+    expect(codigo).toContain('6009SAO PAULO');
+  });
 });

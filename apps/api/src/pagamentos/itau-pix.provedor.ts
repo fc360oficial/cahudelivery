@@ -49,7 +49,10 @@ export class ItauPixProvedor implements ProvedorPagamento {
 
   async consultar(ref: string): Promise<SituacaoCobranca> {
     const r = await this.chamar('GET', `/cob/${ref}`);
-    if (r.status === 404) return { status: 'cancelado', payload: r.body };
+    // 404 não é "cancelado": pode ser inconsistência transitória da API do Itaú (nunca dinheiro
+    // real envolvido nessa distinção — cancelar por engano é pior que só deixar pendente).
+    // A regra local de expiração (aplicarSituacao) cobre o caso de nunca existir de verdade.
+    if (r.status === 404) return { status: 'pendente', payload: r.body };
     if (r.status < 200 || r.status >= 300) throw new Error(`Itaú PIX consulta ${r.status}: ${r.texto.slice(0, 300)}`);
     return traduzirStatusItau(r.body);
   }

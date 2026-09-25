@@ -44,6 +44,13 @@ describe('ItauPixProvedor', () => {
     expect(montado).toContain('qrcodepix.itau.com.br/x');
   });
 
+  it('consultar: 404 não vira cancelado, fica pendente (não decide sozinho por dinheiro sumido)', async () => {
+    const p = new ItauPixProvedor(cfg);
+    jest.spyOn(p as any, 'chamar').mockResolvedValue({ status: 404, body: { erro: 'nao encontrado' }, texto: '{}' });
+    const s = await p.consultar('PED000009ZZZZ');
+    expect(s.status).toBe('pendente');
+  });
+
   it('montarCorpoCob saneia o documento do pagador antes de decidir CPF x CNPJ', () => {
     const base = { ref: 'PED000003CCCC', valor: 10, expiracaoSegundos: 1800, descricao: 'Pedido #3' };
     const cnpj = montarCorpoCob({ ...base, pagador: { documento: '61.920.643/0001-48', nome: 'CAHU' } }, cfg.chavePix);

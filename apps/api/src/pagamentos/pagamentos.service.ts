@@ -16,7 +16,9 @@ export interface PagamentoResumo {
 type Executor = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
 function ehPool(e: Executor): e is Pool {
-  return typeof (e as Pool).connect === 'function';
+  // pg Client também tem connect(), então checar só isso classifica um PoolClient/Client
+  // errado como Pool. 'release' existe em PoolClient mas não em Pool — é o que distingue de fato.
+  return !('release' in e) && typeof (e as Pool).connect === 'function';
 }
 
 /**
@@ -97,7 +99,7 @@ export class PagamentosService {
           [pedidoId],
         );
       } else {
-        this.log.warn(`pagamento ${pagamentoId} pago mas pedido ${pedidoId} não estava em AGUARDANDO_PAGAMENTO`);
+        this.log.error(`pagamento ${pagamentoId} pago mas pedido ${pedidoId} ja estava fora de AGUARDANDO_PAGAMENTO (possivel estorno manual)`);
       }
       this.log.log(`pagamento ${pagamentoId} pago (pedido ${pedidoId})`);
       return true;

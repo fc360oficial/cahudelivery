@@ -119,6 +119,22 @@ describe('PagamentosService', () => {
     exp.mockRestore();
   });
 
+  it('confirmarPago com um PoolClient (tem connect() herdado de Client, mas tem release) não abre transação própria nem libera', async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('update pagamentos')) return { rows: [{ pedido_id: 'ped-1' }], rowCount: 1 };
+      return { rows: [], rowCount: 1 };
+    });
+    const release = jest.fn();
+    // PoolClient real também tem connect() (herdado de Client) — é o que fazia ehPool() errar antes.
+    const fakeClient = { query, release, connect: jest.fn() } as unknown as PoolClient;
+    const ok = await svc.confirmarPago(fakeClient, 'pag-1', 10, new Date());
+    expect(ok).toBe(true);
+    const sqls = query.mock.calls.map((c) => c[0] as string);
+    expect(sqls).not.toContain('begin');
+    expect(sqls).not.toContain('commit');
+    expect(release).not.toHaveBeenCalled();
+  });
+
   it('confirmarPago: falha no meio da transação faz rollback e libera o client', async () => {
     const release = jest.fn();
     const query = jest.fn(async (sql: string) => {

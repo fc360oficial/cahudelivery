@@ -12,7 +12,8 @@ export class WebhooksProcessor {
 
   async processar(pool: Pool, provedor: ProvedorPagamento): Promise<void> {
     const { rows } = await pool.query(
-      `select id, corpo_bruto from pagamento_webhooks where processado = false order by recebido_em limit 20`,
+      `select id, corpo_bruto from pagamento_webhooks where processado = false and origem = $1 order by recebido_em limit 20`,
+      [provedor.nome],
     );
     for (const wh of rows) {
       const erros: string[] = [];
@@ -21,11 +22,21 @@ export class WebhooksProcessor {
         if (recebidos.length === 0) erros.push('corpo sem confirmações reconhecidas');
         for (const r of recebidos) {
           const pag = await pool.query(
-            `select id, expira_em from pagamentos where provedor = $1 and provedor_ref = $2`,
+            `select id, expira_em, status from pagamentos where provedor = $1 and provedor_ref = $2`,
             [provedor.nome, r.ref],
           );
-          if (!pag.rows[0]) { erros.push(`ref ${r.ref} não encontrada`); continue; }
-          await this.pagamentos.confirmarPago(pool, pag.rows[0].id, r.valorPago, r.pagoEm);
+          const row = pag.rows[0];
+          if (!row) { erros.push(`ref ${r.ref} não encontrada`); continue; }
+          // O webhook é só um gatilho: quem manda na verdade é o que o provedor responde agora.
+          const s = await provedor.consultar(r.ref);
+          await this.pagamentos.aplicarSituacao(pool, row, s);
+          const atual = await pool.query(`select status from pagamentos where id = $1`, [row.id]);
+          const statusFinal = atual.rows[0]?.status;
+          if (statusFinal !== 'pago') {
+            const msg = `ref ${r.ref}: provedor confirmou mas pagamento ficou ${statusFinal}`;
+            erros.push(msg);
+            this.log.error(msg);
+          }
         }
       } catch (e) {
         erros.push(String(e).slice(0, 300));

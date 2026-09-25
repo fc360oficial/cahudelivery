@@ -168,7 +168,15 @@ export class OrdersService {
         const saldo = Number(saldoRow.rows[0].saldo);
         valorSaldoUsado = Math.min(saldo, subtotal);
       }
-      const provedorTenant = dto.formaPagamento === 'pix' ? await this.provedores.obter(tenant.slug) : null;
+      let provedorTenant = null as Awaited<ReturnType<ProvedoresService['obter']>>;
+      if (dto.formaPagamento === 'pix') {
+        try {
+          provedorTenant = await this.provedores.obter(tenant.slug);
+        } catch (e) {
+          this.log.error(`falha ao obter provedor de pagamento do tenant ${tenant.slug}: ${e}`);
+          throw new BadRequestException('Pagamento PIX indisponível no momento. Tente novamente em instantes.');
+        }
+      }
       const valorACobrar = Number((subtotal - valorSaldoUsado).toFixed(2));
       // PIX online só quando o tenant tem provedor e sobra algo a pagar depois do saldo.
       const pagarOnline = !!provedorTenant && valorACobrar > 0;

@@ -29,14 +29,21 @@ class _BlocoPixState extends State<BlocoPix> {
   void initState() {
     super.initState();
     _atualizar();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) => _atualizar());
+    if ('${widget.pagamento['status']}' == 'pendente') {
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) => _atualizar());
+    }
   }
 
   void _atualizar() {
     final e = _expiraEm;
     if (e == null) return;
     final r = e.difference(DateTime.now());
-    if (mounted) setState(() => _restante = r.isNegative ? Duration.zero : r);
+    final zerou = r.isNegative;
+    if (mounted) setState(() => _restante = zerou ? Duration.zero : r);
+    if (zerou) {
+      _timer?.cancel();
+      _timer = null;
+    }
   }
 
   @override
@@ -62,9 +69,26 @@ class _BlocoPixState extends State<BlocoPix> {
       return _cartao(Icons.check_circle, Colors.green.shade600, 'PIX pago',
           p['pagoEm'] != null ? 'Confirmado em ${dataHora(p['pagoEm'])}' : 'Pagamento confirmado');
     }
-    if (status != 'pendente' || codigo == null) {
+    if (status == 'expirado') {
       return _cartao(Icons.timer_off, Colors.red.shade600, 'PIX expirado',
-          'O prazo de pagamento acabou e o pedido foi cancelado. Você pode repetir o pedido.');
+          'O prazo de pagamento acabou e o pedido foi cancelado.');
+    }
+    if (status == 'cancelado') {
+      return _cartao(Icons.cancel, Colors.red.shade600, 'PIX cancelado',
+          'A cobrança foi cancelada e o pedido não seguiu.');
+    }
+    if (status == 'falhou') {
+      return _cartao(Icons.error_outline, Colors.red.shade600, 'Falha no PIX',
+          'Não foi possível gerar a cobrança. Refaça o pedido.');
+    }
+    if (status == 'pendente' && codigo == null) {
+      return _cartao(Icons.hourglass_top, cor, 'Gerando código PIX…', 'Isso leva só alguns segundos.');
+    }
+    if (status != 'pendente' || codigo == null) {
+      // Status que não reconhecemos: nunca afirmar "expirado" sem saber — só sinaliza que não dá
+      // pra mostrar o pagamento agora, sem inventar um motivo.
+      return _cartao(Icons.error_outline, Colors.red.shade600, 'Pagamento indisponível',
+          'Não foi possível carregar a situação do pagamento. Atualize a tela do pedido.');
     }
     final mm = _restante.inMinutes.remainder(60).toString().padLeft(2, '0');
     final ss = _restante.inSeconds.remainder(60).toString().padLeft(2, '0');

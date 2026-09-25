@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { hashSenhaProvisoria } from '../auth/senha-provisoria';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
@@ -6,6 +6,8 @@ import { tenantCtx } from '../tenancy/tenant-context';
 
 @Injectable()
 export class AdminService {
+  private readonly log = new Logger('AdminService');
+
   constructor(
     private readonly provedores: ProvedoresService,
     private readonly pagamentos: PagamentosService,
@@ -118,8 +120,13 @@ export class AdminService {
     );
     if (!rows[0]) throw new NotFoundException('Pedido sem pagamento online');
     if (rows[0].status !== 'pendente') return { status: rows[0].status };
-    const s = await pt.provedor.consultar(rows[0].provedor_ref);
-    await this.pagamentos.aplicarSituacao(pool, rows[0], s);
+    try {
+      const s = await pt.provedor.consultar(rows[0].provedor_ref);
+      await this.pagamentos.aplicarSituacao(pool, rows[0], s);
+    } catch (e) {
+      this.log.warn(`falha ao consultar pagamento do pedido ${pedidoId}: ${e}`);
+      throw new BadRequestException('Não foi possível consultar o pagamento no provedor agora. Tente novamente em instantes.');
+    }
     const depois = await pool.query(`select status from pagamentos where id = $1`, [rows[0].id]);
     return { status: depois.rows[0].status };
   }

@@ -14,7 +14,7 @@ Spec: `docs/superpowers/specs/2026-09-25-pix-online-itau-design.md`.
 
 - Segredos (client secret, senha do pfx, segredo do webhook em texto puro) NUNCA entram no repositório nem em log. Vivem em `C:\itau-cahu-pix\credencial.json` no `.254` e só o hash sha256 do segredo do webhook vai pro banco.
 - Nada muda no Dlinks: nenhuma tabela/tela deles, e o contrato dos endpoints `integracoes/dlinks/*` só ganha campos opcionais.
-- Migrações são arquivos SQL aplicados por `psql` (não há runner em código). Tenant: `infra/sql/tenant/029_pagamentos.sql`. Controle: `infra/sql/control/004_pagamento_provedores.sql`. Cada arquivo termina com `insert into schema_migrations (versao) values ('NNN') on conflict do nothing;`.
+- Migrações são arquivos SQL aplicados por `psql` (não há runner em código). Tenant: `infra/sql/tenant/030_pagamentos.sql`. Controle: `infra/sql/control/004_pagamento_provedores.sql`. Cada arquivo termina com `insert into schema_migrations (versao) values ('NNN') on conflict do nothing;`.
 - Expiração do PIX: 1800 s. Chave PIX: CNPJ `61920643000148`. Certificado em `C:\itau-cahu-pix\certificado.pfx`, senha `itau2026`.
 - Testes: `npm test -- <arquivo>` dentro de `apps/api`. Estilo dos specs existentes: instanciar o service direto, `runComTenant({ tenant, pool }, ...)` com `pool.query` = `jest.fn()`.
 - Commits pequenos, mensagens em português, sem prefixo `feat:` (o repo usa frases: "Adiciona ...", "Corrige ...").
@@ -69,7 +69,7 @@ git push origin main
 ### Task 1: Migrações e tipos compartilhados
 
 **Files:**
-- Create: `infra/sql/tenant/029_pagamentos.sql`
+- Create: `infra/sql/tenant/030_pagamentos.sql`
 - Create: `infra/sql/control/004_pagamento_provedores.sql`
 - Modify: `packages/shared-types/src/index.ts:6-17`
 
@@ -79,7 +79,7 @@ git push origin main
 - [ ] **Step 1: Migração do tenant**
 
 ```sql
--- infra/sql/tenant/029_pagamentos.sql
+-- infra/sql/tenant/030_pagamentos.sql
 -- Pagamento online no checkout (PIX Itaú agora, cartão e.Rede depois).
 -- Um pedido pago online nasce em AGUARDANDO_PAGAMENTO e só vira RECEBIDO
 -- (visível pro Dlinks) quando o provedor confirma.
@@ -118,7 +118,7 @@ create index if not exists idx_pagamentos_pendentes on pagamentos (expira_em) wh
 alter table pagamento_webhooks alter column origem drop default;
 alter table pagamento_webhooks alter column origem set default 'desconhecida';
 
-insert into schema_migrations (versao) values ('029') on conflict do nothing;
+insert into schema_migrations (versao) values ('030') on conflict do nothing;
 ```
 
 - [ ] **Step 2: Migração do banco de controle**
@@ -168,7 +168,7 @@ export type PagamentoMetodo = 'pix' | 'cartao';
 - [ ] **Step 4: Aplicar no banco de dev e conferir**
 
 ```bash
-psql "$DATABASE_URL_CAHU_DEV" -f infra/sql/tenant/029_pagamentos.sql
+psql "$DATABASE_URL_CAHU_DEV" -f infra/sql/tenant/030_pagamentos.sql
 psql "$DATABASE_URL_CONTROL_DEV" -f infra/sql/control/004_pagamento_provedores.sql
 psql "$DATABASE_URL_CAHU_DEV" -c "\d pagamentos" | head -20
 ```
@@ -177,7 +177,7 @@ Expected: tabela listada com as colunas acima. (Os valores de `DATABASE_URL_*` s
 - [ ] **Step 5: Commit**
 
 ```bash
-git add infra/sql/tenant/029_pagamentos.sql infra/sql/control/004_pagamento_provedores.sql packages/shared-types/src/index.ts
+git add infra/sql/tenant/030_pagamentos.sql infra/sql/control/004_pagamento_provedores.sql packages/shared-types/src/index.ts
 git commit -m "Tabelas de pagamento online e status AGUARDANDO_PAGAMENTO"
 ```
 
@@ -2065,7 +2065,7 @@ A conta que roda a API precisa de leitura nessa pasta.
 - [ ] **Step 4: Ordem de deploy no .254**
 
 1. `git pull` na pasta do app; `npm install` (novas deps só no mobile, mas o `dist` precisa do build novo); build de `apps/api` e `apps/admin`.
-2. Migrações por scp + `psql -w -f` (role `claude_migra`): `029_pagamentos.sql` no banco do tenant CAHU, `004_pagamento_provedores.sql` no controle.
+2. Migrações por scp + `psql -w -f` (role `claude_migra`): `030_pagamentos.sql` no banco do tenant CAHU, `004_pagamento_provedores.sql` no controle.
 3. Gerar segredo do webhook + hash; rodar `itau-pix-provedor.sql` no controle.
 4. `restart-api.flag`.
 5. `node infra/scripts/itau-pix-registrar-webhook.js ...` e conferir `status 200/201`.

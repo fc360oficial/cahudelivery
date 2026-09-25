@@ -35,7 +35,7 @@ Valor pago diferente do cobrado: marca `pago` e registra `valor_pago`. PIX de va
 
 ## Dados
 
-### `pagamentos` (banco do tenant, migração 029)
+### `pagamentos` (banco do tenant, migração 030)
 
 | coluna | tipo | obs |
 |---|---|---|
@@ -136,7 +136,7 @@ Nada muda do lado do Dlinks: nenhuma tela, tabela ou campo deles, e o contrato d
 
 ## Deploy
 
-1. Migrações 029 (tenant CAHU) e 003 (controle) via `psql` por arquivo no `.254`.
+1. Migrações 030 (tenant CAHU) e 004 (controle) via `psql` por arquivo no `.254`.
 2. `credencial.json` em `C:\itau-cahu-pix\`, linha em `pagamento_provedores`, segredo do webhook em `integracao_credenciais`.
 3. Registrar webhook no Itaú com o script.
 4. Deploy API + retaguarda (git pull, build, restart-api.flag). APK novo com `qr_flutter`.

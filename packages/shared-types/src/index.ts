@@ -4,8 +4,11 @@
  */
 
 export const PEDIDO_STATUS = [
+  'AGUARDANDO_PAGAMENTO',
   'RECEBIDO',
   'ENVIADO_ERP',
+  'ABERTO',
+  'EM_FATURAMENTO',
   'FATURADO',
   'EM_SEPARACAO',
   'SAIU_ENTREGA',
@@ -14,6 +17,9 @@ export const PEDIDO_STATUS = [
   'CANCELADO',
 ] as const;
 export type PedidoStatus = (typeof PEDIDO_STATUS)[number];
+
+export type PagamentoStatus = 'pendente' | 'pago' | 'expirado' | 'cancelado' | 'falhou';
+export type PagamentoMetodo = 'pix' | 'cartao';
 
 /** 'cartao' = crédito/débito na maquininha na entrega (sem gateway online por enquanto). */
 export type FormaPagamento = 'boleto' | 'pix' | 'cartao';

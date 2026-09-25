@@ -85,7 +85,7 @@ export class PagamentosService {
       if (up.rowCount === 0) return false;
       const pedidoId = up.rows[0].pedido_id;
       const upPedido = await q.query(`update pedidos set status = 'RECEBIDO' where id = $1 and status = 'AGUARDANDO_PAGAMENTO'`, [pedidoId]);
-      if (upPedido.rowCount > 0) {
+      if ((upPedido.rowCount ?? 0) > 0) {
         await q.query(
           `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'sistema')`,
           [pedidoId, 'RECEBIDO', 'PIX pago'],
@@ -110,7 +110,7 @@ export class PagamentosService {
       const pedidoId = up.rows[0].pedido_id;
       const ped = await q.query(`select cliente_id, valor_saldo_usado, numero from pedidos where id = $1`, [pedidoId]);
       const upPedido = await q.query(`update pedidos set status = 'CANCELADO' where id = $1 and status = 'AGUARDANDO_PAGAMENTO'`, [pedidoId]);
-      if (upPedido.rowCount > 0) {
+      if ((upPedido.rowCount ?? 0) > 0) {
         await q.query(
           `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO',$2,'sistema')`,
           [pedidoId, detalhe],

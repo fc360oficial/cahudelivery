@@ -12,11 +12,12 @@ import { MaxipagoModule } from './integracoes-maxipago/maxipago.module';
 import { MunicipiosModule } from './municipios/municipios.module';
 import { NotasModule } from './notas/notas.module';
 import { OrdersModule } from './orders/orders.module';
+import { PagamentosModule } from './pagamentos/pagamentos.module';
 import { ProfileModule } from './profile/profile.module';
 import { TenancyMiddleware } from './tenancy/tenant-context';
 
 @Module({
-  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule, NotasModule],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule, NotasModule, PagamentosModule],
   controllers: [AppController],
   providers: [AppService],
 })

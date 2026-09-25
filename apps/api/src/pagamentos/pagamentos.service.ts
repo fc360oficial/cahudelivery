@@ -138,8 +138,19 @@ export class PagamentosService {
     });
   }
 
-  /** Traduz o que o provedor respondeu numa transição. */
-  async aplicarSituacao(pool: Executor, pagamento: { id: string; expira_em: Date }, s: SituacaoCobranca): Promise<void> {
+  /**
+   * Traduz o que o provedor respondeu numa transição.
+   * `expirarSeVencido` (default true) controla só o ramo "pendente no provedor mas já passou
+   * do prazo local": o caminho do webhook chama com `false` porque um webhook é evidência de
+   * que dinheiro se moveu — nunca expira localmente por causa dele; quem decide expirar por
+   * prazo vencido é sempre o worker, que consulta por iniciativa própria.
+   */
+  async aplicarSituacao(
+    pool: Executor,
+    pagamento: { id: string; expira_em: Date },
+    s: SituacaoCobranca,
+    opts: { expirarSeVencido?: boolean } = {},
+  ): Promise<void> {
     if (s.status === 'pago') {
       await this.confirmarPago(pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date());
       return;
@@ -153,7 +164,7 @@ export class PagamentosService {
       return;
     }
     // pendente no provedor, mas já passou do prazo: o Itaú não aceita mais pagamento.
-    if (new Date(pagamento.expira_em).getTime() < Date.now()) {
+    if (opts.expirarSeVencido !== false && new Date(pagamento.expira_em).getTime() < Date.now()) {
       await this.expirar(pool, pagamento.id, 'PIX expirado');
     }
   }

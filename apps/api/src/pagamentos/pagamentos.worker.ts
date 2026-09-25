@@ -36,35 +36,41 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
     this.rodando = true;
     try {
       for (const slug of await this.db.listActiveTenantSlugs()) {
-        const pt = await this.provedores.obter(slug);
-        if (!pt) continue;
-        const pool = await this.db.getTenantPool(slug);
-        await this.webhooks.processar(pool, pt.provedor);
-        const { rows } = await pool.query(
-          `select id, provedor_ref, expira_em from pagamentos
-            where status = 'pendente' and provedor = $1 order by criado_em limit 50`,
-          [pt.provedor.nome],
-        );
-        for (const p of rows) {
-          const ini = Date.now();
-          try {
-            const s = await pt.provedor.consultar(p.provedor_ref);
-            await this.pagamentos.aplicarSituacao(pool, p, s);
-            if (s.status !== 'pendente') {
+        try {
+          const pt = await this.provedores.obter(slug);
+          if (!pt) continue;
+          const pool = await this.db.getTenantPool(slug);
+          await this.webhooks.processar(pool, pt.provedor);
+          const { rows } = await pool.query(
+            `select id, provedor_ref, expira_em from pagamentos
+              where status = 'pendente' and provedor = $1 order by criado_em limit 50`,
+            [pt.provedor.nome],
+          );
+          for (const p of rows) {
+            const ini = Date.now();
+            try {
+              const s = await pt.provedor.consultar(p.provedor_ref);
+              await this.pagamentos.aplicarSituacao(pool, p, s);
+              if (s.status !== 'pendente') {
+                await pool.query(
+                  `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
+                   values ($4,'fluxo_para_erp',$1,$2,true,$3)`,
+                  [p.provedor_ref, s.status, Date.now() - ini, `${pt.provedor.nome}_consulta`],
+                );
+              }
+            } catch (e) {
+              this.log.warn(`consulta ${slug}/${p.provedor_ref}: ${e}`);
               await pool.query(
                 `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
-                 values ($4,'fluxo_para_erp',$1,$2,true,$3)`,
-                [p.provedor_ref, s.status, Date.now() - ini, `${pt.provedor.nome}_consulta`],
+                 values ($4,'fluxo_para_erp',$1,$2,false,$3)`,
+                [p.provedor_ref, String(e).slice(0, 500), Date.now() - ini, `${pt.provedor.nome}_consulta`],
               );
             }
-          } catch (e) {
-            this.log.warn(`consulta ${slug}/${p.provedor_ref}: ${e}`);
-            await pool.query(
-              `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso, duracao_ms)
-               values ($4,'fluxo_para_erp',$1,$2,false,$3)`,
-              [p.provedor_ref, String(e).slice(0, 500), Date.now() - ini, `${pt.provedor.nome}_consulta`],
-            );
           }
+        } catch (e) {
+          // Credencial quebrada ou banco fora do ar de UM tenant não pode parar os outros.
+          this.log.error(`tenant ${slug}: ${e}`);
+          continue;
         }
       }
     } catch (e) {

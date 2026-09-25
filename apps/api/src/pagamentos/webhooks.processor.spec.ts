@@ -20,7 +20,12 @@ describe('WebhooksProcessor', () => {
     expect(query.mock.calls[0][1]).toEqual(['mock']);
     expect(query.mock.calls[1][1]).toEqual(['mock', 'PED000001X']);
     expect(consultar).toHaveBeenCalledWith('PED000001X');
-    expect(aplicarSituacao).toHaveBeenCalledWith(expect.anything(), { id: 'pag-1', expira_em: expect.any(Date), status: 'pendente' }, expect.objectContaining({ status: 'pago' }));
+    expect(aplicarSituacao).toHaveBeenCalledWith(
+      expect.anything(),
+      { id: 'pag-1', expira_em: expect.any(Date), status: 'pendente' },
+      expect.objectContaining({ status: 'pago' }),
+      { expirarSeVencido: false },
+    );
     const marca = query.mock.calls.find((c) => (c[0] as string).includes('set processado = true'));
     expect(marca![1]).toEqual(['wh-1', null]);
   });
@@ -78,5 +83,39 @@ describe('WebhooksProcessor', () => {
     await proc.processar({ query } as unknown as Pool, provedor);
     const marca = query.mock.calls.find((c) => (c[0] as string).includes('set processado = true'));
     expect(marca![1][1]).toContain('ref REF3: provedor confirmou mas pagamento ficou expirado');
+  });
+
+  it('N1: webhook pendente + provedor ainda responde pendente + prazo já vencido: nunca expira localmente (isso é trabalho do worker)', async () => {
+    const query = jest.fn()
+      .mockResolvedValueOnce({ rows: [{ id: 'wh-4', corpo_bruto: JSON.stringify({ ref: 'REF4', valor: 3 }) }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'pag-4', expira_em: new Date(Date.now() - 60_000), status: 'pendente' }] })
+      .mockResolvedValueOnce({ rows: [{ status: 'pendente' }] }) // re-select: aplicarSituacao não mexeu em nada
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const pagamentos = new PagamentosService();
+    const expirar = jest.spyOn(pagamentos, 'expirar').mockResolvedValue(true);
+    const provedor = new MockProvedor();
+    jest.spyOn(provedor, 'consultar').mockResolvedValue({ status: 'pendente', payload: {} });
+    const proc = new WebhooksProcessor(pagamentos);
+    await proc.processar({ query } as unknown as Pool, provedor);
+    expect(expirar).not.toHaveBeenCalled();
+    const marca = query.mock.calls.find((c) => (c[0] as string).includes('set processado = true'));
+    expect(marca![1]).toEqual(['wh-4', null]);
+  });
+
+  it('N1: webhook pra pagamento que já está pago (entrega duplicada): não consulta o provedor de novo', async () => {
+    const query = jest.fn()
+      .mockResolvedValueOnce({ rows: [{ id: 'wh-5', corpo_bruto: JSON.stringify({ ref: 'REF5', valor: 3 }) }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'pag-5', expira_em: new Date(), status: 'pago' }] })
+      .mockResolvedValue({ rows: [], rowCount: 0 });
+    const pagamentos = new PagamentosService();
+    const aplicarSituacao = jest.spyOn(pagamentos, 'aplicarSituacao');
+    const provedor = new MockProvedor();
+    const consultar = jest.spyOn(provedor, 'consultar');
+    const proc = new WebhooksProcessor(pagamentos);
+    await proc.processar({ query } as unknown as Pool, provedor);
+    expect(consultar).not.toHaveBeenCalled();
+    expect(aplicarSituacao).not.toHaveBeenCalled();
+    const marca = query.mock.calls.find((c) => (c[0] as string).includes('set processado = true'));
+    expect(marca![1]).toEqual(['wh-5', null]);
   });
 });

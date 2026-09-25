@@ -20,9 +20,16 @@ export class WebhookController {
     const corpo = corpoComoTexto(req.body);
     if (!corpo) this.log.warn(`webhook com corpo vazio (content-type=${contentType})`);
     // Tabela também recebe callbacks do MaxiPago (T027); origem precisa refletir o provedor
-    // real do tenant pra o WebhooksProcessor filtrar certo.
-    const pt = await this.provedores.obter(tenant.slug);
-    const origem = pt?.provedor.nome ?? 'desconhecida';
+    // real do tenant pra o WebhooksProcessor filtrar certo. Uma credencial quebrada aqui não
+    // pode derrubar o recebimento do webhook — o Itaú reenvia com erro, e dinheiro real está
+    // em jogo: melhor gravar como 'desconhecida' e responder 200 do que falhar a request.
+    let origem = 'desconhecida';
+    try {
+      const pt = await this.provedores.obter(tenant.slug);
+      origem = pt?.provedor.nome ?? 'desconhecida';
+    } catch (e) {
+      this.log.error(`falha ao obter provedor do tenant ${tenant.slug}: ${e}`);
+    }
     const { rows } = await pool.query(
       `insert into pagamento_webhooks (origem, content_type, corpo_bruto, ip_origem) values ($1, $2, $3, $4) returning id`,
       [origem, contentType ?? null, corpo, ip ?? null],

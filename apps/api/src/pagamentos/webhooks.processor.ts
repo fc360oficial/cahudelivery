@@ -27,15 +27,21 @@ export class WebhooksProcessor {
           );
           const row = pag.rows[0];
           if (!row) { erros.push(`ref ${r.ref} não encontrada`); continue; }
+          // Entrega duplicada: já está pago, não há o que consultar nem aplicar de novo.
+          if (row.status === 'pago') continue;
           // O webhook é só um gatilho: quem manda na verdade é o que o provedor responde agora.
+          // expirarSeVencido: false — um webhook é evidência de que dinheiro se moveu, então
+          // nunca expira localmente por causa dele; só o worker expira por prazo vencido.
           const s = await provedor.consultar(r.ref);
-          await this.pagamentos.aplicarSituacao(pool, row, s);
+          await this.pagamentos.aplicarSituacao(pool, row, s, { expirarSeVencido: false });
           const atual = await pool.query(`select status from pagamentos where id = $1`, [row.id]);
           const statusFinal = atual.rows[0]?.status;
-          if (statusFinal !== 'pago') {
+          if (s.status === 'pago' && statusFinal !== 'pago') {
             const msg = `ref ${r.ref}: provedor confirmou mas pagamento ficou ${statusFinal}`;
             erros.push(msg);
             this.log.error(msg);
+          } else if (s.status === 'pendente') {
+            this.log.warn(`ref ${r.ref}: webhook recebido mas provedor ainda responde pendente`);
           }
         }
       } catch (e) {

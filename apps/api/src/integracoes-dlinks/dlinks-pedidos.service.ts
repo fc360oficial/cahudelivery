@@ -55,6 +55,8 @@ export interface PedidoDlinks {
   condicaoPagamento: string | null;
   itens: Array<{ erpProdutoId: string; quantidade: number; precoUnit: number }>;
   valorAbatidoSaldo: number;
+  /** Presente só quando o pedido foi pago online no app antes de chegar aqui. Opcional; o Dlinks pode ignorar. */
+  pagamentoOnline?: { status: 'pago'; pagoEm: string; txid: string; valor: number };
 }
 
 export interface ResultadoLote {
@@ -77,10 +79,13 @@ export class DlinksPedidosService {
                   'erpProdutoId', coalesce(pr.erp_produto_id, pr.sku),
                   'quantidade', i.quantidade, 'precoUnit', i.preco_unit))
                  from pedido_itens i join produtos pr on pr.id = i.produto_id
-                where i.pedido_id = p.id) as itens
+                where i.pedido_id = p.id) as itens,
+              (select json_build_object('status', g.status, 'pagoEm', g.pago_em, 'txid', g.provedor_ref, 'valor', g.valor_pago)
+                 from pagamentos g where g.pedido_id = p.id and g.status = 'pago' order by g.pago_em desc limit 1) as pagamento_online
          from pedidos p join clientes c on c.id = p.cliente_id
         where p.criado_em >= ($1::date)::timestamp at time zone 'America/Recife'
           and p.criado_em < ($2::date + 1)::timestamp at time zone 'America/Recife'
+          and p.status <> 'AGUARDANDO_PAGAMENTO'
         order by p.criado_em`,
       [dataInicial, dataFinal],
     );
@@ -111,6 +116,7 @@ export class DlinksPedidosService {
         condicaoPagamento: r.condicao_pagamento,
         itens: r.itens ?? [],
         valorAbatidoSaldo: Number(r.valor_saldo_usado) || 0,
+        pagamentoOnline: r.pagamento_online ?? undefined,
       })),
     };
   }

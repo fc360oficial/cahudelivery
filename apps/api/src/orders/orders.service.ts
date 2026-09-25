@@ -1,12 +1,18 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { CatalogService } from '../catalog/catalog.service';
+import { PagamentosService } from '../pagamentos/pagamentos.service';
+import { ProvedoresService } from '../pagamentos/provedores.service';
 
 export type DonoCarrinho = { clienteId?: string; deviceId?: string };
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly catalog: CatalogService) {}
+  constructor(
+    private readonly catalog: CatalogService,
+    private readonly pagamentos: PagamentosService,
+    private readonly provedores: ProvedoresService,
+  ) {}
 
   private async carrinhoId(dono: DonoCarrinho): Promise<string> {
     const { pool } = tenantCtx();
@@ -94,7 +100,7 @@ export class OrdersService {
       usarSaldo?: boolean;
     },
   ) {
-    const { pool } = tenantCtx();
+    const { pool, tenant } = tenantCtx();
     const cliente = await pool.query(`select status from clientes where id = $1`, [clienteId]);
     if (cliente.rows[0]?.status === 'pendente') {
       throw new BadRequestException(
@@ -160,9 +166,14 @@ export class OrdersService {
         const saldo = Number(saldoRow.rows[0].saldo);
         valorSaldoUsado = Math.min(saldo, subtotal);
       }
+      const provedorTenant = dto.formaPagamento === 'pix' ? await this.provedores.obter(tenant.slug) : null;
+      const valorACobrar = Number((subtotal - valorSaldoUsado).toFixed(2));
+      // PIX online só quando o tenant tem provedor e sobra algo a pagar depois do saldo.
+      const pagarOnline = !!provedorTenant && valorACobrar > 0;
+      const statusInicial = pagarOnline ? 'AGUARDANDO_PAGAMENTO' : 'RECEBIDO';
       const ped = await client.query(
-        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado)
-         values ($1,$2,$3,$4,$5,$5,$6,$7,$8) returning id, numero, status, criado_em`,
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado, status)
+         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9) returning id, numero, status, criado_em`,
         [
           clienteId,
           enderecoJson,
@@ -172,6 +183,7 @@ export class OrdersService {
           dto.observacoes ?? null,
           dto.formaPagamento === 'boleto' ? (dto.condicaoPagamento ?? 'À vista') : null,
           valorSaldoUsado,
+          statusInicial,
         ],
       );
       const pedidoId = ped.rows[0].id;
@@ -190,17 +202,29 @@ export class OrdersService {
         );
       }
       await client.query(
-        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'RECEBIDO','Pedido recebido','app')`,
-        [pedidoId],
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'app')`,
+        [pedidoId, statusInicial, pagarOnline ? 'Pedido recebido, aguardando pagamento PIX' : 'Pedido recebido'],
       );
       // Outbox transacional: o worker envia ao ERP; pedido nunca se perde
       await client.query(
         `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
         [pedidoId],
       );
+      let pagamento: import('../pagamentos/pagamentos.service').PagamentoResumo | null = null;
+      if (pagarOnline) {
+        // Falhou no Itaú => exceção => rollback: pedido não existe, app pede pra tentar de novo.
+        try {
+          pagamento = await this.pagamentos.criarParaPedido(client, provedorTenant!.provedor, {
+            pedidoId, numero: ped.rows[0].numero, valor: valorACobrar,
+            expiracaoSegundos: provedorTenant!.expiracaoSegundos, appNome: tenant.appNome,
+          });
+        } catch (e) {
+          throw new BadRequestException('Não foi possível gerar o PIX agora. Tente novamente em instantes.');
+        }
+      }
       await client.query(`delete from carrinho_itens where carrinho_id = (select id from carrinhos where cliente_id = $1)`, [clienteId]);
       await client.query('commit');
-      return ped.rows[0];
+      return { ...ped.rows[0], pagamento };
     } catch (e) {
       await client.query('rollback');
       throw e;
@@ -212,8 +236,11 @@ export class OrdersService {
   async listar(clienteId: string, pagina: number) {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, numero, status, forma_pagamento, total, criado_em
-         from pedidos where cliente_id = $1 order by criado_em desc limit 20 offset $2`,
+      `select p.id, p.numero, p.status, p.forma_pagamento, p.total, p.criado_em,
+              (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
+                      'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
+                 from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
+         from pedidos p where p.cliente_id = $1 order by p.criado_em desc limit 20 offset $2`,
       [clienteId, (pagina - 1) * 20],
     );
     return { dados: rows, pagina };
@@ -244,7 +271,10 @@ export class OrdersService {
         (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'em', e.criado_em) order by e.criado_em)
            from pedido_eventos e where e.pedido_id = p.id) as eventos,
         (select row_to_json(c) from pedido_cobrancas c where c.pedido_id = p.id) as cobranca,
-        (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota
+        (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota,
+        (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
+                'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
+           from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
          from pedidos p where p.id = $1 and p.cliente_id = $2`,
       [pedidoId, clienteId],
     );

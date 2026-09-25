@@ -18,6 +18,7 @@ export interface ItauPixConfig {
 
 const STS_HOST = 'sts.itau.com.br';
 const BASE_PADRAO = 'https://secure.api.itau/pix_recebimentos/v2';
+const TIMEOUT_MS = 15_000;
 
 interface RespostaHttp { status: number; body: any; texto: string }
 
@@ -31,13 +32,7 @@ export class ItauPixProvedor implements ProvedorPagamento {
   constructor(private readonly cfg: ItauPixConfig) {}
 
   async criarCobranca(p: NovaCobranca): Promise<CobrancaCriada> {
-    const corpo = {
-      calendario: { expiracao: p.expiracaoSegundos },
-      valor: { original: p.valor.toFixed(2) },
-      chave: this.cfg.chavePix,
-      solicitacaoPagador: p.descricao.slice(0, 140),
-      ...(p.pagador ? { devedor: p.pagador.documento.length > 11 ? { cnpj: p.pagador.documento, nome: p.pagador.nome } : { cpf: p.pagador.documento, nome: p.pagador.nome } } : {}),
-    };
+    const corpo = montarCorpoCob(p, this.cfg.chavePix);
     const r = await this.chamar('PUT', `/cob/${p.ref}`, corpo);
     if (r.status < 200 || r.status >= 300) {
       throw new Error(`Itaú PIX cob ${r.status}: ${r.texto.slice(0, 300)}`);
@@ -94,6 +89,7 @@ export class ItauPixProvedor implements ProvedorPagamento {
     if (r.status !== 200 || !r.body?.access_token) throw new Error(`Itaú STS ${r.status}: ${r.texto.slice(0, 200)}`);
     // expires_in = 300; renova com 1 min de folga.
     this.token = { valor: r.body.access_token, expiraEm: Date.now() + (Number(r.body.expires_in) || 300) * 1000 - 60_000 };
+    this.log.log('token renovado');
     return this.token.valor;
   }
 
@@ -115,6 +111,7 @@ export class ItauPixProvedor implements ProvedorPagamento {
     };
     let r = await tentar();
     if (r.status === 401) { // token invalidado no meio: renova uma vez
+      this.log.warn('token 401, renovando uma vez');
       this.token = null;
       r = await tentar();
     }
@@ -132,11 +129,28 @@ export class ItauPixProvedor implements ProvedorPagamento {
           resolve({ status: res.statusCode ?? 0, body, texto });
         });
       });
+      req.setTimeout(TIMEOUT_MS, () => req.destroy(new Error('Itaú: tempo esgotado na chamada')));
       req.on('error', reject);
       if (data) req.write(data);
       req.end();
     });
   }
+}
+
+/** Corpo do PUT /cob/{txid}: saneia o documento do devedor (só dígitos) antes de decidir CPF x CNPJ. */
+export function montarCorpoCob(p: NovaCobranca, chavePix: string): Record<string, unknown> {
+  return {
+    calendario: { expiracao: p.expiracaoSegundos },
+    valor: { original: p.valor.toFixed(2) },
+    chave: chavePix,
+    solicitacaoPagador: p.descricao.slice(0, 140),
+    ...(p.pagador
+      ? (() => {
+          const doc = p.pagador!.documento.replace(/\D/g, '');
+          return { devedor: doc.length > 11 ? { cnpj: doc, nome: p.pagador!.nome } : { cpf: doc, nome: p.pagador!.nome } };
+        })()
+      : {}),
+  };
 }
 
 export function traduzirStatusItau(body: any): SituacaoCobranca {

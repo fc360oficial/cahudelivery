@@ -1,4 +1,4 @@
-import { ItauPixProvedor, traduzirStatusItau } from './itau-pix.provedor';
+import { ItauPixProvedor, montarCorpoCob, traduzirStatusItau } from './itau-pix.provedor';
 
 const cfg = {
   chavePix: '61920643000148', nomeRecebedor: 'CAHU DISTRIBUIDORA', cidade: 'RECIFE',
@@ -42,5 +42,14 @@ describe('ItauPixProvedor', () => {
     const montado = p.copiaColaDaResposta({ location: 'qrcodepix.itau.com.br/x' }, 'PED000001AAAAAAAAAAAAAAAAAAAAA');
     expect(montado).toContain('br.gov.bcb.pix');
     expect(montado).toContain('qrcodepix.itau.com.br/x');
+  });
+
+  it('montarCorpoCob saneia o documento do pagador antes de decidir CPF x CNPJ', () => {
+    const base = { ref: 'PED000003CCCC', valor: 10, expiracaoSegundos: 1800, descricao: 'Pedido #3' };
+    const cnpj = montarCorpoCob({ ...base, pagador: { documento: '61.920.643/0001-48', nome: 'CAHU' } }, cfg.chavePix);
+    expect((cnpj as any).devedor).toEqual({ cnpj: '61920643000148', nome: 'CAHU' });
+
+    const cpf = montarCorpoCob({ ...base, pagador: { documento: '123.456.789-09', nome: 'Cliente' } }, cfg.chavePix);
+    expect((cpf as any).devedor).toEqual({ cpf: '12345678909', nome: 'Cliente' });
   });
 });

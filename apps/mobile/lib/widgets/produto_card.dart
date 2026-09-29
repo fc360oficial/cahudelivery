@@ -29,78 +29,126 @@ class ProdutoCard extends StatelessWidget {
     final emPromocao = produto['preco_promocional'] != null;
     final semEstoque = asDouble(produto['estoque']) <= 0;
     final produtoId = produto['id'] as String;
+    final scheme = Theme.of(context).colorScheme;
 
-    return SizedBox(
-      width: largura,
-      child: Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ProdutoScreen(produtoId: produtoId)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1.0,
-                    child: imagemUrl != null
-                        // contain + fundo branco: foto padronizada já é quadrada; foto antiga
-                        // (proporção qualquer) aparece inteira em vez de cortada.
-                        ? Container(
-                            color: Colors.white,
-                            child: Image.network(imagemUrl, fit: BoxFit.contain,
-                                errorBuilder: (_, e, s) => _semFoto()))
-                        : _semFoto(),
-                  ),
-                  Positioned(top: 8, right: 8, child: _BotaoFavorito(produtoId: produtoId)),
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(_unidade(produto),
-                          style: TextStyle(
-                              fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.grey.shade700)),
-                    ),
-                  ),
-                  if (!semEstoque)
-                    Positioned(bottom: 8, right: 8, child: _BotaoAdicionar(produto: produto)),
-                ],
+    return ListenableBuilder(
+      listenable: CarrinhoStore.instance,
+      builder: (context, _) {
+        // Item já no carrinho: borda na cor da marca + selo com a quantidade,
+        // pra quem rolou a lista lembrar o que já pegou.
+        final qtdCarrinho = CarrinhoStore.instance.quantidadeDe(produtoId);
+        final noCarrinho = qtdCarrinho > 0;
+        return SizedBox(
+          width: largura,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: noCarrinho ? scheme.primary : Colors.transparent,
+                width: 2,
               ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      semEstoque
-                          ? const Text('Sem estoque',
-                              style: TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w800, color: Colors.grey))
-                          : _blocoPreco(produto, emPromocao),
-                      const SizedBox(height: 4),
-                      Text(
-                        produto['nome'] ?? '',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, height: 1.2),
-                      ),
-                      _blocoSelos(produto),
-                    ],
-                  ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProdutoScreen(produtoId: produtoId),
                 ),
               ),
-            ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      AspectRatio(
+                        aspectRatio: 1.0,
+                        child: imagemUrl != null
+                            // contain + fundo branco: foto padronizada já é quadrada; foto antiga
+                            // (proporção qualquer) aparece inteira em vez de cortada.
+                            ? Container(
+                                color: Colors.white,
+                                child: Image.network(
+                                  imagemUrl,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, e, s) => _semFoto(),
+                                ),
+                              )
+                            : _semFoto(),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: _BotaoFavorito(produtoId: produtoId),
+                      ),
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            _unidade(produto),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (!semEstoque)
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: _BotaoAdicionar(produto: produto),
+                        ),
+                    ],
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          semEstoque
+                              ? const Text(
+                                  'Sem estoque',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                              : _blocoPreco(produto, emPromocao),
+                          const SizedBox(height: 4),
+                          Text(
+                            produto['nome'] ?? '',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.2,
+                            ),
+                          ),
+                          _blocoSelos(produto, qtdCarrinho, scheme.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -119,7 +167,8 @@ class ProdutoCard extends StatelessWidget {
     if (dataValidade == null) return null;
     final validade = DateTime.tryParse(dataValidade);
     if (validade == null) return null;
-    final diasLimiteRaw = TenantTheme.instance.configuracoes['dias_vencimento_proximo'];
+    final diasLimiteRaw =
+        TenantTheme.instance.configuracoes['dias_vencimento_proximo'];
     if (diasLimiteRaw == null) return null;
     final diasLimite = asDouble(diasLimiteRaw).toInt();
     final diasRestantes = validade.difference(DateTime.now()).inDays;
@@ -127,12 +176,18 @@ class ProdutoCard extends StatelessWidget {
       return _selo('Vencido', Colors.red.shade50, Colors.red.shade700);
     }
     if (diasRestantes > diasLimite) return null;
-    return _selo('Val. ${_formatarData(dataValidade)}', Colors.red.shade50, Colors.red.shade700);
+    return _selo(
+      'Val. ${_formatarData(dataValidade)}',
+      Colors.red.shade50,
+      Colors.red.shade700,
+    );
   }
 
   static bool _estoqueBaixo(Map<String, dynamic> produto) {
     final estoque = asDouble(produto['estoque']);
-    final limite = asDouble(TenantTheme.instance.configuracoes['limite_estoque_baixo']);
+    final limite = asDouble(
+      TenantTheme.instance.configuracoes['limite_estoque_baixo'],
+    );
     return estoque > 0 && limite > 0 && estoque <= limite;
   }
 
@@ -160,14 +215,20 @@ class ProdutoCard extends StatelessWidget {
               TextSpan(
                 text: moeda(unit),
                 style: TextStyle(
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    color: emPromocao ? Colors.green.shade700 : const Color(0xFF1A1A1A)),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: emPromocao
+                      ? Colors.green.shade700
+                      : const Color(0xFF1A1A1A),
+                ),
                 children: [
                   TextSpan(
                     text: ' /un',
                     style: TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
@@ -180,9 +241,14 @@ class ProdutoCard extends StatelessWidget {
                   color: Colors.green.shade600,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: Text('$percentual% OFF',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                child: Text(
+                  '$percentual% OFF',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               Text(
                 moeda(precoUnitario(produto, campoPreco: 'preco_tabela')),
@@ -198,8 +264,10 @@ class ProdutoCard extends StatelessWidget {
         if (porEmb > 1)
           Padding(
             padding: const EdgeInsets.only(top: 2),
-            child: Text('${moeda(produto['preco'])} ${nomeUnidadeDe(produto)}',
-                style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+            child: Text(
+              '${moeda(produto['preco'])} ${nomeUnidadeDe(produto)}',
+              style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+            ),
           ),
       ],
     );
@@ -207,40 +275,97 @@ class ProdutoCard extends StatelessWidget {
 
   /// Selos empilhados abaixo do nome: desconto por quantidade, estoque baixo,
   /// validade próxima — mantidos do design anterior.
-  static Widget _blocoSelos(Map<String, dynamic> produto) {
+  static Widget _blocoSelos(
+    Map<String, dynamic> produto,
+    double qtdCarrinho,
+    Color corMarca,
+  ) {
     final descontoQtdMinima = produto['desconto_qtd_minima'] as int?;
     final descontoQtdPreco = produto['desconto_qtd_preco'];
     final dataValidade = produto['data_validade'] as String?;
     final selos = <Widget>[];
+    if (qtdCarrinho > 0) {
+      final qtd = qtdCarrinho % 1 == 0
+          ? qtdCarrinho.toInt().toString()
+          : '$qtdCarrinho';
+      selos.add(
+        _selo(
+          'No carrinho · $qtd ${siglaUnidade(produto)}',
+          corMarca.withValues(alpha: 0.28),
+          const Color(0xFF1A1A1A),
+          icone: Icons.shopping_cart_outlined,
+        ),
+      );
+    }
     if (descontoQtdMinima != null && descontoQtdPreco != null) {
-      selos.add(_selo('a partir de $descontoQtdMinima un: ${moeda(descontoQtdPreco)}',
-          Colors.green.shade50, Colors.green.shade800));
+      selos.add(
+        _selo(
+          'a partir de $descontoQtdMinima un: ${moeda(descontoQtdPreco)}',
+          Colors.green.shade50,
+          Colors.green.shade800,
+        ),
+      );
     }
     if (_estoqueBaixo(produto)) {
-      selos.add(_selo('${asDouble(produto['estoque']).toInt()} ${siglaUnidade(produto)} em estoque',
-          Colors.orange.shade50, Colors.orange.shade800));
+      selos.add(
+        _selo(
+          '${asDouble(produto['estoque']).toInt()} ${siglaUnidade(produto)} em estoque',
+          Colors.orange.shade50,
+          Colors.orange.shade800,
+        ),
+      );
     }
     final seloValidade = _seloValidade(dataValidade);
     if (seloValidade != null) selos.add(seloValidade);
     if (selos.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: selos);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: selos,
+    );
   }
 
-  static Widget _selo(String texto, Color fundo, Color cor) {
+  static Widget _selo(String texto, Color fundo, Color cor, {IconData? icone}) {
+    final estilo = TextStyle(
+      fontSize: 10.5,
+      fontWeight: FontWeight.w700,
+      color: cor,
+    );
     return Padding(
       padding: const EdgeInsets.only(top: 3),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(6)),
-        child: Text(texto, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: cor)),
+        decoration: BoxDecoration(
+          color: fundo,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: icone == null
+            ? Text(texto, style: estilo)
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icone, size: 12, color: cor),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      texto,
+                      style: estilo,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
 
   Widget _semFoto() => Container(
-        color: Colors.grey.shade100,
-        child: Icon(Icons.inventory_2_outlined, size: 40, color: Colors.grey.shade400),
-      );
+    color: Colors.grey.shade100,
+    child: Icon(
+      Icons.inventory_2_outlined,
+      size: 40,
+      color: Colors.grey.shade400,
+    ),
+  );
 }
 
 /// Coração de favoritar: contorno se não favoritado, preenchido/vermelho se
@@ -260,8 +385,9 @@ class _BotaoFavoritoState extends State<_BotaoFavorito> {
   Future<void> _tocar(BuildContext context) async {
     if (_enviando) return;
     if (!ApiClient.instance.logado) {
-      final ok = await Navigator.of(context)
-          .push<bool>(MaterialPageRoute(builder: (_) => const EntrarOuCriarScreen()));
+      final ok = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const EntrarOuCriarScreen()),
+      );
       if (ok != true || !context.mounted) return;
     }
     setState(() => _enviando = true);
@@ -269,7 +395,9 @@ class _BotaoFavoritoState extends State<_BotaoFavorito> {
       await FavoritosStore.instance.alternar(widget.produtoId);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _enviando = false);
@@ -287,10 +415,16 @@ class _BotaoFavoritoState extends State<_BotaoFavorito> {
           borderRadius: BorderRadius.circular(20),
           child: Container(
             padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(color: Colors.white70, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+              color: Colors.white70,
+              shape: BoxShape.circle,
+            ),
             child: _enviando
                 ? const SizedBox(
-                    width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : Icon(
                     ativo ? Icons.favorite : Icons.favorite_border,
                     size: 18,
@@ -382,9 +516,9 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
       await store.definirQuantidade(id, nova);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _enviando = false);
@@ -397,7 +531,9 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
     return ListenableBuilder(
       listenable: CarrinhoStore.instance,
       builder: (context, _) {
-        final qtd = CarrinhoStore.instance.quantidadeDe(widget.produto['id'] as String);
+        final qtd = CarrinhoStore.instance.quantidadeDe(
+          widget.produto['id'] as String,
+        );
         if (qtd <= 0 || !_aberto) {
           return SizedBox(
             height: 40,
@@ -405,32 +541,45 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size(40, 40),
                 padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 backgroundColor: scheme.primary,
               ),
-              onPressed: _enviando ? null : () => qtd > 0 ? _manterAberto(focar: true) : _mudar(1),
+              onPressed: _enviando
+                  ? null
+                  : () => qtd > 0 ? _manterAberto(focar: true) : _mudar(1),
               child: _enviando
                   ? SizedBox(
-                      width: 14, height: 14,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: scheme.onPrimary))
+                        strokeWidth: 2,
+                        color: scheme.onPrimary,
+                      ),
+                    )
                   : qtd > 0
-                      ? Text(qtd % 1 == 0 ? qtd.toInt().toString() : '$qtd',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w800, color: scheme.onPrimary))
-                      : const Icon(Icons.add, size: 24),
+                  ? Text(
+                      qtd % 1 == 0 ? qtd.toInt().toString() : '$qtd',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: scheme.onPrimary,
+                      ),
+                    )
+                  : const Icon(Icons.add, size: 24),
             ),
           );
         }
         Widget acao(IconData icone, double delta) => InkWell(
-              onTap: _enviando ? null : () => _mudar(delta),
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 32,
-                height: 40,
-                child: Icon(icone, size: 18, color: scheme.onPrimary),
-              ),
-            );
+          onTap: _enviando ? null : () => _mudar(delta),
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            width: 32,
+            height: 40,
+            child: Icon(icone, size: 18, color: scheme.onPrimary),
+          ),
+        );
         return Container(
           height: 40,
           decoration: BoxDecoration(
@@ -443,9 +592,13 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
               acao(Icons.remove, -1),
               _enviando
                   ? SizedBox(
-                      width: 14, height: 14,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: scheme.onPrimary))
+                        strokeWidth: 2,
+                        color: scheme.onPrimary,
+                      ),
+                    )
                   : QuantidadeEditavel(
                       quantidade: qtd,
                       minimo: () {
@@ -462,9 +615,10 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
                       corFoco: Colors.white.withValues(alpha: 0.55),
                       nomeUnidade: siglaUnidade(widget.produto),
                       style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: scheme.onPrimary),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: scheme.onPrimary,
+                      ),
                       onEditando: _editandoMudou,
                       onConfirmar: _definir,
                     ),

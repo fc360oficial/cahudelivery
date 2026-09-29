@@ -93,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // Logo do tenant na Home; sem asset, cai no nome do app em texto.
         title: Image.asset(
           AppBuildConfig.logoAsset,
-          height: 38,
+          height: 27,
           errorBuilder: (_, e, s) =>
               Text(t.appNome, style: const TextStyle(fontWeight: FontWeight.w800)),
         ),

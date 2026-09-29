@@ -198,9 +198,9 @@ export function PedidoDetalhe() {
                 </>
               ) : p.forma_pagamento === 'cartao' ? (
                 <span style={{ color: 'var(--texto-2)' }}>Cliente paga na maquininha ao receber o pedido</span>
-              ) : (
+              ) : p.status === 'RECEBIDO' || p.status === 'ENVIADO_ERP' ? (
                 <span style={{ color: 'var(--texto-2)' }}>Aguardando o ERP gerar a cobrança</span>
-              )}
+              ) : null}
             </div>
             {p.nota && (
               <div style={{ marginTop: 8 }}>

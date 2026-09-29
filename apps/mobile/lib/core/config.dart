@@ -9,12 +9,14 @@ class AppBuildConfig {
 
   static const _apiUrlDefine = String.fromEnvironment('API_URL');
 
-  /// Sem API_URL explícita: no web usa o mesmo host que serviu o app
-  /// (funciona no notebook e no celular mesmo quando o IP da rede muda);
-  /// no Android usa 10.0.2.2 (localhost visto de dentro do emulador).
+  /// Sem API_URL explícita: no web usa a mesma origem que serviu o app
+  /// (em produção https://cahudelivery.duckdns.org/app/ → .../v1, via Caddy;
+  /// em dev local, servido de localhost:3000, também cai na API). Porta 3000
+  /// fixa quebrava em produção: https→http:3000 é bloqueado pelo navegador
+  /// (achado 29/09/26). No Android usa 10.0.2.2 (localhost do emulador).
   static String get apiUrl {
     if (_apiUrlDefine.isNotEmpty) return _apiUrlDefine;
-    if (kIsWeb) return 'http://${Uri.base.host}:3000/v1';
+    if (kIsWeb) return '${Uri.base.origin}/v1';
     return 'http://10.0.2.2:3000/v1';
   }
 

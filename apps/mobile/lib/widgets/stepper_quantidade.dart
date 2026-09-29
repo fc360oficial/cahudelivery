@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'quantidade_editavel.dart';
+
 /// Stepper de quantidade com respeito à qtd mínima do produto e ao estoque.
+/// O número do meio é editável (toque abre o teclado).
 /// No "-" abaixo do mínimo: chama onMudar(0) (remoção) se permitirRemover,
 /// senão o botão desabilita.
 class StepperQuantidade extends StatelessWidget {
@@ -55,14 +58,15 @@ class StepperQuantidade extends StatelessWidget {
             podeMenos,
             () => onMudar(quantidade - 1 < min ? 0 : quantidade - 1),
           ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-            child: Text(
-              quantidade % 1 == 0 ? quantidade.toInt().toString() : quantidade.toString(),
-              key: ValueKey(quantidade),
-              style: TextStyle(fontSize: compacto ? 14 : 16, fontWeight: FontWeight.w700),
-            ),
+          QuantidadeEditavel(
+            quantidade: quantidade,
+            minimo: min,
+            maximo: maximo,
+            permitirRemover: permitirRemover,
+            largura: compacto ? 40 : 48,
+            corFoco: const Color(0xFFFFF3B0),
+            style: TextStyle(fontSize: compacto ? 14 : 16, fontWeight: FontWeight.w700, color: cor),
+            onConfirmar: onMudar,
           ),
           botao(Icons.add, podeMais, () => onMudar(quantidade + 1)),
         ],

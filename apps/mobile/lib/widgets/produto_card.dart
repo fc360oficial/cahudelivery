@@ -8,6 +8,7 @@ import '../core/formatadores.dart';
 import '../core/tenant_theme.dart';
 import '../features/auth/entrar_ou_criar_screen.dart';
 import '../features/catalog/produto_screen.dart';
+import 'quantidade_editavel.dart';
 
 /// Card de produto usado nas vitrines da Home (largura fixa) e nas grades
 /// de categoria/busca (largura fluida). Preço já vem resolvido pela API
@@ -317,14 +318,35 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
   // Card mostra só o "+"; o controle "− qtd +" abre ao tocar e se recolhe
   // sozinho depois de alguns segundos (a quantidade continua no carrinho).
   bool _aberto = false;
+  // Toque no número abre o controle já com o teclado (campo editável).
+  bool _focarAoAbrir = false;
+  bool _editando = false;
   Timer? _fechar;
 
-  void _manterAberto() {
+  void _manterAberto({bool focar = false}) {
     _fechar?.cancel();
-    setState(() => _aberto = true);
-    _fechar = Timer(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _aberto = false);
+    setState(() {
+      _aberto = true;
+      if (focar) _focarAoAbrir = true;
     });
+    _agendarFechar();
+  }
+
+  void _agendarFechar() {
+    _fechar?.cancel();
+    _fechar = Timer(const Duration(seconds: 3), () {
+      if (mounted && !_editando) setState(() => _aberto = false);
+    });
+  }
+
+  void _editandoMudou(bool editando) {
+    _editando = editando;
+    _focarAoAbrir = false;
+    if (editando) {
+      _fechar?.cancel();
+    } else {
+      _agendarFechar();
+    }
   }
 
   @override
@@ -347,6 +369,13 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
       nova = atual + delta;
       if (nova < min) nova = 0; // abaixo do mínimo remove do carrinho
     }
+    await _definir(nova);
+  }
+
+  Future<void> _definir(double nova) async {
+    if (_enviando) return;
+    final store = CarrinhoStore.instance;
+    final id = widget.produto['id'] as String;
     _manterAberto();
     setState(() => _enviando = true);
     try {
@@ -379,7 +408,7 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 backgroundColor: scheme.primary,
               ),
-              onPressed: _enviando ? null : () => qtd > 0 ? _manterAberto() : _mudar(1),
+              onPressed: _enviando ? null : () => qtd > 0 ? _manterAberto(focar: true) : _mudar(1),
               child: _enviando
                   ? SizedBox(
                       width: 14, height: 14,
@@ -417,11 +446,28 @@ class _BotaoAdicionarState extends State<_BotaoAdicionar> {
                       width: 14, height: 14,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: scheme.onPrimary))
-                  : Text(qtd % 1 == 0 ? qtd.toInt().toString() : '$qtd',
+                  : QuantidadeEditavel(
+                      quantidade: qtd,
+                      minimo: () {
+                        final m = asDouble(widget.produto['qtd_minima']);
+                        return m > 1 ? m : 1.0;
+                      }(),
+                      maximo: () {
+                        final e = asDouble(widget.produto['estoque']);
+                        return e > 0 ? e : null;
+                      }(),
+                      permitirRemover: true,
+                      autofocus: _focarAoAbrir,
+                      largura: 40,
+                      corFoco: Colors.white.withValues(alpha: 0.55),
+                      nomeUnidade: siglaUnidade(widget.produto),
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
-                          color: scheme.onPrimary)),
+                          color: scheme.onPrimary),
+                      onEditando: _editandoMudou,
+                      onConfirmar: _definir,
+                    ),
               acao(Icons.add, 1),
             ],
           ),

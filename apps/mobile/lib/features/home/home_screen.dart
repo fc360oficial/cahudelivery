@@ -123,6 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _vitrine(
                         'Ofertas da Semana',
                         _home!['promocoes'] as List? ?? const [],
+                        destaque: true,
                         verTodos: () => Navigator.of(context).push(MaterialPageRoute(
                             builder: (_) => const ProdutosScreen(
                                 somentePromocao: true, titulo: 'Ofertas da Semana'))),
@@ -231,9 +232,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _vitrine(String titulo, List produtos, {VoidCallback? verTodos}) {
+  /// [destaque]: só a vitrine de Ofertas ganha um bloco branco com sombra
+  /// sobre o fundo da Home, pra se diferenciar das outras vitrines (decisão
+  /// do Tiago, 30/09/2026 — só o bloco, cards e cores seguem iguais).
+  Widget _vitrine(String titulo, List produtos,
+      {VoidCallback? verTodos, bool destaque = false}) {
     if (produtos.isEmpty) return const SizedBox.shrink();
-    return Column(
+    final coluna = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
@@ -260,7 +265,24 @@ class _HomeScreenState extends State<HomeScreen> {
                 ProdutoCard(produto: produtos[i] as Map<String, dynamic>, largura: 168),
           ),
         ),
+        if (destaque) const SizedBox(height: 8),
       ],
+    );
+    if (!destaque) return coluna;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: coluna,
     );
   }
 }

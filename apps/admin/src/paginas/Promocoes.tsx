@@ -135,8 +135,10 @@ export function Promocoes() {
                 <div key={p.id} className={`promo-item${sel ? ' sel' : ''}`} onClick={() => alternar(p)} role="checkbox" aria-checked={sel}>
                   <span className="promo-check">{sel ? '✓' : ''}</span>
                   {p.imagem ? <img src={p.imagem} alt="" loading="lazy" /> : <span className="promo-sem-foto" />}
-                  <div className="promo-nome">{p.nome}</div>
-                  <div className="promo-sub">{p.categoria ?? 'Sem categoria'} · est. {Number(p.estoque).toLocaleString('pt-BR')}</div>
+                  <div className="texto">
+                    <div className="promo-nome">{p.nome}</div>
+                    <div className="promo-sub">{p.categoria ?? 'Sem categoria'} · est. {Number(p.estoque).toLocaleString('pt-BR')}</div>
+                  </div>
                   <div className="promo-preco">{p.preco ? fmtMoeda(p.preco) : 'sem preço'}</div>
                 </div>
               );

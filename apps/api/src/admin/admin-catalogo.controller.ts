@@ -249,6 +249,32 @@ export class AdminCatalogoController {
   }
 
   /** Busca leve de produtos para o seletor de promoções/banners. */
+  /**
+   * Produtos que PODEM entrar numa promoção: ativos, com estoque no CD e com foto
+   * (o app esconde item sem estoque e o card sem foto fica feio). Lista inteira,
+   * ~170 itens, pra tela de Ofertas selecionar por clique em vez de digitar.
+   */
+  @Get('promocoes-produtos')
+  async promocoesProdutos() {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select p.id, p.sku, p.nome, p.unidade_venda, p.qtd_por_embalagem,
+              c.id as categoria_id, c.nome as categoria,
+              coalesce(e.quantidade, 0) as estoque,
+              (select pr.preco from precos pr join tabelas_preco t on t.id = pr.tabela_preco_id and t.padrao
+                where pr.produto_id = p.id limit 1) as preco,
+              (select coalesce(pi.url_miniatura, pi.url) from produto_imagens pi
+                where pi.produto_id = p.id order by pi.ordem limit 1) as imagem
+         from produtos p
+         left join categorias c on c.id = p.categoria_id
+         left join estoques e on e.produto_id = p.id
+        where p.ativo and coalesce(e.quantidade, 0) > 0
+          and exists (select 1 from produto_imagens pi where pi.produto_id = p.id)
+        order by c.nome nulls last, p.nome`,
+    );
+    return rows;
+  }
+
   @Get('produtos-busca')
   async produtosBusca(@Query('q') q = '') {
     const { pool } = tenantCtx();

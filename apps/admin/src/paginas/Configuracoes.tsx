@@ -9,6 +9,8 @@ interface Config {
   limite_estoque_baixo?: number;
   dias_vencimento_proximo?: number;
   indicacoes_ativas?: boolean;
+  cartao_em_breve?: boolean;
+  contato_whatsapp?: string;
 }
 
 export function Configuracoes() {
@@ -80,6 +82,23 @@ export function Configuracoes() {
             ))}
           </div>
           <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>Só as formas marcadas aparecem no checkout do app. Cartão = crédito/débito na maquininha, na entrega (sem cobrança online).</div>
+          {!formas.includes('cartao') && (
+            <div style={{ marginTop: 12 }}>
+              <div className="filtros" style={{ marginBottom: 0 }}>
+                <button type="button" className={`pill-filtro ${cfg.cartao_em_breve ? 'ativo' : ''}`} onClick={() => setCfg({ ...cfg, cartao_em_breve: !cfg.cartao_em_breve })}>
+                  Mostrar "Cartão de crédito — em breve" no app
+                </button>
+              </div>
+              <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>Com o cartão desligado, o app mostra o cartão travado com o selo "Em breve" e orienta a comprar direto na distribuidora (sem prometer prazo). Desmarque para simplesmente esconder o cartão.</div>
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="rotulo">WhatsApp da distribuidora</div>
+          <input value={cfg.contato_whatsapp ?? ''} onChange={(e) => setCfg({ ...cfg, contato_whatsapp: e.target.value })}
+            placeholder="(81) 99999-9999" style={{ marginTop: 8, width: 200 }} />
+          <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>Número usado pelo botão "Falar com a distribuidora" no app (ex.: no aviso do cartão em breve). Vazio = sem botão.</div>
         </div>
 
         <div className="card">

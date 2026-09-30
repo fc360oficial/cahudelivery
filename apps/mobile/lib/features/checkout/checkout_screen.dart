@@ -6,6 +6,7 @@ import '../../core/formatadores.dart';
 import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../profile/endereco_form_screen.dart';
+import 'cartao_em_breve.dart';
 import 'pagamento_pix_screen.dart';
 import 'pedido_sucesso_screen.dart';
 
@@ -467,6 +468,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           opcao(f.codigo, f.icone, f.titulo, f.descricao),
           if (f.codigo == 'boleto' && _pagamento == 'boleto') _condicoesBoleto(),
         ],
+        // Cartão travado "Em breve" (Fase 1): só quando a retaguarda ligou o
+        // aviso e o cartão está fora das formas aceitas.
+        if (mostrarCartaoEmBreve(TenantTheme.instance.configuracoes))
+          CartaoEmBreveCard(
+            whatsapp: TenantTheme.instance.configuracoes['contato_whatsapp'] as String?,
+            horario: _horarioAtendimento(),
+          ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.all(14),
@@ -489,6 +497,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       ],
     );
+  }
+
+  /// "Seg–Sex 08:00-18:00 · Sáb 08:00-12:00" a partir da config
+  /// 'horario_atendimento' da retaguarda; nulo se não preenchida.
+  String? _horarioAtendimento() {
+    final h = TenantTheme.instance.configuracoes['horario_atendimento'] as Map?;
+    if (h == null) return null;
+    final partes = <String>[
+      if ('${h['seg_sex'] ?? ''}'.trim().isNotEmpty) 'Seg–Sex ${h['seg_sex']}',
+      if ('${h['sab'] ?? ''}'.trim().isNotEmpty) 'Sáb ${h['sab']}',
+    ];
+    return partes.isEmpty ? null : partes.join(' · ');
   }
 
   /// Prazos de boleto disponíveis pro cliente. Placeholder até a integração

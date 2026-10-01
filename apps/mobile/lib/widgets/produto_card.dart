@@ -15,10 +15,14 @@ import 'quantidade_editavel.dart';
 /// (promoção vigente vence a tabela do cliente). Visual estilo Praso: sem
 /// moldura de Card, coração/selo de embalagem/botão "+" sobrepostos na foto.
 class ProdutoCard extends StatelessWidget {
-  const ProdutoCard({super.key, required this.produto, this.largura});
+  const ProdutoCard({super.key, required this.produto, this.largura, this.alturaNatural = false});
 
   final Map<String, dynamic> produto;
   final double? largura;
+  /// true = o card tem a altura do próprio conteúdo (foto + preço + nome + selos), sem
+  /// esticar pra preencher a faixa. Usado nas vitrines em caixa branca (Ofertas,
+  /// patrocinador), onde o espaço vazio do card branco parecia borda gorda da caixa.
+  final bool alturaNatural;
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +62,7 @@ class ProdutoCard extends StatelessWidget {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: alturaNatural ? MainAxisSize.min : MainAxisSize.max,
                 children: [
                   Stack(
                     children: [
@@ -111,8 +116,9 @@ class ProdutoCard extends StatelessWidget {
                         ),
                     ],
                   ),
-                  Expanded(
-                    child: Padding(
+                  _esticar(
+                    alturaNatural,
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,6 +159,10 @@ class ProdutoCard extends StatelessWidget {
   }
 
   static String _unidade(Map<String, dynamic> p) => descricaoEmbalagem(p);
+
+  /// Na grade (altura fixa) o bloco de texto preenche o resto do card; na vitrine
+  /// em caixa ele fica do tamanho do conteúdo.
+  static Widget _esticar(bool natural, Widget filho) => natural ? filho : Expanded(child: filho);
 
   static String _formatarData(String iso) {
     final d = DateTime.tryParse(iso);

@@ -256,19 +256,38 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        SizedBox(
-          // 300 sobra ~20px em branco abaixo do nome; no bloco de destaque isso
-          // aparecia como borda gorda embaixo, então o bloco usa a altura justa.
-          height: destaque ? 284 : 300,
-          child: ListView.separated(
+        if (destaque)
+          // Caixa abraça o conteúdo: Row com altura natural (IntrinsicHeight iguala os
+          // cards pelo mais alto) em vez de faixa fixa de 300px — era essa sobra que o
+          // Tiago via como borda gorda embaixo (30/09/2026). Lista é curta, Row basta.
+          SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: produtos.length,
-            separatorBuilder: (_, i) => const SizedBox(width: 10),
-            itemBuilder: (_, i) =>
-                ProdutoCard(produto: produtos[i] as Map<String, dynamic>, largura: 168),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < produtos.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    ProdutoCard(
+                        produto: produtos[i] as Map<String, dynamic>, largura: 168, alturaNatural: true),
+                  ],
+                ],
+              ),
+            ),
+          )
+        else
+          SizedBox(
+            height: 300,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: produtos.length,
+              separatorBuilder: (_, i) => const SizedBox(width: 10),
+              itemBuilder: (_, i) =>
+                  ProdutoCard(produto: produtos[i] as Map<String, dynamic>, largura: 168),
+            ),
           ),
-        ),
       ],
     );
     if (!destaque) return coluna;

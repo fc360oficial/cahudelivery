@@ -70,14 +70,19 @@ class VitrinePatrocinada extends StatelessWidget {
               ],
             ),
           ),
-          SizedBox(
-            height: 284,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: produtos.length,
-              separatorBuilder: (_, i) => const SizedBox(width: 10),
-              itemBuilder: (_, i) => ProdutoCard(produto: produtos[i], largura: 168),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < produtos.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    ProdutoCard(produto: produtos[i], largura: 168, alturaNatural: true),
+                  ],
+                ],
+              ),
             ),
           ),
         ],

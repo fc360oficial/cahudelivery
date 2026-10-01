@@ -86,7 +86,8 @@ export class CatalogService {
           where ativo and (inicio_em is null or now() >= inicio_em) and (fim_em is null or now() <= fim_em)
           order by ordem`,
       ),
-      pool.query(`${SELECT_PRODUTO} and promo.preco_promocional is not null order by p.nome limit 10`, [tabela]),
+      // Vitrine de Ofertas mostra TODOS os itens em promoção (Tiago, 30/09/2026), não só 10.
+      pool.query(`${SELECT_PRODUTO} and promo.preco_promocional is not null order by p.nome`, [tabela]),
       pool.query(
         `${SELECT_PRODUTO} and p.id in (
            select pi2.produto_id from pedido_itens pi2
@@ -148,11 +149,12 @@ export class CatalogService {
     ]);
 
     // Navegação por descoberta: uma prateleira horizontal por categoria (estilo "vitrine de loja"),
-    // não só recomendação. Busca em paralelo, limitando itens por prateleira para a home carregar rápido.
+    // não só recomendação. Busca em paralelo.
     const prateleiras = await Promise.all(
       categoriasComProduto.rows.map(async (c) => {
         const { rows } = await pool.query(
-          `${SELECT_PRODUTO} and p.categoria_id = $2 order by p.nome limit 10`,
+          // Prateleira rola com TODOS os itens da categoria (Tiago, 30/09/2026); catálogo é pequeno (~190 itens com estoque).
+          `${SELECT_PRODUTO} and p.categoria_id = $2 order by p.nome`,
           [tabela, c.id],
         );
         return { tipo: 'categoria' as const, categoriaId: c.id, nome: c.nome, produtos: rows };

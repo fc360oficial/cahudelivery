@@ -108,7 +108,7 @@ export class CatalogService {
       // Vitrines patrocinadas (indústria/fabricante) — produtos escolhidos manualmente,
       // com preço especial vencendo promoção que vence tabela (mesma precedência do SELECT_PRODUTO).
       pool.query(
-        `select pat.id, pat.nome, pat.logo_url, pat.banner_url, pat.apos_categoria_id,
+        `select pat.id, pat.nome, pat.logo_url, pat.banner_url, pat.apos_categoria_id, pat.posicao,
                 (select json_agg(json_build_object(
                     'id', p.id, 'sku', p.sku, 'nome', p.nome, 'unidade_venda', p.unidade_venda,
                     'qtd_por_embalagem', p.qtd_por_embalagem, 'qtd_minima', p.qtd_minima, 'estoque', coalesce(e.quantidade,0),
@@ -172,7 +172,9 @@ export class CatalogService {
       bannerUrl: string;
       produtos: unknown[];
     }
-    const topo: PatrocinadorItem[] = [];
+    const topo: PatrocinadorItem[] = []; // 'mais_vendidos': início das prateleiras (comportamento antigo)
+    const antesDeTudo: PatrocinadorItem[] = []; // 'topo': acima das Ofertas
+    const depoisDasOfertas: PatrocinadorItem[] = []; // 'ofertas'
     const depoisDaCategoria = new Map<string, PatrocinadorItem[]>();
     for (const row of patrocinadores.rows) {
       if (!row.produtos?.length) continue;
@@ -184,10 +186,14 @@ export class CatalogService {
         bannerUrl: row.banner_url,
         produtos: row.produtos,
       };
-      if (row.apos_categoria_id) {
+      if (row.posicao === 'categoria' && row.apos_categoria_id) {
         const lista = depoisDaCategoria.get(row.apos_categoria_id) ?? [];
         lista.push(item);
         depoisDaCategoria.set(row.apos_categoria_id, lista);
+      } else if (row.posicao === 'topo') {
+        antesDeTudo.push(item);
+      } else if (row.posicao === 'ofertas') {
+        depoisDasOfertas.push(item);
       } else {
         topo.push(item);
       }
@@ -222,6 +228,9 @@ export class CatalogService {
       maisVendidos: maisVendidos.rows,
       vencimentoProximo: vencimentoProximo.rows,
       prateleiras: feed,
+      // Vitrines patrocinadas fora das prateleiras (posições novas, migração 031).
+      patrocinadoresTopo: antesDeTudo as unknown[],
+      patrocinadoresOfertas: depoisDasOfertas as unknown[],
     };
   }
 

@@ -120,6 +120,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.only(bottom: 24),
                     children: [
                       _banners(),
+                      // Patrocinador "no topo, antes de tudo"
+                      for (final item in (_home!['patrocinadoresTopo'] as List? ?? const []))
+                        VitrinePatrocinada(patrocinador: item as Map<String, dynamic>),
                       _vitrine(
                         'Ofertas da Semana',
                         _home!['promocoes'] as List? ?? const [],
@@ -128,6 +131,9 @@ class _HomeScreenState extends State<HomeScreen> {
                             builder: (_) => const ProdutosScreen(
                                 somentePromocao: true, titulo: 'Ofertas da Semana'))),
                       ),
+                      // Patrocinador "depois de Ofertas da Semana"
+                      for (final item in (_home!['patrocinadoresOfertas'] as List? ?? const []))
+                        VitrinePatrocinada(patrocinador: item as Map<String, dynamic>),
                       _vitrine('Mais vendidos', _home!['maisVendidos'] as List? ?? const []),
                       _vitrine('Vencimento Próximo',
                           _home!['vencimentoProximo'] as List? ?? const []),

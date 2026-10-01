@@ -4,13 +4,14 @@ import { api, fmtMoeda, upload } from '../api';
 interface ProdutoPatro { produtoId: string; nome: string; sku?: string; precoEspecial?: number }
 interface Patrocinador {
   id: string; nome: string; logo_url?: string; banner_url?: string;
-  apos_categoria_id?: string; apos_categoria_nome?: string; ativo: boolean;
+  apos_categoria_id?: string; apos_categoria_nome?: string; posicao?: string; ativo: boolean;
   produtos: ProdutoPatro[] | null;
 }
 interface Categoria { id: string; nome: string; pai_id?: string }
 interface ProdutoBusca { id: string; sku: string; nome: string; preco?: string }
 
-const VAZIO = { nome: '', logoUrl: '', bannerUrl: '', aposCategoriaId: '' };
+const VAZIO = { nome: '', logoUrl: '', bannerUrl: '', aposCategoriaId: '', posicao: 'mais_vendidos' };
+const POSICOES: [string, string][] = [['topo', 'No topo, antes de tudo'], ['ofertas', 'Depois de Ofertas da Semana'], ['mais_vendidos', 'Depois de Mais vendidos']];
 
 export function Patrocinadores() {
   const [dados, setDados] = useState<Patrocinador[] | null>(null);
@@ -47,7 +48,7 @@ export function Patrocinadores() {
 
   function abrirEdicao(p: Patrocinador) {
     setEditando(p.id);
-    setForm({ nome: p.nome, logoUrl: p.logo_url ?? '', bannerUrl: p.banner_url ?? '', aposCategoriaId: p.apos_categoria_id ?? '' });
+    setForm({ nome: p.nome, logoUrl: p.logo_url ?? '', bannerUrl: p.banner_url ?? '', aposCategoriaId: p.apos_categoria_id ?? '', posicao: p.posicao ?? (p.apos_categoria_id ? 'categoria' : 'mais_vendidos') });
     setItens(p.produtos ?? []);
     setAberto(true);
   }
@@ -76,7 +77,7 @@ export function Patrocinadores() {
         nome: form.nome,
         logoUrl: form.logoUrl || undefined,
         bannerUrl: form.bannerUrl || undefined,
-        aposCategoriaId: form.aposCategoriaId || undefined,
+        aposCategoriaId: form.aposCategoriaId || undefined, posicao: form.posicao,
         produtos: itens.map((i) => ({
           produtoId: i.produtoId,
           precoEspecial: i.precoEspecial != null && `${i.precoEspecial}` !== '' ? Number(i.precoEspecial) : undefined,
@@ -95,7 +96,7 @@ export function Patrocinadores() {
       method: 'PUT',
       body: JSON.stringify({
         nome: p.nome, logoUrl: p.logo_url ?? undefined, bannerUrl: p.banner_url ?? undefined,
-        aposCategoriaId: p.apos_categoria_id ?? undefined, ativo: !p.ativo,
+        aposCategoriaId: p.apos_categoria_id ?? undefined, posicao: p.posicao, ativo: !p.ativo,
         produtos: (p.produtos ?? []).map((i) => ({ produtoId: i.produtoId, precoEspecial: i.precoEspecial ?? undefined })),
       }),
     });
@@ -120,9 +121,10 @@ export function Patrocinadores() {
         <form className="card" style={{ marginBottom: 16 }} onSubmit={salvar}>
           <div className="filtros">
             <input placeholder="Nome (ex.: M.Dias Alimentos)" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required style={{ flex: 1, minWidth: 220 }} />
-            <select value={form.aposCategoriaId} onChange={(e) => setForm({ ...form, aposCategoriaId: e.target.value })}>
-              <option value="">Aparece no topo, antes de tudo</option>
-              {categorias.map((c) => <option key={c.id} value={c.id}>Depois de: {c.nome}</option>)}
+            <select value={form.aposCategoriaId ? `cat:${form.aposCategoriaId}` : form.posicao}
+              onChange={(e) => { const v = e.target.value; setForm(v.startsWith('cat:') ? { ...form, posicao: 'categoria', aposCategoriaId: v.slice(4) } : { ...form, posicao: v, aposCategoriaId: '' }); }}>
+              {POSICOES.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+              {categorias.map((c) => <option key={c.id} value={`cat:${c.id}`}>Depois de: {c.nome}</option>)}
             </select>
           </div>
           <div className="filtros" style={{ marginTop: 8 }}>
@@ -178,7 +180,7 @@ export function Patrocinadores() {
             {dados?.map((p) => (
               <tr key={p.id}>
                 <td><strong>{p.nome}</strong></td>
-                <td>{p.apos_categoria_nome ?? 'Topo'}</td>
+                <td>{p.apos_categoria_nome ?? (POSICOES.find(([v]) => v === p.posicao)?.[1] ?? 'Depois de Mais vendidos')}</td>
                 <td>{p.produtos?.length ?? 0}</td>
                 <td><span className={`badge ${p.ativo ? 'aprovado' : 'bloqueado'}`}>{p.ativo ? 'ativo' : 'inativo'}</span></td>
                 <td style={{ whiteSpace: 'nowrap' }}>

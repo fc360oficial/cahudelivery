@@ -10,7 +10,8 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID,
+  IsIn, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { AdminGuard } from './admin.guard';
@@ -25,8 +26,16 @@ class PatrocinadorDto {
   @IsOptional() @IsString() logoUrl?: string;
   @IsOptional() @IsString() bannerUrl?: string;
   @IsOptional() @IsUUID() aposCategoriaId?: string;
+  /** topo | ofertas | mais_vendidos | categoria (ver migração 031). */
+  @IsOptional() @IsIn(['topo', 'ofertas', 'mais_vendidos', 'categoria']) posicao?: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
   @IsArray() @ValidateNested({ each: true }) @Type(() => PatrocinadorProdutoDto) produtos!: PatrocinadorProdutoDto[];
+}
+
+/** Posição efetiva: categoria escolhida manda; sem categoria, o que veio (ou o padrão antigo). */
+function posicaoDe(dto: PatrocinadorDto): string {
+  if (dto.aposCategoriaId) return 'categoria';
+  return dto.posicao && dto.posicao !== 'categoria' ? dto.posicao : 'mais_vendidos';
 }
 
 /** CRUD das vitrines patrocinadas (indústria/fabricante), gerenciado pela retaguarda. */
@@ -37,7 +46,7 @@ export class AdminPatrocinadoresController {
   async listar() {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select pat.id, pat.nome, pat.logo_url, pat.banner_url, pat.apos_categoria_id, pat.ativo,
+      `select pat.id, pat.nome, pat.logo_url, pat.banner_url, pat.apos_categoria_id, pat.posicao, pat.ativo,
               (select nome from categorias where id = pat.apos_categoria_id) as apos_categoria_nome,
               (select json_agg(json_build_object('produtoId', pp.produto_id, 'nome', pr.nome, 'sku', pr.sku,
                   'precoEspecial', pp.preco_especial) order by pp.ordem)
@@ -55,9 +64,9 @@ export class AdminPatrocinadoresController {
     try {
       await client.query('begin');
       const { rows } = await client.query(
-        `insert into patrocinadores (nome, logo_url, banner_url, apos_categoria_id, ativo)
-         values ($1,$2,$3,$4,coalesce($5,true)) returning id`,
-        [dto.nome, dto.logoUrl ?? null, dto.bannerUrl ?? null, dto.aposCategoriaId ?? null, dto.ativo],
+        `insert into patrocinadores (nome, logo_url, banner_url, apos_categoria_id, ativo, posicao)
+         values ($1,$2,$3,$4,coalesce($5,true),$6) returning id`,
+        [dto.nome, dto.logoUrl ?? null, dto.bannerUrl ?? null, dto.aposCategoriaId ?? null, dto.ativo, posicaoDe(dto)],
       );
       for (const [i, p] of dto.produtos.entries()) {
         await client.query(
@@ -84,9 +93,9 @@ export class AdminPatrocinadoresController {
       await client.query('begin');
       const r = await client.query(
         `update patrocinadores set nome=$2, logo_url=$3, banner_url=$4, apos_categoria_id=$5,
-                ativo=coalesce($6,ativo), atualizado_em=now()
+                ativo=coalesce($6,ativo), posicao=$7, atualizado_em=now()
           where id=$1 returning id`,
-        [id, dto.nome, dto.logoUrl ?? null, dto.bannerUrl ?? null, dto.aposCategoriaId ?? null, dto.ativo],
+        [id, dto.nome, dto.logoUrl ?? null, dto.bannerUrl ?? null, dto.aposCategoriaId ?? null, dto.ativo, posicaoDe(dto)],
       );
       if (!r.rowCount) throw new NotFoundException();
       await client.query(`delete from patrocinador_produtos where patrocinador_id = $1`, [id]);

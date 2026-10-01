@@ -14,8 +14,9 @@ cahudelivery.duckdns.org {
     handle_path /app/* {
         root * C:/cahudelivery/web-app
         # Sem isso o navegador/service worker segura o build antigo por dias após um deploy.
-        @semcache path / /index.html /flutter_service_worker.js /flutter_bootstrap.js /version.json /cahu-delivery.apk
-        header @semcache Cache-Control "no-cache"
+        # 30/09/2026: vale pra TUDO (main.dart.js incluído — era ele que ficava preso no cache
+        # e o Tiago via "não mudou nada"). no-cache ainda permite 304 por ETag, custo baixo.
+        header Cache-Control "no-cache"
         try_files {path} /index.html
         file_server
     }

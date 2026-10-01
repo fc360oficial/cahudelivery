@@ -242,7 +242,9 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+          // No bloco de destaque o título fica mais colado na borda de cima
+          // (Tiago, 30/09: "iniciar mais perto do nome Ofertas da Semana").
+          padding: EdgeInsets.fromLTRB(16, destaque ? 10 : 20, 16, destaque ? 6 : 10),
           child: Row(
             children: [
               Expanded(
@@ -255,7 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         SizedBox(
-          height: 300,
+          // 300 sobra ~20px em branco abaixo do nome; no bloco de destaque isso
+          // aparecia como borda gorda embaixo, então o bloco usa a altura justa.
+          height: destaque ? 284 : 300,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -265,12 +269,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 ProdutoCard(produto: produtos[i] as Map<String, dynamic>, largura: 168),
           ),
         ),
-        if (destaque) const SizedBox(height: 8),
       ],
     );
     if (!destaque) return coluna;
     return Container(
-      margin: const EdgeInsets.fromLTRB(12, 16, 12, 4),
+      margin: const EdgeInsets.fromLTRB(12, 14, 12, 2),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),

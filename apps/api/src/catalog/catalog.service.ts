@@ -87,7 +87,8 @@ export class CatalogService {
           order by ordem`,
       ),
       // Vitrine de Ofertas mostra TODOS os itens em promoção (Tiago, 30/09/2026), não só 10.
-      pool.query(`${SELECT_PRODUTO} and promo.preco_promocional is not null order by p.nome`, [tabela]),
+      // Ordem: categoria (ordem cadastrada) e depois nome — bebida perto de bebida, limpeza perto de limpeza.
+      pool.query(`${SELECT_PRODUTO} and promo.preco_promocional is not null order by c.ordem, c.nome, p.nome`, [tabela]),
       pool.query(
         `${SELECT_PRODUTO} and p.id in (
            select pi2.produto_id from pedido_itens pi2
@@ -260,7 +261,8 @@ export class CatalogService {
     const where = cond.length ? ` and ${cond.join(' and ')}` : '';
     params.push(f.limite, (f.pagina - 1) * f.limite);
     const { rows } = await pool.query(
-      `${SELECT_PRODUTO}${where} order by p.nome limit $${params.length - 1} offset $${params.length}`,
+      // Lista de promoções ("Ver todos" das Ofertas) agrupada por categoria, como a vitrine da Home.
+      `${SELECT_PRODUTO}${where} order by ${f.promocao ? 'c.ordem, c.nome, ' : ''}p.nome limit $${params.length - 1} offset $${params.length}`,
       params,
     );
     return { dados: rows, pagina: f.pagina };
@@ -333,7 +335,7 @@ export class CatalogService {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
     const { rows } = await pool.query(
-      `${SELECT_PRODUTO} and promo.preco_promocional is not null order by p.nome limit 100`,
+      `${SELECT_PRODUTO} and promo.preco_promocional is not null order by c.ordem, c.nome, p.nome limit 100`,
       [tabela],
     );
     return rows;

@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { CatalogService } from '../catalog/catalog.service';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
+import { DadosCartao, ehProvedorCartao } from '../pagamentos/provedor-pagamento';
 
 export type DonoCarrinho = { clienteId?: string; deviceId?: string };
 
@@ -169,16 +170,21 @@ export class OrdersService {
         valorSaldoUsado = Math.min(saldo, subtotal);
       }
       let provedorTenant = null as Awaited<ReturnType<ProvedoresService['obter']>>;
-      if (dto.formaPagamento === 'pix') {
+      if (dto.formaPagamento === 'pix' || dto.formaPagamento === 'cartao') {
         try {
-          provedorTenant = await this.provedores.obter(tenant.slug);
+          provedorTenant = await this.provedores.obter(tenant.slug, dto.formaPagamento);
         } catch (e) {
           this.log.error(`falha ao obter provedor de pagamento do tenant ${tenant.slug}: ${e}`);
-          throw new BadRequestException('Pagamento PIX indisponível no momento. Tente novamente em instantes.');
+          // Cartão sem provedor carregável cai no fluxo antigo (cartão na entrega);
+          // PIX não tem fluxo antigo equivalente, então avisa o cliente.
+          if (dto.formaPagamento === 'pix') {
+            throw new BadRequestException('Pagamento PIX indisponível no momento. Tente novamente em instantes.');
+          }
+          provedorTenant = null;
         }
       }
       const valorACobrar = Number((subtotal - valorSaldoUsado).toFixed(2));
-      // PIX online só quando o tenant tem provedor e sobra algo a pagar depois do saldo.
+      // Pagamento online só quando o tenant tem provedor do método e sobra algo a pagar depois do saldo.
       const pagarOnline = !!provedorTenant && valorACobrar > 0;
       const statusInicial = pagarOnline ? 'AGUARDANDO_PAGAMENTO' : 'RECEBIDO';
       const ped = await client.query(
@@ -213,7 +219,15 @@ export class OrdersService {
       }
       await client.query(
         `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'app')`,
-        [pedidoId, statusInicial, pagarOnline ? 'Pedido recebido, aguardando pagamento PIX' : 'Pedido recebido'],
+        [
+          pedidoId,
+          statusInicial,
+          pagarOnline
+            ? dto.formaPagamento === 'cartao'
+              ? 'Pedido recebido, aguardando pagamento com cartão'
+              : 'Pedido recebido, aguardando pagamento PIX'
+            : 'Pedido recebido',
+        ],
       );
       if (!pagarOnline) {
         // Outbox transacional: o worker envia ao ERP; pedido nunca se perde.
@@ -227,15 +241,19 @@ export class OrdersService {
       if (pagarOnline) {
         const pv = provedorTenant;
         if (!pv) throw new Error('provedor ausente');
-        // Falhou no Itaú => exceção => rollback: pedido não existe, app pede pra tentar de novo.
+        // Falhou no provedor => exceção => rollback: pedido não existe, app pede pra tentar de novo.
         try {
           pagamento = await this.pagamentos.criarParaPedido(client, pv.provedor, {
             pedidoId, numero: ped.rows[0].numero, valor: valorACobrar,
             expiracaoSegundos: pv.expiracaoSegundos, appNome: tenant.appNome,
           });
         } catch (e) {
-          this.log.error(`falha ao criar cobranca PIX do pedido ${pedidoId}: ${e}`);
-          throw new BadRequestException('Não foi possível gerar o PIX agora. Tente novamente em instantes.');
+          this.log.error(`falha ao criar cobranca ${dto.formaPagamento} do pedido ${pedidoId}: ${e}`);
+          throw new BadRequestException(
+            dto.formaPagamento === 'cartao'
+              ? 'Não foi possível iniciar o pagamento com cartão agora. Tente novamente em instantes.'
+              : 'Não foi possível gerar o PIX agora. Tente novamente em instantes.',
+          );
         }
       }
       await client.query(`delete from carrinho_itens where carrinho_id = (select id from carrinhos where cliente_id = $1)`, [clienteId]);
@@ -247,6 +265,50 @@ export class OrdersService {
     } finally {
       client.release();
     }
+  }
+
+  /**
+   * Cobra o cartão do pagamento pendente do pedido. Chamado pelo app depois do
+   * checkout (o pedido nasce AGUARDANDO_PAGAMENTO com metodo 'cartao'). Recusa
+   * devolve 200 com status 'recusado' — o cliente pode tentar outro cartão.
+   */
+  async pagarCartao(clienteId: string, pedidoId: string, cartao: DadosCartao) {
+    const { pool, tenant } = tenantCtx();
+    const { rows } = await pool.query(
+      `select g.id, g.status, g.metodo, g.valor, g.expira_em, g.provedor, p.numero
+         from pagamentos g join pedidos p on p.id = g.pedido_id
+        where g.pedido_id = $1 and p.cliente_id = $2
+        order by g.criado_em desc limit 1`,
+      [pedidoId, clienteId],
+    );
+    const pg = rows[0];
+    if (!pg || pg.metodo !== 'cartao') throw new NotFoundException('Pedido sem pagamento com cartão');
+    if (pg.status === 'pago') return { status: 'pago' };
+    if (pg.status !== 'pendente') {
+      throw new BadRequestException('O prazo deste pagamento venceu. Refaça o pedido para pagar com cartão.');
+    }
+    const pt = await this.provedores.obterPorNome(tenant.slug, pg.provedor);
+    if (!pt || !ehProvedorCartao(pt.provedor)) {
+      throw new BadRequestException('Pagamento com cartão indisponível no momento. Tente novamente em instantes.');
+    }
+    let r: Awaited<ReturnType<PagamentosService['pagarComCartao']>>;
+    try {
+      r = await this.pagamentos.pagarComCartao(
+        pool,
+        pt.provedor,
+        { id: pg.id, numero: Number(pg.numero), valor: Number(pg.valor), expira_em: pg.expira_em },
+        cartao,
+      );
+    } catch (e) {
+      // Nunca logar dados do cartão — só o pedido e o erro do provedor.
+      this.log.error(`falha ao cobrar cartão do pedido ${pedidoId}: ${e}`);
+      throw new BadRequestException('Não foi possível processar o pagamento agora. Tente novamente em instantes.');
+    }
+    if (r.status === 'processando') throw new ConflictException('Pagamento em processamento. Aguarde alguns segundos.');
+    if (r.status === 'expirado') {
+      throw new BadRequestException('O prazo deste pagamento venceu. Refaça o pedido para pagar com cartão.');
+    }
+    return r;
   }
 
   async listar(clienteId: string, pagina: number) {

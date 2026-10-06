@@ -94,7 +94,7 @@ describe('PagamentosService', () => {
     await svc.aplicarSituacao(pool, { id: 'p2', expira_em: new Date(Date.now() + 1000) }, { status: 'pendente', payload: {} });
     expect(exp).toHaveBeenCalledTimes(1);
     await svc.aplicarSituacao(pool, { id: 'p3', expira_em: new Date() }, { status: 'pago', valorPago: 5, pagoEm: new Date(), payload: {} });
-    expect(pago).toHaveBeenCalledWith(pool, 'p3', 5, expect.any(Date));
+    expect(pago).toHaveBeenCalledWith(pool, 'p3', 5, expect.any(Date), 'PIX pago');
     exp.mockRestore(); pago.mockRestore();
   });
 

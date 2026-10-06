@@ -7,6 +7,7 @@ import '../../core/tenant_theme.dart';
 import '../../widgets/estados.dart';
 import '../profile/endereco_form_screen.dart';
 import 'cartao_em_breve.dart';
+import 'pagamento_cartao_screen.dart';
 import 'pagamento_pix_screen.dart';
 import 'pedido_sucesso_screen.dart';
 
@@ -41,15 +42,26 @@ const _formasConhecidas = <_FormaPagamento>[
       'Você acompanha tudo na aba Pedidos.'),
 ];
 
+/// Quando a retaguarda liga 'cartao_online' (provedor e.Rede ativo), a opção
+/// 'cartao' deixa de ser maquininha na entrega e vira pagamento no app.
+const _cartaoOnline = _FormaPagamento('cartao', Icons.credit_card, 'Cartão de crédito',
+    'Pague agora pelo app — aprovação na hora',
+    'Você informa os dados do cartão depois de confirmar. O pedido segue para a '
+    'distribuidora assim que o pagamento for aprovado (você tem 30 minutos).');
+
 List<_FormaPagamento> _formasAceitas() {
-  final cfg = (TenantTheme.instance.configuracoes['formas_pagamento'] as List?)
+  final cfgs = TenantTheme.instance.configuracoes;
+  final cfg = (cfgs['formas_pagamento'] as List?)
       ?.map((e) => '$e')
       .toSet();
-  final lista = _formasConhecidas
+  final conhecidas = _formasConhecidas
+      .map((f) => f.codigo == 'cartao' && cfgs['cartao_online'] == true ? _cartaoOnline : f)
+      .toList();
+  final lista = conhecidas
       .where((f) => cfg == null || cfg.contains(f.codigo))
       .toList();
   // Config vazia/inválida: não deixa o cliente sem forma de pagar.
-  return lista.isEmpty ? [_formasConhecidas.first] : lista;
+  return lista.isEmpty ? [conhecidas.first] : lista;
 }
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -144,10 +156,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       CarrinhoStore.instance.limpar();
       if (!mounted) return;
       final pagamento = pedido['pagamento'] as Map<String, dynamic>?;
-      Navigator.of(context).pushReplacement(MaterialPageRoute(
-          builder: (_) => pagamento != null && pagamento['status'] == 'pendente'
-              ? PagamentoPixScreen(pedido: pedido)
-              : PedidoSucessoScreen(pedido: pedido)));
+      final Widget destino;
+      if (pagamento != null && pagamento['status'] == 'pendente') {
+        destino = pagamento['metodo'] == 'cartao'
+            ? PagamentoCartaoScreen(pedido: pedido)
+            : PagamentoPixScreen(pedido: pedido);
+      } else {
+        destino = PedidoSucessoScreen(pedido: pedido);
+      }
+      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => destino));
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

@@ -112,14 +112,15 @@ export class AdminService {
 
   async consultarPagamento(pedidoId: string) {
     const { pool, tenant } = tenantCtx();
-    const pt = await this.provedores.obter(tenant.slug);
-    if (!pt) throw new BadRequestException('Tenant sem provedor de pagamento');
     const { rows } = await pool.query(
-      `select id, provedor_ref, expira_em, status from pagamentos where pedido_id = $1 order by criado_em desc limit 1`,
+      `select id, provedor, provedor_ref, expira_em, metodo, status from pagamentos where pedido_id = $1 order by criado_em desc limit 1`,
       [pedidoId],
     );
     if (!rows[0]) throw new NotFoundException('Pedido sem pagamento online');
     if (rows[0].status !== 'pendente') return { status: rows[0].status };
+    // Consulta com o provedor que gerou o pagamento (um tenant pode ter PIX e cartão ativos).
+    const pt = await this.provedores.obterPorNome(tenant.slug, rows[0].provedor);
+    if (!pt) throw new BadRequestException('Tenant sem provedor de pagamento');
     try {
       const s = await pt.provedor.consultar(rows[0].provedor_ref);
       await this.pagamentos.aplicarSituacao(pool, rows[0], s);

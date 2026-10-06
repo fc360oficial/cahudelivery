@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { ProvedorPagamento, SituacaoCobranca } from './provedor-pagamento';
+import { DadosCartao, ProvedorCartao, ProvedorPagamento, SituacaoCobranca, ehProvedorCartao } from './provedor-pagamento';
 
 export interface PagamentoResumo {
   id: string;
@@ -58,7 +58,8 @@ export class PagamentosService {
     provedor: ProvedorPagamento,
     p: { pedidoId: string; numero: number; valor: number; expiracaoSegundos: number; appNome: string },
   ): Promise<PagamentoResumo> {
-    const ref = this.gerarRef(p.numero);
+    // Cada provedor tem seu formato de referência (e.Rede: até 16 alfanuméricos).
+    const ref = ehProvedorCartao(provedor) ? provedor.novaRef(p.numero) : this.gerarRef(p.numero);
     const cob = await provedor.criarCobranca({
       ref,
       valor: p.valor,
@@ -77,7 +78,7 @@ export class PagamentosService {
   }
 
   /** pendente -> pago. Retorna false se já não estava pendente (idempotente). */
-  async confirmarPago(pool: Executor, pagamentoId: string, valorPago: number, pagoEm: Date): Promise<boolean> {
+  async confirmarPago(pool: Executor, pagamentoId: string, valorPago: number, pagoEm: Date, detalhe: string = 'PIX pago'): Promise<boolean> {
     return this.emTransacao(pool, async (q) => {
       const up = await q.query(
         `update pagamentos set status = 'pago', valor_pago = $2, pago_em = $3, atualizado_em = now()
@@ -90,7 +91,7 @@ export class PagamentosService {
       if ((upPedido.rowCount ?? 0) > 0) {
         await q.query(
           `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'sistema')`,
-          [pedidoId, 'RECEBIDO', 'PIX pago'],
+          [pedidoId, 'RECEBIDO', detalhe],
         );
         // Pedido PIX online só entra na outbox (e portanto no ERP) depois de pago — evita
         // que o Dlinks veja um pedido AGUARDANDO_PAGAMENTO que ainda pode expirar/cancelar.
@@ -147,25 +148,87 @@ export class PagamentosService {
    */
   async aplicarSituacao(
     pool: Executor,
-    pagamento: { id: string; expira_em: Date },
+    pagamento: { id: string; expira_em: Date; metodo?: string },
     s: SituacaoCobranca,
     opts: { expirarSeVencido?: boolean } = {},
   ): Promise<void> {
+    const cartao = pagamento.metodo === 'cartao';
     if (s.status === 'pago') {
-      await this.confirmarPago(pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date());
+      await this.confirmarPago(pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date(), cartao ? 'Cartão aprovado' : 'PIX pago');
       return;
     }
     if (s.status === 'expirado') {
-      await this.expirar(pool, pagamento.id, 'PIX expirado');
+      await this.expirar(pool, pagamento.id, cartao ? 'Pagamento com cartão expirado' : 'PIX expirado');
       return;
     }
     if (s.status === 'cancelado') {
-      await this.expirar(pool, pagamento.id, 'PIX cancelado no banco');
+      await this.expirar(pool, pagamento.id, cartao ? 'Pagamento com cartão cancelado no provedor' : 'PIX cancelado no banco');
       return;
     }
-    // pendente no provedor, mas já passou do prazo: o Itaú não aceita mais pagamento.
+    // pendente no provedor, mas já passou do prazo: não aceita mais pagamento.
     if (opts.expirarSeVencido !== false && new Date(pagamento.expira_em).getTime() < Date.now()) {
-      await this.expirar(pool, pagamento.id, 'PIX expirado');
+      await this.expirar(pool, pagamento.id, cartao ? 'Pagamento com cartão expirado' : 'PIX expirado');
+    }
+  }
+
+  /**
+   * Cobra o cartão de um pagamento pendente. Recusa do emissor NÃO encerra o
+   * pagamento: o cliente pode tentar outro cartão até a janela (expira_em) vencer.
+   * Advisory lock por pagamento: clique duplo não pode virar cobrança dupla.
+   */
+  async pagarComCartao(
+    pool: Pool,
+    provedor: ProvedorCartao,
+    pagamento: { id: string; numero: number; valor: number; expira_em: Date },
+    cartao: DadosCartao,
+  ): Promise<{ status: 'pago' | 'recusado' | 'expirado' | 'processando'; codigo?: string; mensagem?: string }> {
+    if (new Date(pagamento.expira_em).getTime() < Date.now()) {
+      await this.expirar(pool, pagamento.id, 'Pagamento com cartão expirado');
+      return { status: 'expirado' };
+    }
+    const client = await pool.connect();
+    try {
+      const lk = await client.query('select pg_try_advisory_lock(hashtext($1)) as ok', [pagamento.id]);
+      if (!lk.rows[0]?.ok) return { status: 'processando' };
+      // Antes de nova tentativa, confere a anterior: um timeout aqui pode ter sido
+      // aprovado lá — cobrar de novo sem checar seria cobrança dupla no cartão.
+      const atual = await client.query(`select provedor_ref, status from pagamentos where id = $1`, [pagamento.id]);
+      if (atual.rows[0]?.status === 'pago') return { status: 'pago' };
+      if (atual.rows[0]?.provedor_ref) {
+        // Se o provedor está fora do ar pra consultar, não arrisca cobrar às cegas:
+        // a exceção sobe e o cliente tenta de novo quando o provedor voltar.
+        const s = await provedor.consultar(atual.rows[0].provedor_ref);
+        if (s.status === 'pago') {
+          await this.confirmarPago(pool, pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), 'Cartão aprovado');
+          return { status: 'pago' };
+        }
+      }
+      // Referência nova por tentativa: a e.Rede não aceita reference repetida (nem de recusa).
+      // O worker consulta sempre a última, então a ref gravada acompanha a tentativa corrente.
+      const ref = provedor.novaRef(pagamento.numero);
+      const up = await client.query(
+        `update pagamentos set provedor_ref = $2, atualizado_em = now() where id = $1 and status = 'pendente'`,
+        [pagamento.id, ref],
+      );
+      if (up.rowCount === 0) {
+        // pagou/expirou no meio (worker ou outra sessão)
+        const st = await client.query(`select status from pagamentos where id = $1`, [pagamento.id]);
+        return st.rows[0]?.status === 'pago' ? { status: 'pago' } : { status: 'expirado' };
+      }
+      const r = await provedor.cobrar(ref, pagamento.valor, cartao);
+      await client.query(`update pagamentos set payload_json = $2, atualizado_em = now() where id = $1`, [
+        pagamento.id,
+        JSON.stringify(r.payload ?? null),
+      ]);
+      if (r.aprovado) {
+        await this.confirmarPago(pool, pagamento.id, pagamento.valor, new Date(), 'Cartão aprovado');
+        return { status: 'pago' };
+      }
+      this.log.log(`cartão recusado (pagamento ${pagamento.id}, codigo ${r.codigo})`);
+      return { status: 'recusado', codigo: r.codigo, mensagem: r.mensagem };
+    } finally {
+      await client.query('select pg_advisory_unlock(hashtext($1))', [pagamento.id]).catch(() => {});
+      client.release();
     }
   }
 }

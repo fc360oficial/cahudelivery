@@ -13,7 +13,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min } from 'class-validator';
 import type { Request } from 'express';
 import { JwtAuthGuard, OptionalAuthGuard, ClienteLogado } from '../auth/jwt.guard';
 import { DonoCarrinho, OrdersService } from './orders.service';
@@ -33,6 +33,15 @@ class CriarPedidoDto {
   @IsOptional() @IsString() observacoes?: string;
   @IsOptional() @IsString() condicaoPagamento?: string;
   @IsOptional() @IsBoolean() usarSaldo?: boolean;
+}
+
+/** Dados do cartão só transitam até o provedor: nunca gravados, nunca logados. */
+class PagarCartaoDto {
+  @Matches(/^\d{13,19}$/, { message: 'Número do cartão inválido' }) numero!: string;
+  @IsString() @Length(2, 30) nome!: string;
+  @IsInt() @Min(1) @Max(12) validadeMes!: number;
+  @IsInt() @Min(2020) @Max(2099) validadeAno!: number;
+  @Matches(/^\d{3,4}$/, { message: 'Código de segurança inválido' }) cvv!: string;
 }
 
 @Controller()
@@ -95,5 +104,17 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   repetir(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string) {
     return this.orders.repetir(req.cliente.clienteId, id);
+  }
+
+  @Post('pedidos/:id/pagar-cartao')
+  @UseGuards(JwtAuthGuard)
+  pagarCartao(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PagarCartaoDto) {
+    return this.orders.pagarCartao(req.cliente.clienteId, id, {
+      numero: dto.numero,
+      nome: dto.nome,
+      validadeMes: dto.validadeMes,
+      validadeAno: dto.validadeAno,
+      cvv: dto.cvv,
+    });
   }
 }

@@ -42,3 +42,34 @@ export interface ProvedorPagamento {
   /** Extrai as confirmações de um corpo de webhook. Corpo inválido => []. */
   tratarWebhook(corpo: string): PagamentoRecebido[];
 }
+
+/** Dados do cartão só transitam: nunca são gravados nem logados. */
+export interface DadosCartao {
+  numero: string;       // só dígitos
+  nome: string;         // como impresso no cartão
+  validadeMes: number;  // 1-12
+  validadeAno: number;  // 4 dígitos
+  cvv: string;
+}
+
+export interface ResultadoCartao {
+  aprovado: boolean;
+  ref: string;          // referência desta tentativa no provedor
+  codigo: string;       // returnCode do provedor ('00' = aprovado)
+  mensagem: string;     // amigável, mostrada ao cliente quando recusado
+  tid?: string;
+  autorizacao?: string;
+  payload: unknown;     // resposta crua (sem dados de cartão), vai pro payload_json
+}
+
+export interface ProvedorCartao extends ProvedorPagamento {
+  readonly metodo: 'cartao';
+  /** Referência nova e válida no provedor (cada tentativa de cobrança usa uma). */
+  novaRef(numeroPedido: number): string;
+  /** Autoriza com captura automática. Recusa do emissor NÃO é exceção: vem em aprovado=false. */
+  cobrar(ref: string, valor: number, cartao: DadosCartao): Promise<ResultadoCartao>;
+}
+
+export function ehProvedorCartao(p: ProvedorPagamento): p is ProvedorCartao {
+  return p.metodo === 'cartao';
+}

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../core/api_client.dart';
 import '../../core/formatadores.dart';
 import '../orders/pedido_detalhe_screen.dart';
+import '../profile/politica_screen.dart';
 
 /// Depois do "Confirmar pedido" com cartão online: formulário do cartão e
 /// POST /pedidos/{id}/pagar-cartao. Recusa não cancela o pedido — o cliente
@@ -223,6 +224,15 @@ class _PagamentoCartaoScreenState extends State<PagamentoCartaoScreen> {
                 ],
               ),
             ),
+            if (PoliticaScreen.texto('politica_cancelamento') != null)
+              TextButton(
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                    builder: (_) => const PoliticaScreen(
+                        titulo: 'Trocas, cancelamento e reembolso',
+                        chave: 'politica_cancelamento'))),
+                child: const Text('Política de cancelamento e reembolso',
+                    style: TextStyle(fontSize: 13)),
+              ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: _pagando

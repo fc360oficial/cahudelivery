@@ -13,6 +13,7 @@ import 'indicacoes_screen.dart';
 import 'notas_fiscais_screen.dart';
 import 'notificacoes_screen.dart';
 import 'perfil_dados_screen.dart';
+import 'politica_screen.dart';
 
 /// Aba Perfil: dados cadastrais, endereços, notificações, sobre e sair.
 class PerfilScreen extends StatefulWidget {
@@ -218,6 +219,26 @@ class _PerfilScreenState extends State<PerfilScreen> {
                               _opcao(Icons.card_giftcard_outlined, 'Indique e ganhe', () {
                                 Navigator.of(context).push(MaterialPageRoute(
                                     builder: (_) => const IndicacoesScreen()));
+                              }),
+                            ],
+                            if (PoliticaScreen.texto('politica_cancelamento') != null) ...[
+                              _divisor(),
+                              _opcao(Icons.assignment_return_outlined,
+                                  'Trocas, cancelamento e reembolso', () {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => const PoliticaScreen(
+                                        titulo: 'Trocas, cancelamento e reembolso',
+                                        chave: 'politica_cancelamento')));
+                              }),
+                            ],
+                            if (PoliticaScreen.texto('politica_privacidade') != null) ...[
+                              _divisor(),
+                              _opcao(Icons.privacy_tip_outlined, 'Política de privacidade',
+                                  () {
+                                Navigator.of(context).push(MaterialPageRoute(
+                                    builder: (_) => const PoliticaScreen(
+                                        titulo: 'Política de privacidade',
+                                        chave: 'politica_privacidade')));
                               }),
                             ],
                             _divisor(),

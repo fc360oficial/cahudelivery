@@ -81,6 +81,18 @@ nssm start FluxoAPI
 
 Teste: `curl http://localhost:3000/` responde.
 
+## 5b. Tarefa agendada do backup
+
+O backup do CAHU roda sozinho às 04:30 pela tarefa "Backup CAHU". Recriar em PowerShell como administrador:
+
+```powershell
+schtasks /create /tn "Backup CAHU" /sc daily /st 04:30 /ru SYSTEM /rl HIGHEST /f /tr "\"C:\Program Files\nodejs\node.exe\" C:\cahudelivery\infra\scripts\backup-cahu.js"
+schtasks /run /tn "Backup CAHU"
+```
+
+Um minuto depois tem que existir `D:\backups\cahu\cahu-<data>.zip` e `D:\backups\cahu\estado.json`. Enquanto a tarefa
+não existir, o Econômico Relatórios dispara este script às 04:00 por conta própria.
+
 ## 6. HTTPS
 
 O `cahudelivery.caddy` é importado pelo Caddyfile do Econômico (serviço `Caddy`); ver RESTAURAR.md do

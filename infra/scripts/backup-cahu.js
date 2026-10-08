@@ -11,14 +11,16 @@
 // Retenção: 30 dias no servidor e no Drive. Senha do banco vem do registro do serviço FluxoAPI (NSSM),
 // não fica em arquivo nenhum do repositório.
 //
-// Hoje é disparado pelo backup do Econômico (C:\fc360\claude_code_\lib\backup.js, lista `extras`) logo
-// após o zip das 04:00. Pra rodar 100% independente, criar uma tarefa agendada (precisa de UAC uma vez):
-//   schtasks /create /tn "Backup CAHU" /sc daily /st 04:30 /ru SYSTEM /rl HIGHEST ^
-//     /tr "\"C:\Program Files\nodejs\node.exe\" C:\cahudelivery\infra\scripts\backup-cahu.js"
+// Roda sozinho pela tarefa agendada do Windows "Backup CAHU" (04:30, como SYSTEM). Criar uma vez, em
+// PowerShell como administrador:
+//   schtasks /create /tn "Backup CAHU" /sc daily /st 04:30 /ru SYSTEM /rl HIGHEST /f /tr "\"C:\Program Files\nodejs\node.exe\" C:\cahudelivery\infra\scripts\backup-cahu.js"
+// O Econômico Relatórios (C:\fc360\claude_code_\lib\backup.js, lista `extras`) lê o <destino>\estado.json
+// gravado aqui pra mostrar o resultado na tela Processos › Backup e avisar se este backup parar; se o
+// estado estiver com mais de 28 h (tarefa não existe ou quebrou), ele mesmo dispara este script às 04:00.
 // Rodar na mão: node C:\cahudelivery\infra\scripts\backup-cahu.js
 //
-// Saída: a ÚLTIMA linha do stdout é um JSON {arquivo, bytes, nuvem, erro}. Nunca lança: erro vai no JSON
-// e o processo sai com código 1.
+// Saída: a ÚLTIMA linha do stdout é um JSON {inicio, arquivo, bytes, nuvem, erro}, o mesmo registro que vai
+// pro estado.json. Nunca lança: erro vai no JSON e o processo sai com código 1.
 const fs = require('fs');
 const path = require('path');
 const util = require('util');
@@ -143,6 +145,16 @@ async function enviarNuvem(arquivo) {
   return { status: 'ok', em: new Date().toISOString() };
 }
 
+// <destino>/estado.json: último registro + histórico de 30. É o que o Econômico lê pra tela.
+function gravarEstado(dest, reg) {
+  const p = path.join(dest, 'estado.json');
+  let st = { ultimo: null, historico: [] };
+  try { st = JSON.parse(fs.readFileSync(p, 'utf8')); } catch {}
+  st.ultimo = reg;
+  st.historico = [reg, ...(st.historico || [])].slice(0, 30);
+  fs.writeFileSync(p, JSON.stringify(st, null, 2));
+}
+
 async function main() {
   const reg = { inicio: new Date().toISOString(), arquivo: null, bytes: 0, bancos: [], nuvem: null, erro: null };
   const dest = destinoReal();
@@ -166,6 +178,7 @@ async function main() {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
   reg.fim = new Date().toISOString();
+  try { gravarEstado(dest, reg); } catch (e) { log('estado.json:', e.message); }
   log(reg.erro ? 'falhou' : `${(reg.bytes / 1048576).toFixed(1)} MB → ${reg.arquivo} | nuvem: ${reg.nuvem && reg.nuvem.status}`);
   console.log(JSON.stringify(reg));
   process.exitCode = reg.erro ? 1 : 0;

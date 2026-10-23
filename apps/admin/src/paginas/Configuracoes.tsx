@@ -11,6 +11,8 @@ interface Config {
   indicacoes_ativas?: boolean;
   cartao_em_breve?: boolean;
   contato_whatsapp?: string;
+  politica_cancelamento?: string;
+  politica_privacidade?: string;
 }
 
 export function Configuracoes() {
@@ -132,6 +134,24 @@ export function Configuracoes() {
             <label>Seg–Sex <input value={cfg.horario_atendimento?.seg_sex ?? ''} onChange={(e) => setCfg({ ...cfg, horario_atendimento: { ...cfg.horario_atendimento, seg_sex: e.target.value } })} placeholder="08:00-18:00" style={{ width: 130, marginLeft: 6 }} /></label>
             <label>Sábado <input value={cfg.horario_atendimento?.sab ?? ''} onChange={(e) => setCfg({ ...cfg, horario_atendimento: { ...cfg.horario_atendimento, sab: e.target.value } })} placeholder="08:00-12:00" style={{ width: 130, marginLeft: 6 }} /></label>
           </div>
+        </div>
+
+        <div className="card">
+          <div className="rotulo">Políticas do app</div>
+          <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>
+            Texto puro, exibido como está no Perfil do app (a de cancelamento também aparece na tela do cartão). Vazio = a entrada some do app.
+            Exigência das lojas de aplicativo (LGPD) e do pagamento online com cartão (Rede / CDC art. 49). Versão de referência em docs/politicas.md.
+          </div>
+          <label style={{ display: 'block', marginTop: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Trocas, cancelamento e reembolso</div>
+            <textarea value={cfg.politica_cancelamento ?? ''} onChange={(e) => setCfg({ ...cfg, politica_cancelamento: e.target.value })}
+              rows={12} style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5 }} />
+          </label>
+          <label style={{ display: 'block', marginTop: 12 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Política de privacidade</div>
+            <textarea value={cfg.politica_privacidade ?? ''} onChange={(e) => setCfg({ ...cfg, politica_privacidade: e.target.value })}
+              rows={12} style={{ width: '100%', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5 }} />
+          </label>
         </div>
 
         <div className="filtros">

@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { hashSenhaProvisoria } from '../auth/senha-provisoria';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
+import { ehProvedorCartao } from '../pagamentos/provedor-pagamento';
 import { tenantCtx } from '../tenancy/tenant-context';
 
 @Injectable()
@@ -113,13 +114,25 @@ export class AdminService {
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');
+    const pg = rows[0].pagamento;
+    if (pg?.status === 'autorizado' && pg.autorizado_em) {
+      // Quando a Rede derruba a reserva e quando o worker cobra o valor cheio por segurança.
+      const { tenant } = tenantCtx();
+      const pt = await this.provedores.obterPorNome(tenant.slug, pg.provedor).catch(() => null);
+      const pa = (pt && ehProvedorCartao(pt.provedor) && pt.provedor.preAutorizacao) || { prazoHoras: 72, folgaHoras: 12 };
+      const base = new Date(pg.autorizado_em).getTime();
+      rows[0].reserva = {
+        venceEm: new Date(base + pa.prazoHoras * 3600_000).toISOString(),
+        cobraSozinhoEm: new Date(base + (pa.prazoHoras - pa.folgaHoras) * 3600_000).toISOString(),
+      };
+    }
     return rows[0];
   }
 
   async consultarPagamento(pedidoId: string) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor, provedor_ref, expira_em, metodo, status from pagamentos where pedido_id = $1 order by criado_em desc limit 1`,
+      `select id, provedor, provedor_ref, expira_em, metodo, status, captura from pagamentos where pedido_id = $1 order by criado_em desc limit 1`,
       [pedidoId],
     );
     if (!rows[0]) throw new NotFoundException('Pedido sem pagamento online');

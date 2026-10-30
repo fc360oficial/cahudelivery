@@ -82,6 +82,11 @@ class _BlocoPixState extends State<BlocoPix> {
               ? 'O estorno foi feito no cartão. O crédito aparece na fatura conforme o prazo do seu banco.'
               : 'Devolvemos o valor por PIX para a conta de origem.');
     }
+    if (status == 'autorizado') {
+      return _cartao(Icons.credit_score_outlined, Colors.green.shade600, 'Cartão aprovado',
+          '${moeda(p['valor'])} ficaram reservados no limite do cartão. Você só é cobrado pelo valor '
+          'da nota fiscal, no faturamento: item em falta não é cobrado.');
+    }
     if (status == 'creditado') {
       return _cartao(Icons.account_balance_wallet_outlined, Colors.green.shade600, 'Valor virou crédito',
           'O que você pagou neste pedido está na sua carteira do app para usar no próximo pedido. '

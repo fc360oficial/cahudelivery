@@ -53,6 +53,11 @@ class EstornoDto {
   @IsString() @Length(3, 200) motivo!: string;
 }
 
+class ReservaDto {
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0.01) valor?: number;
+  @IsOptional() @IsString() @Length(0, 200) motivo?: string;
+}
+
 class DevolucaoPixDto {
   @Type(() => Number) @IsNumber() @Min(0.01) valor!: number;
   @IsString() @Length(3, 200) motivo!: string;
@@ -197,6 +202,55 @@ export class AdminEntregasController {
     if (r.status === 'falhou' || r.status === 'nada_a_estornar') throw new BadRequestException(r.mensagem);
     if (r.status === 'processando') throw new BadRequestException('Já existe um estorno em andamento para este pedido');
     return r;
+  }
+
+  /**
+   * Pré-autorização: cobra a reserva agora (sem esperar o ERP). Sem valor = valor
+   * da NF-e, ou o reservado se ainda não há nota. Só admin.
+   */
+  @Post('cobrar-reserva')
+  async cobrarReserva(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ReservaDto) {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
+    const { pool } = tenantCtx();
+    const { pagamentoId, provedor } = await this.reservaDoPedido(id);
+    const r = await this.pagamentos.cobrarReserva(pool, provedor, pagamentoId, {
+      valor: dto.valor, motivo: dto.motivo?.trim() || 'cobrança manual pela retaguarda', origem: 'retaguarda', usuarioAdminId: req.admin.usuarioId,
+    });
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json) values ($1,'cobrar_reserva','pedido',$2,$3)`,
+      [req.admin.usuarioId, id, JSON.stringify({ ...dto, resultado: r })],
+    );
+    if (r.status !== 'cobrado') throw new BadRequestException(r.mensagem);
+    return r;
+  }
+
+  /** Pré-autorização: libera a reserva (nada é cobrado). Só admin. */
+  @Post('liberar-reserva')
+  async liberarReserva(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ReservaDto) {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
+    const { pool } = tenantCtx();
+    const { pagamentoId, provedor } = await this.reservaDoPedido(id);
+    const r = await this.pagamentos.liberarReserva(pool, provedor, pagamentoId, {
+      motivo: dto.motivo?.trim() || 'liberada pela retaguarda', origem: 'retaguarda', usuarioAdminId: req.admin.usuarioId,
+    });
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json) values ($1,'liberar_reserva','pedido',$2,$3)`,
+      [req.admin.usuarioId, id, JSON.stringify({ ...dto, resultado: r })],
+    );
+    if (r.status !== 'liberado') throw new BadRequestException(r.mensagem);
+    return r;
+  }
+
+  private async reservaDoPedido(pedidoId: string) {
+    const { pool, tenant } = tenantCtx();
+    const { rows } = await pool.query(
+      `select id, provedor from pagamentos where pedido_id = $1 and status = 'autorizado' order by criado_em desc limit 1`,
+      [pedidoId],
+    );
+    if (!rows[0]) throw new BadRequestException('Pedido sem reserva de cartão em aberto');
+    const pt = await this.provedores.obterPorNome(tenant.slug, rows[0].provedor);
+    if (!pt || !ehProvedorCartao(pt.provedor)) throw new BadRequestException('Provedor do cartão indisponível');
+    return { pagamentoId: rows[0].id as string, provedor: pt.provedor };
   }
 
   /**

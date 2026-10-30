@@ -6,7 +6,13 @@
 falar com a distribuidora antes de contestar) e a devolução da diferença quando o
 faturado é menor que o pago. PIX passa a voltar como crédito na carteira do app
 (automático); dinheiro de volta só se o cliente pedir. Cartão continua sempre estornado
-no cartão (crédito no lugar do estorno provoca chargeback). Publicar = colar o texto abaixo em Configurações › Políticas
+no cartão (crédito no lugar do estorno provoca chargeback).
+
+**Quando a pré-autorização do cartão for ligada** (chave `preAutorizacao` no provedor erede,
+depois que a Rede confirmar liberação no PV, prazo de captura e captura parcial), trocar o
+parágrafo "Cartão de crédito:" de REEMBOLSO por:
+
+> Cartão de crédito: na compra, o valor do pedido fica apenas reservado no limite do cartão. A cobrança é feita pelo valor da nota fiscal, no faturamento — item em falta não é cobrado. Se o pedido for cancelado antes do faturamento, a reserva é liberada e nada aparece na fatura. Depois da cobrança, cancelamentos e diferenças são estornados no mesmo cartão: o estorno é solicitado à administradora em até 2 dias úteis e o valor volta na fatura conforme o prazo do banco emissor, em geral em até 2 faturas. Publicar = colar o texto abaixo em Configurações › Políticas
 do app. Cada pedido grava o hash do texto vigente (`pedidos.aceite_json`), então a
 versão aceita fica registrada pra uma contestação.
 

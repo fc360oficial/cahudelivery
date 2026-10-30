@@ -5,7 +5,65 @@ import { api, apiForm, apiImagem, fmtData, fmtDocumento, fmtMoeda, PAGAMENTO_LAB
 const PAGAMENTO_STATUS_LABEL: Record<string, string> = {
   pendente: 'Aguardando', pago: 'Pago', expirado: 'Expirado', cancelado: 'Cancelado', falhou: 'Falhou',
   estorno_solicitado: 'Estorno solicitado', estornado: 'Estornado', creditado: 'Virou crédito na carteira',
+  autorizado: 'Reservado no cartão',
 };
+
+/**
+ * Pré-autorização: o valor está só reservado no limite do cliente. O sistema
+ * cobra o valor da NF-e quando o ERP fatura; aqui dá pra cobrar antes ou liberar.
+ */
+function ReservaCartao({ pedidoId, reservado, faturado, reserva, erro, onPronto }: {
+  pedidoId: string; reservado: number; faturado: number | null;
+  reserva?: { venceEm: string; cobraSozinhoEm: string } | null; erro?: string | null; onPronto: () => void;
+}) {
+  const [valor, setValor] = useState(Math.min(faturado ?? reservado, reservado).toFixed(2));
+  const [enviando, setEnviando] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const admin = sessao()?.papel === 'admin';
+  const vencendo = reserva && new Date(reserva.cobraSozinhoEm).getTime() - Date.now() < 12 * 3600_000;
+
+  async function acao(rota: 'cobrar-reserva' | 'liberar-reserva') {
+    const v = Number(valor.replace(',', '.'));
+    const pergunta = rota === 'cobrar-reserva'
+      ? `Cobrar ${fmtMoeda(v)} no cartão do cliente agora?`
+      : 'Liberar a reserva? Nada será cobrado e o limite volta pro cliente. Não dá pra desfazer.';
+    if (!window.confirm(pergunta)) return;
+    setEnviando(true); setMsg(null);
+    try {
+      await api(`/admin/pedidos/${pedidoId}/${rota}`, {
+        method: 'POST', body: JSON.stringify(rota === 'cobrar-reserva' ? { valor: v } : { motivo: 'liberada pela retaguarda' }),
+      });
+      onPronto();
+    } catch (e) {
+      setMsg((e as Error).message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 12, borderColor: vencendo ? '#fecaca' : '#fde68a', background: '#fffdf5' }}>
+      <div>
+        <strong>{fmtMoeda(reservado)} reservados</strong> no cartão: nada cobrado ainda. O sistema cobra o valor da nota
+        {faturado != null ? <> (<strong>{fmtMoeda(Math.min(faturado, reservado))}</strong>)</> : ''} quando o ERP faturar.
+      </div>
+      {reserva && (
+        <div style={{ marginTop: 4, color: vencendo ? 'var(--vermelho)' : 'var(--texto-2)' }}>
+          Sem nota até {fmtData(reserva.cobraSozinhoEm)}, cobra o valor reservado sozinho (a reserva cai em {fmtData(reserva.venceEm)}).
+        </div>
+      )}
+      {erro && <div className="erro-texto" style={{ marginTop: 4 }}>Última tentativa de cobrar falhou: {erro}</div>}
+      {admin && (
+        <div className="filtros" style={{ marginTop: 10, marginBottom: 0, alignItems: 'center' }}>
+          <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" style={{ width: 110 }} />
+          <button className="btn btn-mini" disabled={enviando} onClick={() => acao('cobrar-reserva')}>Cobrar agora</button>
+          <button className="btn btn-mini btn-perigo" disabled={enviando} onClick={() => acao('liberar-reserva')}>Liberar reserva</button>
+        </div>
+      )}
+      {msg && <div className="erro-texto" style={{ marginTop: 6 }}>{msg}</div>}
+    </div>
+  );
+}
 
 const DESTINO_LABEL: Record<string, string> = { cartao: 'estorno no cartão', carteira: 'crédito na carteira', pix: 'devolvido por PIX' };
 
@@ -248,7 +306,9 @@ interface Detalhe {
     id: string; provedor: string; metodo: string; status: string; valor: string; valor_pago?: string | null;
     provedor_ref?: string | null; expira_em?: string | null; pago_em?: string | null; criado_em: string;
     provedor_tid?: string | null; autenticacao_3ds?: string | null;
+    captura?: 'automatica' | 'posterior'; autorizado_em?: string | null; captura_erro?: string | null;
   } | null;
+  reserva?: { venceEm: string; cobraSozinhoEm: string } | null;
   total_faturado?: string | null;
   entrega?: {
     recebedor_nome: string; recebedor_documento?: string | null; observacao?: string | null;
@@ -401,6 +461,16 @@ export function PedidoDetalhe() {
                 ))}
               </ul>
             </div>
+          )}
+          {p.pagamento.status === 'autorizado' && (
+            <ReservaCartao
+              pedidoId={p.id}
+              reservado={Number(p.pagamento.valor)}
+              faturado={p.total_faturado != null ? Number(p.total_faturado) : null}
+              reserva={p.reserva}
+              erro={p.pagamento.captura_erro}
+              onPronto={carregar}
+            />
           )}
           {podeEstornar && <EstornarCartao pedidoId={p.id} disponivel={disponivelEstorno} onPronto={carregar} />}
           {podeDevolverPix && <DevolverPix pedidoId={p.id} maximo={creditoPixRestante} onPronto={carregar} />}

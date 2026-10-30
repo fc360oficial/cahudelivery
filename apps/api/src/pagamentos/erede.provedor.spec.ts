@@ -204,6 +204,46 @@ describe('EredeProvedor estorno', () => {
   });
 });
 
+describe('EredeProvedor pré-autorização', () => {
+  it('desligada por padrão; ligada sem prazo assume 72 h com folga de 12 h', () => {
+    expect(new EredeProvedor(cfg).preAutorizacao).toBeNull();
+    expect(new EredeProvedor({ ...cfg, preAutorizacao: { ativa: true } }).preAutorizacao).toEqual({ ativa: true, prazoHoras: 72, folgaHoras: 12 });
+    expect(new EredeProvedor({ ...cfg, preAutorizacao: { ativa: true, prazoHoras: 168, folgaHoras: 24 } }).preAutorizacao)
+      .toEqual({ ativa: true, prazoHoras: 168, folgaHoras: 24 });
+  });
+
+  it('cobrar com capturar false manda capture false (só reserva)', async () => {
+    const p = new EredeProvedor(cfg);
+    const chamar = jest.spyOn(p as any, 'chamar').mockResolvedValue({ status: 200, body: { returnCode: '00', tid: 'T' }, texto: '{}' });
+    await p.cobrar('P000042AAAAAAAAA', 100, cartao, undefined, { capturar: false });
+    expect((chamar.mock.calls[0][2] as any).capture).toBe(false);
+  });
+
+  it('capturar: PUT /{tid} com o valor da nota em centavos', async () => {
+    const p = new EredeProvedor(cfg);
+    const chamar = jest.spyOn(p as any, 'chamar').mockResolvedValue({ status: 200, body: { returnCode: '00' }, texto: '{}' });
+    const r = await p.capturar('TID1', 80);
+    expect(chamar).toHaveBeenCalledWith('PUT', '/TID1', { amount: 8000 });
+    expect(r.ok).toBe(true);
+  });
+
+  it('capturar com Rede fora do ar: falha passageira, sem exceção', async () => {
+    const p = new EredeProvedor(cfg);
+    jest.spyOn(p as any, 'chamar').mockRejectedValue(new Error('timeout'));
+    const r = await p.capturar('TID1', 80);
+    expect(r.ok).toBe(false);
+    expect(r.tentarDeNovo).toBe(true);
+  });
+
+  it('consulta: sem grupo capture = reserva; com capture = cobrado e quanto', () => {
+    const reserva = traduzirStatusErede({ authorization: { status: 'Approved', amount: 10000, tid: 'T' } });
+    expect(reserva.capturado).toBe(false);
+    const cobrado = traduzirStatusErede({ authorization: { status: 'Approved', amount: 10000 }, capture: { amount: 8000 } });
+    expect(cobrado.capturado).toBe(true);
+    expect(cobrado.valorCapturado).toBe(80);
+  });
+});
+
 describe('corpo3ds', () => {
   it('seFalhar continuar vira onFailure continue', () => {
     const c = corpo3ds(

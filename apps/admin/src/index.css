@@ -245,6 +245,7 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
 .badge.pag-estorno_solicitado { background: #fff3cd; color: #7a5b00; }
 .badge.pag-estornado { background: #e2e3e5; color: #41464b; }
 .badge.pag-creditado { background: #e0e7ff; color: #3730a3; }
+.badge.pag-autorizado { background: #fff3cd; color: #7a5b00; }
 .dossie { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; background: #fff; color: #1a1a1a; font-size: 13px; }
 .dossie h1 { font-size: 20px; margin: 12px 0 4px; }
 .dossie h2 { font-size: 14px; margin: 22px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #1a1a1a; }

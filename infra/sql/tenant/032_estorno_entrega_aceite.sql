@@ -8,15 +8,24 @@
 
 alter table pagamentos drop constraint if exists pagamentos_status_check;
 alter table pagamentos add constraint pagamentos_status_check
-  check (status in ('pendente','pago','expirado','cancelado','falhou','estorno_solicitado','estornado','creditado'));
+  check (status in ('pendente','autorizado','pago','expirado','cancelado','falhou','estorno_solicitado','estornado','creditado'));
 
 alter table pagamentos add column if not exists provedor_tid text;        -- tid da e.Rede (necessário pro estorno)
 alter table pagamentos add column if not exists autenticacao_3ds text;    -- returnCode do 3DS (200 = autenticado)
 
+-- Pré-autorização do cartão: 'posterior' = só reserva no checkout ('autorizado') e
+-- cobra o valor da NF-e no faturamento. 'automatica' = cobra tudo na hora (como sempre foi).
+alter table pagamentos add column if not exists captura text not null default 'automatica';
+alter table pagamentos drop constraint if exists pagamentos_captura_check;
+alter table pagamentos add constraint pagamentos_captura_check check (captura in ('automatica','posterior'));
+alter table pagamentos add column if not exists autorizado_em timestamptz;
+alter table pagamentos add column if not exists captura_erro text;         -- última falha ao cobrar a reserva
+create index if not exists idx_pagamentos_autorizados on pagamentos (autorizado_em) where status = 'autorizado';
+
 -- Só um pagamento vivo por pedido: estorno em andamento/concluído continua "ocupando" o pedido.
 drop index if exists uq_pagamentos_pedido_vivo;
 create unique index if not exists uq_pagamentos_pedido_vivo on pagamentos (pedido_id)
-  where status in ('pendente','pago','estorno_solicitado','estornado','creditado');
+  where status in ('pendente','autorizado','pago','estorno_solicitado','estornado','creditado');
 
 create table if not exists pagamento_estornos (
   id            uuid primary key default gen_random_uuid(),

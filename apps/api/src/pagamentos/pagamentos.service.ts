@@ -66,10 +66,14 @@ export class PagamentosService {
       expiracaoSegundos: p.expiracaoSegundos,
       descricao: `Pedido #${p.numero} ${p.appNome}`,
     });
+    // Pré-autorização ligada no provedor: este pagamento só reserva no checkout e é
+    // cobrado pelo valor da NF-e no faturamento. Fica gravado por pagamento — desligar
+    // a chave depois não muda como os já reservados são tratados.
+    const captura = ehProvedorCartao(provedor) && provedor.preAutorizacao ? 'posterior' : 'automatica';
     const { rows } = await client.query(
-      `insert into pagamentos (pedido_id, provedor, metodo, status, valor, provedor_ref, copia_cola, expira_em, payload_json)
-       values ($1,$2,$3,'pendente',$4,$5,$6,$7,$8) returning id`,
-      [p.pedidoId, provedor.nome, provedor.metodo, p.valor, cob.ref, cob.copiaCola, cob.expiraEm, JSON.stringify(cob.payload ?? null)],
+      `insert into pagamentos (pedido_id, provedor, metodo, status, valor, provedor_ref, copia_cola, expira_em, payload_json, captura)
+       values ($1,$2,$3,'pendente',$4,$5,$6,$7,$8,$9) returning id`,
+      [p.pedidoId, provedor.nome, provedor.metodo, p.valor, cob.ref, cob.copiaCola, cob.expiraEm, JSON.stringify(cob.payload ?? null), captura],
     );
     return {
       id: rows[0].id, metodo: provedor.metodo, status: 'pendente', valor: p.valor,
@@ -77,22 +81,33 @@ export class PagamentosService {
     };
   }
 
-  /** pendente -> pago. Retorna false se já não estava pendente (idempotente). */
+  /**
+   * pendente -> pago (ou -> autorizado, quando `soReserva`: pré-autorização, o
+   * dinheiro só sai no faturamento). Nos dois casos o pedido segue pro ERP.
+   * Retorna false se já não estava pendente (idempotente).
+   */
   async confirmarPago(
     pool: Executor,
     pagamentoId: string,
     valorPago: number,
     pagoEm: Date,
     detalhe: string = 'PIX pago',
-    cartao: { tid?: string; codigo3ds?: string } = {},
+    cartao: { tid?: string; codigo3ds?: string; soReserva?: boolean } = {},
   ): Promise<boolean> {
     return this.emTransacao(pool, async (q) => {
-      const up = await q.query(
-        `update pagamentos set status = 'pago', valor_pago = $2, pago_em = $3, atualizado_em = now(),
-                provedor_tid = coalesce($4, provedor_tid), autenticacao_3ds = coalesce($5, autenticacao_3ds)
-          where id = $1 and status = 'pendente' returning pedido_id`,
-        [pagamentoId, valorPago, pagoEm, cartao.tid ?? null, cartao.codigo3ds ?? null],
-      );
+      const up = cartao.soReserva
+        ? await q.query(
+            `update pagamentos set status = 'autorizado', autorizado_em = $2, atualizado_em = now(),
+                    provedor_tid = coalesce($3, provedor_tid), autenticacao_3ds = coalesce($4, autenticacao_3ds)
+              where id = $1 and status = 'pendente' returning pedido_id`,
+            [pagamentoId, pagoEm, cartao.tid ?? null, cartao.codigo3ds ?? null],
+          )
+        : await q.query(
+            `update pagamentos set status = 'pago', valor_pago = $2, pago_em = $3, atualizado_em = now(),
+                    provedor_tid = coalesce($4, provedor_tid), autenticacao_3ds = coalesce($5, autenticacao_3ds)
+              where id = $1 and status = 'pendente' returning pedido_id`,
+            [pagamentoId, valorPago, pagoEm, cartao.tid ?? null, cartao.codigo3ds ?? null],
+          );
       if (up.rowCount === 0) return false;
       const pedidoId = up.rows[0].pedido_id;
       const upPedido = await q.query(`update pedidos set status = 'RECEBIDO' where id = $1 and status = 'AGUARDANDO_PAGAMENTO'`, [pedidoId]);
@@ -156,15 +171,19 @@ export class PagamentosService {
    */
   async aplicarSituacao(
     pool: Executor,
-    pagamento: { id: string; expira_em: Date; metodo?: string },
+    pagamento: { id: string; expira_em: Date; metodo?: string; captura?: string },
     s: SituacaoCobranca,
     opts: { expirarSeVencido?: boolean } = {},
   ): Promise<void> {
     const cartao = pagamento.metodo === 'cartao';
     if (s.status === 'pago') {
-      await this.confirmarPago(pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date(), cartao ? 'Cartão aprovado' : 'PIX pago', {
-        tid: s.tid, codigo3ds: s.codigo3ds,
-      });
+      // Reserva aprovada (pré-autorização) ainda sem cobrança: vira 'autorizado', não 'pago'.
+      const soReserva = pagamento.captura === 'posterior' && s.capturado !== true;
+      await this.confirmarPago(
+        pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date(),
+        cartao ? (soReserva ? 'Cartão aprovado (valor reservado; cobra o valor da nota)' : 'Cartão aprovado') : 'PIX pago',
+        { tid: s.tid, codigo3ds: s.codigo3ds, soReserva },
+      );
       return;
     }
     if (s.status === 'expirado') {
@@ -210,18 +229,21 @@ export class PagamentosService {
       // aprovado lá — cobrar de novo sem checar seria cobrança dupla no cartão.
       const atual = await client.query(
         `select provedor_ref, status, autenticacao_3ds, payload_json->'threeDSecure'->>'url' as url_3ds,
-                atualizado_em > now() - interval '10 minutes' as desafio_recente
+                atualizado_em > now() - interval '10 minutes' as desafio_recente, captura
            from pagamentos where id = $1`,
         [pagamento.id],
       );
-      if (atual.rows[0]?.status === 'pago') return { status: 'pago' };
+      // Pro app, reserva aprovada (pré-autorização) também é "pago": o pedido seguiu.
+      if (atual.rows[0]?.status === 'pago' || atual.rows[0]?.status === 'autorizado') return { status: 'pago' };
+      const reserva = atual.rows[0]?.captura === 'posterior';
+      const detalheAprovado = reserva ? 'Cartão aprovado (valor reservado; cobra o valor da nota)' : 'Cartão aprovado';
       if (atual.rows[0]?.provedor_ref) {
         // Se o provedor está fora do ar pra consultar, não arrisca cobrar às cegas:
         // a exceção sobe e o cliente tenta de novo quando o provedor voltar.
         const s = await provedor.consultar(atual.rows[0].provedor_ref);
         if (s.status === 'pago') {
-          await this.confirmarPago(pool, pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), 'Cartão aprovado', {
-            tid: s.tid, codigo3ds: s.codigo3ds,
+          await this.confirmarPago(pool, pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), detalheAprovado, {
+            tid: s.tid, codigo3ds: s.codigo3ds, soReserva: reserva && s.capturado !== true,
           });
           return { status: 'pago' };
         }
@@ -243,9 +265,9 @@ export class PagamentosService {
       if (up.rowCount === 0) {
         // pagou/expirou no meio (worker ou outra sessão)
         const st = await client.query(`select status from pagamentos where id = $1`, [pagamento.id]);
-        return st.rows[0]?.status === 'pago' ? { status: 'pago' } : { status: 'expirado' };
+        return st.rows[0]?.status === 'pago' || st.rows[0]?.status === 'autorizado' ? { status: 'pago' } : { status: 'expirado' };
       }
-      const r = await provedor.cobrar(ref, pagamento.valor, cartao, ctx3ds);
+      const r = await provedor.cobrar(ref, pagamento.valor, cartao, ctx3ds, { capturar: !reserva });
       await client.query(
         // autenticacao_3ds é da tentativa corrente (sem coalesce): um '220' antigo não pode
         // continuar travando novas tentativas depois que outra já respondeu.
@@ -253,8 +275,8 @@ export class PagamentosService {
         [pagamento.id, JSON.stringify(r.payload ?? null), r.codigo3ds ?? null],
       );
       if (r.aprovado) {
-        await this.confirmarPago(pool, pagamento.id, pagamento.valor, new Date(), 'Cartão aprovado', {
-          tid: r.tid, codigo3ds: r.codigo3ds,
+        await this.confirmarPago(pool, pagamento.id, pagamento.valor, new Date(), detalheAprovado, {
+          tid: r.tid, codigo3ds: r.codigo3ds, soReserva: reserva,
         });
         return { status: 'pago' };
       }
@@ -338,6 +360,129 @@ export class PagamentosService {
       }
       this.log.log(`estorno ${r.status} pagamento ${g.id} pedido #${g.numero} valor ${valor} codigo ${r.codigo}`);
       return { status: r.status, mensagem: r.mensagem, valor };
+    } finally {
+      await client.query('select pg_advisory_unlock(hashtext($1))', [chave]).catch(() => {});
+      client.release();
+    }
+  }
+
+  /**
+   * Pré-autorização: cobra a reserva. `valor` ausente = valor da NF-e (ou o
+   * reservado, se ainda não há nota); nunca passa do reservado. Lock por
+   * pagamento: worker e retaguarda nunca cobram duas vezes. Se a Rede não
+   * responder direito, confere pela consulta antes de dar como falha (a Rede
+   * pede pra nunca repetir captura sem a resposta da anterior).
+   */
+  async cobrarReserva(
+    pool: Pool,
+    provedor: ProvedorCartao,
+    pagamentoId: string,
+    opts: { valor?: number; motivo: string; origem: 'sistema' | 'retaguarda'; usuarioAdminId?: string },
+  ): Promise<{ status: 'cobrado' | 'falhou' | 'nada' | 'processando'; mensagem: string; valor?: number }> {
+    const client = await pool.connect();
+    const chave = `captura:${pagamentoId}`;
+    try {
+      const lk = await client.query('select pg_try_advisory_lock(hashtext($1)) as ok', [chave]);
+      if (!lk.rows[0]?.ok) return { status: 'processando', mensagem: 'Cobrança já em andamento' };
+      const { rows } = await client.query(
+        `select g.id, g.pedido_id, g.status, g.valor, g.provedor_ref, g.provedor_tid, p.numero, p.status as pedido_status,
+                (select f.total from pedido_faturamentos f where f.pedido_id = p.id) as faturado
+           from pagamentos g join pedidos p on p.id = g.pedido_id where g.id = $1`,
+        [pagamentoId],
+      );
+      const g = rows[0];
+      if (!g || g.status !== 'autorizado') return { status: 'nada', mensagem: 'Pagamento não está reservado' };
+      if (g.pedido_status === 'CANCELADO') return { status: 'nada', mensagem: 'Pedido cancelado: a reserva deve ser liberada, não cobrada' };
+      const reservado = Number(g.valor);
+      const alvo = opts.valor ?? (g.faturado != null ? Number(g.faturado) : reservado);
+      const valor = Number(Math.min(alvo, reservado).toFixed(2));
+      if (!(valor > 0)) return { status: 'falhou', mensagem: 'Valor a cobrar inválido' };
+
+      let tid: string | null = g.provedor_tid;
+      if (!tid && g.provedor_ref) {
+        const s = await provedor.consultar(g.provedor_ref);
+        tid = s.tid ?? null;
+        if (tid) await client.query(`update pagamentos set provedor_tid = $2 where id = $1`, [g.id, tid]);
+      }
+      if (!tid) return { status: 'falhou', mensagem: 'Transação não encontrada na Rede (sem tid)' };
+
+      const r = await provedor.capturar(tid, valor);
+      let cobrado = r.ok ? valor : null;
+      if (!r.ok && g.provedor_ref) {
+        // Resposta ruim nem sempre é "não cobrou": confere na Rede antes de marcar falha.
+        const s = await provedor.consultar(g.provedor_ref).catch(() => null);
+        if (s?.capturado) cobrado = s.valorCapturado ?? valor;
+      }
+      if (cobrado == null) {
+        await client.query(`update pagamentos set captura_erro = $2, atualizado_em = now() where id = $1`, [
+          g.id, `${r.codigo ? `${r.codigo}: ` : ''}${r.mensagem}`.slice(0, 300),
+        ]);
+        this.log.warn(`cobrança da reserva falhou (pagamento ${g.id}, pedido #${g.numero}): ${r.codigo} ${r.mensagem}`);
+        return { status: 'falhou', mensagem: r.mensagem };
+      }
+      await client.query(
+        `update pagamentos set status = 'pago', valor_pago = $2, pago_em = now(), captura_erro = null, atualizado_em = now()
+          where id = $1 and status = 'autorizado'`,
+        [g.id, cobrado],
+      );
+      const sobra = reservado - cobrado;
+      const brl = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`;
+      await client.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,$4)`,
+        [g.pedido_id, g.pedido_status,
+         `Cartão cobrado: ${brl(cobrado)} (${opts.motivo})${sobra >= 0.01 ? ` — ${brl(sobra)} da reserva não foram cobrados` : ''}`,
+         opts.origem],
+      );
+      this.log.log(`reserva cobrada pagamento ${g.id} pedido #${g.numero}: ${cobrado} de ${reservado}`);
+      return { status: 'cobrado', mensagem: `Cobrado ${brl(cobrado)}`, valor: cobrado };
+    } finally {
+      await client.query('select pg_advisory_unlock(hashtext($1))', [chave]).catch(() => {});
+      client.release();
+    }
+  }
+
+  /**
+   * Pré-autorização de pedido cancelado: libera o limite do cliente (cancelamento
+   * da autorização na Rede, mesmo endpoint do estorno). Nada chega à fatura.
+   */
+  async liberarReserva(
+    pool: Pool,
+    provedor: ProvedorCartao,
+    pagamentoId: string,
+    opts: { motivo: string; origem: 'sistema' | 'retaguarda'; usuarioAdminId?: string },
+  ): Promise<{ status: 'liberado' | 'falhou' | 'nada' | 'processando'; mensagem: string }> {
+    const client = await pool.connect();
+    const chave = `captura:${pagamentoId}`; // mesma chave da cobrança: nunca cobra e libera ao mesmo tempo
+    try {
+      const lk = await client.query('select pg_try_advisory_lock(hashtext($1)) as ok', [chave]);
+      if (!lk.rows[0]?.ok) return { status: 'processando', mensagem: 'Operação já em andamento' };
+      const { rows } = await client.query(
+        `select g.id, g.pedido_id, g.status, g.valor, g.provedor_ref, g.provedor_tid, p.status as pedido_status
+           from pagamentos g join pedidos p on p.id = g.pedido_id where g.id = $1`,
+        [pagamentoId],
+      );
+      const g = rows[0];
+      if (!g || g.status !== 'autorizado') return { status: 'nada', mensagem: 'Pagamento não está reservado' };
+      let tid: string | null = g.provedor_tid;
+      if (!tid && g.provedor_ref) tid = (await provedor.consultar(g.provedor_ref)).tid ?? null;
+      if (!tid) return { status: 'falhou', mensagem: 'Transação não encontrada na Rede (sem tid)' };
+      const r = await provedor.estornar(tid, Number(g.valor));
+      await client.query(
+        `insert into pagamento_estornos (pagamento_id, valor, destino, status, refund_id, codigo, mensagem, tentar_de_novo, motivo, origem, usuario_admin_id, payload_json)
+         values ($1,$2,'cartao',$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [g.id, g.valor, r.status, r.refundId ?? null, r.codigo, r.mensagem, r.tentarDeNovo === true,
+         `Reserva liberada: ${opts.motivo}`, opts.origem, opts.usuarioAdminId ?? null, JSON.stringify(r.payload ?? null)],
+      );
+      if (r.status === 'falhou') {
+        await client.query(`update pagamentos set captura_erro = $2, atualizado_em = now() where id = $1`, [g.id, `liberar: ${r.mensagem}`.slice(0, 300)]);
+        return { status: 'falhou', mensagem: r.mensagem };
+      }
+      await client.query(`update pagamentos set status = 'cancelado', captura_erro = null, atualizado_em = now() where id = $1`, [g.id]);
+      await client.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,$4)`,
+        [g.pedido_id, g.pedido_status, `Reserva do cartão liberada, nada foi cobrado (${opts.motivo})`, opts.origem],
+      );
+      return { status: 'liberado', mensagem: 'Reserva liberada no cartão do cliente' };
     } finally {
       await client.query('select pg_advisory_unlock(hashtext($1))', [chave]).catch(() => {});
       client.release();

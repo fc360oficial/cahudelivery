@@ -22,6 +22,7 @@ interface ConfigErede {
   ambiente?: 'producao' | 'sandbox';
   expiracaoSegundos?: number;
   tresDS?: { ativo: boolean; seFalhar?: 'recusar' | 'continuar' };
+  preAutorizacao?: { ativa: boolean; prazoHoras?: number; folgaHoras?: number };
 }
 
 export interface ProvedorDoTenant {
@@ -117,6 +118,7 @@ export class ProvedoresService {
       softDescriptor: cfg.softDescriptor,
       ambiente: cfg.ambiente,
       tresDS: cfg.tresDS,
+      preAutorizacao: cfg.preAutorizacao,
     });
   }
 }

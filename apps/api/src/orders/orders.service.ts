@@ -298,7 +298,7 @@ export class OrdersService {
     );
     const pg = rows[0];
     if (!pg || pg.metodo !== 'cartao') throw new NotFoundException('Pedido sem pagamento com cartão');
-    if (pg.status === 'pago') return { status: 'pago' };
+    if (pg.status === 'pago' || pg.status === 'autorizado') return { status: 'pago' };
     if (pg.status !== 'pendente') {
       throw new BadRequestException('O prazo deste pagamento venceu. Refaça o pedido para pagar com cartão.');
     }
@@ -369,14 +369,16 @@ export class OrdersService {
   async confirmarCartao(clienteId: string, pedidoId: string): Promise<{ status: string }> {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select g.id, g.status, g.metodo, g.expira_em, g.provedor, g.provedor_ref
+      `select g.id, g.status, g.metodo, g.expira_em, g.provedor, g.provedor_ref, g.captura
          from pagamentos g join pedidos p on p.id = g.pedido_id
         where g.pedido_id = $1 and p.cliente_id = $2 order by g.criado_em desc limit 1`,
       [pedidoId, clienteId],
     );
     const pg = rows[0];
+    // Pro app, reserva aprovada (pré-autorização) é "pago": o pedido seguiu.
+    const paraApp = (st: string) => (st === 'autorizado' ? 'pago' : st);
     if (!pg || pg.metodo !== 'cartao') throw new NotFoundException('Pedido sem pagamento com cartão');
-    if (pg.status !== 'pendente' || !pg.provedor_ref) return { status: pg.status };
+    if (pg.status !== 'pendente' || !pg.provedor_ref) return { status: paraApp(pg.status) };
     const pt = await this.provedores.obterPorNome(tenant.slug, pg.provedor);
     if (!pt) return { status: pg.status };
     try {
@@ -386,7 +388,7 @@ export class OrdersService {
       this.log.warn(`confirmação do cartão do pedido ${pedidoId}: ${e}`);
     }
     const depois = await pool.query(`select status from pagamentos where id = $1`, [pg.id]);
-    return { status: depois.rows[0].status };
+    return { status: paraApp(depois.rows[0].status) };
   }
 
   /**

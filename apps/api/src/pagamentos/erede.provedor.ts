@@ -3,11 +3,13 @@ import { randomBytes } from 'node:crypto';
 import https from 'node:https';
 import {
   CobrancaCriada,
+  ConfigPreAutorizacao,
   Contexto3ds,
   DadosCartao,
   NovaCobranca,
   PagamentoRecebido,
   ProvedorCartao,
+  ResultadoCaptura,
   ResultadoCartao,
   ResultadoEstorno,
   SituacaoCobranca,
@@ -26,6 +28,12 @@ export interface EredeConfig {
    * cobra mesmo sem autenticar (sem essa proteção).
    */
   tresDS?: { ativo: boolean; seFalhar?: 'recusar' | 'continuar' };
+  /**
+   * Pré-autorização: reserva no checkout (capture:false) e cobra o valor da NF-e no
+   * faturamento (PUT /v2/transactions/{tid}). Só ligar depois que a Rede confirmar que
+   * está liberada no PV, o prazo de captura do ramo e a captura parcial.
+   */
+  preAutorizacao?: { ativa: boolean; prazoHoras?: number; folgaHoras?: number };
 }
 
 // OAuth 2.0 obrigatório desde 05/01/2026 (BASIC descontinuado); token dura 24 min
@@ -57,6 +65,18 @@ export class EredeProvedor implements ProvedorCartao {
     return this.cfg.tresDS?.ativo === true;
   }
 
+  /**
+   * Sem prazo confirmado, assume 72 h (conservador): cobrar antes da hora só gera
+   * estorno de diferença; deixar a reserva cair é entregar sem receber.
+   */
+  get preAutorizacao(): ConfigPreAutorizacao | null {
+    const p = this.cfg.preAutorizacao;
+    if (p?.ativa !== true) return null;
+    const prazoHoras = Number(p.prazoHoras) > 0 ? Number(p.prazoHoras) : 72;
+    const folgaHoras = Number(p.folgaHoras) > 0 ? Math.min(Number(p.folgaHoras), prazoHoras / 2) : Math.min(12, prazoHoras / 2);
+    return { ativa: true, prazoHoras, folgaHoras };
+  }
+
   private get hosts() {
     return HOSTS[this.cfg.ambiente === 'sandbox' ? 'sandbox' : 'producao'];
   }
@@ -77,10 +97,16 @@ export class EredeProvedor implements ProvedorCartao {
     };
   }
 
-  async cobrar(ref: string, valor: number, cartao: DadosCartao, ctx3ds?: Contexto3ds): Promise<ResultadoCartao> {
+  async cobrar(
+    ref: string,
+    valor: number,
+    cartao: DadosCartao,
+    ctx3ds?: Contexto3ds,
+    opts: { capturar?: boolean } = {},
+  ): Promise<ResultadoCartao> {
     if (this.usa3ds && !ctx3ds) throw new Error('e.Rede: 3DS ligado mas o checkout não mandou os dados do aparelho');
     const corpo = {
-      capture: true,
+      capture: opts.capturar !== false,
       kind: 'credit',
       reference: ref,
       amount: Math.round(valor * 100), // centavos, sem separadores
@@ -128,6 +154,28 @@ export class EredeProvedor implements ProvedorCartao {
    * hora (359); depois disso aceita e processa em D+1 (360) — o worker confirma
    * pela consulta da transação (status Canceled).
    */
+  /**
+   * PUT /v2/transactions/{tid} com o valor a cobrar (≤ reservado). É aqui que a
+   * cobrança vai pra fatura do cliente. Falha ambígua (timeout): quem chama
+   * confere pela consulta antes de tentar de novo — a Rede pede pra nunca
+   * repetir a captura sem a resposta da anterior.
+   */
+  async capturar(tid: string, valor: number): Promise<ResultadoCaptura> {
+    let r: RespostaHttp;
+    try {
+      r = await this.chamar('PUT', `/${encodeURIComponent(tid)}`, { amount: Math.round(valor * 100) });
+    } catch (e) {
+      return { ok: false, codigo: '', mensagem: `Rede fora do ar: ${e}`, tentarDeNovo: true, payload: null };
+    }
+    const codigo = String(r.body?.returnCode ?? '');
+    if (codigo === '00') return { ok: true, codigo, mensagem: 'Cobrança feita', payload: r.body };
+    return {
+      ok: false, codigo, payload: r.body,
+      tentarDeNovo: !codigo && (r.status === 0 || r.status >= 500),
+      mensagem: String(r.body?.returnMessage ?? '') || `Rede respondeu HTTP ${r.status}`,
+    };
+  }
+
   async estornar(tid: string, valor: number): Promise<ResultadoEstorno> {
     let r: RespostaHttp;
     try {
@@ -174,7 +222,7 @@ export class EredeProvedor implements ProvedorCartao {
     return this.token.valor;
   }
 
-  private async chamar(method: 'GET' | 'POST', sufixo: string, corpo?: unknown): Promise<RespostaHttp> {
+  private async chamar(method: 'GET' | 'POST' | 'PUT', sufixo: string, corpo?: unknown): Promise<RespostaHttp> {
     const tentar = async (): Promise<RespostaHttp> => {
       const token = await this.obterToken();
       const base = new URL(this.hosts.transacoes);
@@ -234,7 +282,12 @@ export function traduzirStatusErede(body: any): SituacaoCobranca {
   if (st === 'Approved') {
     const valor = Number(body?.capture?.amount ?? body?.authorization?.amount) || 0;
     const quando = body?.capture?.dateTime ?? body?.authorization?.dateTime;
-    return { status: 'pago', valorPago: valor / 100, pagoEm: quando ? new Date(quando) : new Date(), tid, codigo3ds, payload: body };
+    // Grupo capture só existe depois da cobrança; sem ele, é reserva (pré-autorização).
+    const capturado = Number(body?.capture?.amount) > 0;
+    return {
+      status: 'pago', valorPago: valor / 100, pagoEm: quando ? new Date(quando) : new Date(), tid, codigo3ds,
+      capturado, valorCapturado: capturado ? Number(body.capture.amount) / 100 : undefined, payload: body,
+    };
   }
   if (st === 'Canceled') return { status: 'cancelado', tid, codigo3ds, payload: body };
   return { status: 'pendente', tid, codigo3ds, negada: st === 'Denied', payload: body };

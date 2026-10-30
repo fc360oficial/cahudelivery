@@ -49,7 +49,7 @@ describe('PagamentosService.pagarComCartao', () => {
     const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
 
     expect(r.status).toBe('pago');
-    expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO, undefined);
+    expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO, undefined, { capturar: true });
     expect(confirmar).toHaveBeenCalledWith(pool, 'pag-1', 150.5, expect.any(Date), 'Cartão aprovado', expect.any(Object));
     const upRef = query.mock.calls.find((c) => (c[0] as string).includes('update pagamentos set provedor_ref'));
     expect(upRef![1]).toEqual(['pag-1', 'P000042NOVAREF00']);
@@ -141,6 +141,29 @@ describe('PagamentosService.pagarComCartao', () => {
     const velho = provedorCartao();
     await svc.pagarComCartao(fakePool({ atual: { rows: [{ ...DESAFIO_ABERTO, desafio_recente: false }] } }).pool, velho, PAGAMENTO, CARTAO);
     expect(velho.cobrar).toHaveBeenCalled();
+  });
+
+  it('pré-autorização: só reserva (capture false) e o pagamento vira autorizado, não pago', async () => {
+    const svc = new PagamentosService();
+    const confirmar = jest.spyOn(svc, 'confirmarPago').mockResolvedValue(true);
+    const { pool } = fakePool({ atual: { rows: [{ provedor_ref: null, status: 'pendente', captura: 'posterior' }] } });
+    const prov = provedorCartao();
+
+    const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
+
+    expect(r.status).toBe('pago'); // pro app: aprovado, o pedido seguiu
+    expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO, undefined, { capturar: false });
+    expect(confirmar).toHaveBeenCalledWith(pool, 'pag-1', 150.5, expect.any(Date), expect.stringContaining('reservado'),
+      expect.objectContaining({ soReserva: true }));
+  });
+
+  it('pré-autorização: pagamento já reservado não cobra de novo', async () => {
+    const svc = new PagamentosService();
+    const { pool } = fakePool({ atual: { rows: [{ provedor_ref: 'X', status: 'autorizado', captura: 'posterior' }] } });
+    const prov = provedorCartao();
+    const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
+    expect(r.status).toBe('pago');
+    expect(prov.cobrar).not.toHaveBeenCalled();
   });
 
   it('3DS: cobrar pediu desafio → status autenticar com a URL do banco', async () => {

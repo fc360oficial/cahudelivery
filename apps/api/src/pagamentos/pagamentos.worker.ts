@@ -45,7 +45,7 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
           for (const pt of provedores) {
             await this.webhooks.processar(pool, pt.provedor);
             const { rows } = await pool.query(
-              `select id, provedor_ref, expira_em, metodo from pagamentos
+              `select id, provedor_ref, expira_em, metodo, captura from pagamentos
                 where status = 'pendente' and provedor = $1 order by criado_em limit 50`,
               [pt.provedor.nome],
             );
@@ -70,7 +70,10 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
                 );
               }
             }
-            if (ehProvedorCartao(pt.provedor)) await this.estornos(slug, pool, pt.provedor);
+            if (ehProvedorCartao(pt.provedor)) {
+              await this.reservas(slug, pool, pt.provedor);
+              await this.estornos(slug, pool, pt.provedor);
+            }
             else await this.creditosPix(slug, pool, pt.provedor.nome);
           }
         } catch (e) {
@@ -83,6 +86,56 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
       this.log.error(e);
     } finally {
       this.rodando = false;
+    }
+  }
+
+  /**
+   * Pré-autorização ('autorizado' = valor só reservado no cartão):
+   *  - pedido CANCELADO → libera a reserva (nada vai pra fatura);
+   *  - NF-e chegou (FATURADO com valores) → cobra o valor da nota;
+   *  - FATURADO sem valores há 6 h → cobra o reservado (o ERP não mandou o total);
+   *  - reserva perto de vencer (prazo − folga) sem nota → cobra o reservado: entregar
+   *    sem receber é pior que estornar diferença depois.
+   * Falha da Rede espera 10 min antes de tentar de novo (captura_erro + atualizado_em).
+   */
+  private async reservas(slug: string, pool: Pool, provedor: ProvedorCartao) {
+    // Reservas feitas com a chave ligada continuam valendo se ela for desligada depois.
+    const pa = provedor.preAutorizacao ?? { prazoHoras: 72, folgaHoras: 12 };
+    const limiteHoras = pa.prazoHoras - pa.folgaHoras;
+    const { rows } = await pool.query(
+      `select g.id, p.status as pedido_status, f.total as faturado,
+              (select min(e.criado_em) from pedido_eventos e where e.pedido_id = p.id and e.status = 'FATURADO') as faturado_em,
+              g.autorizado_em < now() - make_interval(hours => $2::int) as perto_de_vencer
+         from pagamentos g join pedidos p on p.id = g.pedido_id
+         left join pedido_faturamentos f on f.pedido_id = p.id
+        where g.provedor = $1 and g.status = 'autorizado'
+          and (g.captura_erro is null or g.atualizado_em < now() - interval '10 minutes')
+        order by g.autorizado_em limit 30`,
+      [provedor.nome, Math.max(1, Math.floor(limiteHoras))],
+    );
+    const faturados = ['FATURADO', 'EM_SEPARACAO', 'SAIU_ENTREGA', 'ENTREGUE'];
+    for (const p of rows) {
+      try {
+        let r: { status: string; mensagem: string } | null = null;
+        if (p.pedido_status === 'CANCELADO') {
+          r = await this.pagamentos.liberarReserva(pool, provedor, p.id, { motivo: 'pedido cancelado', origem: 'sistema' });
+        } else if (faturados.includes(p.pedido_status) && p.faturado != null) {
+          r = await this.pagamentos.cobrarReserva(pool, provedor, p.id, { motivo: 'valor da nota fiscal', origem: 'sistema' });
+        } else if (faturados.includes(p.pedido_status) && p.faturado_em && Date.now() - new Date(p.faturado_em).getTime() > 6 * 3600_000) {
+          r = await this.pagamentos.cobrarReserva(pool, provedor, p.id, { motivo: 'faturado sem o total da nota no ERP', origem: 'sistema' });
+        } else if (p.perto_de_vencer) {
+          r = await this.pagamentos.cobrarReserva(pool, provedor, p.id, { motivo: 'reserva perto de vencer, ainda sem nota', origem: 'sistema' });
+        }
+        if (r) {
+          await pool.query(
+            `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+             values ($1,'fluxo_para_erp',$2,$3,$4)`,
+            [`${provedor.nome}_reserva`, p.id, `${r.status}: ${r.mensagem}`.slice(0, 500), r.status === 'cobrado' || r.status === 'liberado'],
+          );
+        }
+      } catch (e) {
+        this.log.warn(`reserva ${slug}/${p.id}: ${e}`);
+      }
     }
   }
 

@@ -29,6 +29,10 @@ export interface SituacaoCobranca {
   codigo3ds?: string;  // cartão com 3DS: returnCode da autenticação
   /** Cartão: a tentativa existe na Rede e foi negada (≠ 'não existe' — desafio 3DS ainda em aberto). */
   negada?: boolean;
+  /** Cartão aprovado: a Rede já cobrou (captura feita)? false = só reserva (pré-autorização). */
+  capturado?: boolean;
+  /** Cartão capturado: quanto foi cobrado de fato. */
+  valorCapturado?: number;
   payload: unknown;
 }
 
@@ -107,15 +111,40 @@ export interface ResultadoEstorno {
   payload: unknown;
 }
 
+export interface ResultadoCaptura {
+  ok: boolean;
+  codigo: string;
+  mensagem: string;
+  /** Falha passageira (Rede fora): o worker tenta de novo. */
+  tentarDeNovo?: boolean;
+  payload: unknown;
+}
+
+export interface ConfigPreAutorizacao {
+  /** Liga a reserva no checkout + cobrança do valor da NF-e no faturamento. */
+  ativa: boolean;
+  /** Prazo da Rede pra cobrar a reserva antes dela cair (confirmar com a Rede pro ramo do PV). */
+  prazoHoras: number;
+  /** Quanto antes de vencer a reserva o sistema cobra o valor cheio, mesmo sem NF-e (rede de segurança). */
+  folgaHoras: number;
+}
+
 export interface ProvedorCartao extends ProvedorPagamento {
   readonly metodo: 'cartao';
   /** 3DS ligado na config do provedor: o checkout precisa mandar o Contexto3ds. */
   readonly usa3ds: boolean;
+  /** Pré-autorização (null = desligada: cobra tudo na hora). */
+  readonly preAutorizacao: ConfigPreAutorizacao | null;
   /** Referência nova e válida no provedor (cada tentativa de cobrança usa uma). */
   novaRef(numeroPedido: number): string;
-  /** Autoriza com captura automática. Recusa do emissor NÃO é exceção: vem em aprovado=false. */
-  cobrar(ref: string, valor: number, cartao: DadosCartao, ctx3ds?: Contexto3ds): Promise<ResultadoCartao>;
-  /** Cancela (total ou parcial) uma transação aprovada. */
+  /**
+   * Autoriza; `capturar` false = só reserva o valor no limite (pré-autorização).
+   * Recusa do emissor NÃO é exceção: vem em aprovado=false.
+   */
+  cobrar(ref: string, valor: number, cartao: DadosCartao, ctx3ds?: Contexto3ds, opts?: { capturar?: boolean }): Promise<ResultadoCartao>;
+  /** Cobra (total ou parcial) uma reserva aprovada. */
+  capturar(tid: string, valor: number): Promise<ResultadoCaptura>;
+  /** Cancela uma transação: estorno se cobrada, libera o limite se só reservada. */
   estornar(tid: string, valor: number): Promise<ResultadoEstorno>;
 }
 

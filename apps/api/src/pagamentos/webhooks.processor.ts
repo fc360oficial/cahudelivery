@@ -37,9 +37,9 @@ export class WebhooksProcessor {
           const atual = await pool.query(`select status from pagamentos where id = $1`, [row.id]);
           let statusFinal = atual.rows[0]?.status;
           if (s.status === 'pago' && statusFinal === 'expirado') {
-            // Dinheiro entrou depois do prazo local: reativa o pedido (ou vira crédito na carteira).
-            const r2 = await this.pagamentos.reativarPagoAposVencer(pool, row.id, s.valorPago ?? r.valorPago, s.pagoEm ?? r.pagoEm);
-            this.log.warn(`ref ${r.ref}: pago depois de vencer → ${r2}`);
+            // Dinheiro entrou depois do prazo local: pedido segue cancelado, valor vira crédito na carteira.
+            await this.pagamentos.registrarPagoAposVencer(pool, row.id, s.valorPago ?? r.valorPago, s.pagoEm ?? r.pagoEm);
+            this.log.warn(`ref ${r.ref}: pago depois de vencer → crédito na carteira`);
             statusFinal = 'pago';
           }
           if (s.status === 'pago' && statusFinal !== 'pago') {

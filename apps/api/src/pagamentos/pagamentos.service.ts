@@ -132,57 +132,28 @@ export class PagamentosService {
 
   /**
    * PIX pago DEPOIS de o sistema dar o pagamento por vencido (o dinheiro entrou):
-   * expirado -> pago. Se o pedido foi cancelado só por isso (nunca chegou ao ERP)
-   * e o saldo da carteira que ele usava ainda está lá, reativa o pedido e manda
-   * pro ERP. Senão o pedido fica cancelado e o worker credita o PIX na carteira.
+   * expirado -> pago, e o pedido CONTINUA cancelado — o worker (creditosPix) credita
+   * o valor na carteira do cliente. Nunca reativa nem manda pro ERP sozinho: o ERP
+   * também vê pedido cancelado e alguém pode já ter tratado lá (Tiago excluiu o #12
+   * no ERP em 30/10/2026 — reativar o recriaria).
    */
-  async reativarPagoAposVencer(
-    pool: Executor,
-    pagamentoId: string,
-    valorPago: number,
-    pagoEm: Date,
-  ): Promise<'reativado' | 'credito' | 'nada'> {
+  async registrarPagoAposVencer(pool: Executor, pagamentoId: string, valorPago: number, pagoEm: Date): Promise<boolean> {
     return this.emTransacao(pool, async (q) => {
       const up = await q.query(
         `update pagamentos set status = 'pago', valor_pago = $2, pago_em = $3, atualizado_em = now()
           where id = $1 and status = 'expirado' returning pedido_id`,
         [pagamentoId, valorPago, pagoEm],
       );
-      if (up.rowCount === 0) return 'nada';
+      if (up.rowCount === 0) return false;
       const pedidoId = up.rows[0].pedido_id;
-      const ped = await q.query(
-        `select p.status, p.numero, p.cliente_id, p.valor_saldo_usado, p.erp_pedido_id,
-                exists (select 1 from sync_outbox o where o.agregado = 'pedido' and o.agregado_id = p.id) as foi_pro_erp,
-                (select coalesce(sum(m.valor),0) from carteira_movimentos m where m.cliente_id = p.cliente_id) as saldo
-           from pedidos p where p.id = $1 for update`,
+      await q.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem)
+         select $1, status, 'PIX recebido depois do prazo — o pedido segue cancelado e o valor vira crédito na carteira', 'sistema'
+           from pedidos where id = $1`,
         [pedidoId],
       );
-      const p = ped.rows[0];
-      const saldoUsado = Number(p?.valor_saldo_usado) || 0;
-      const podeReativar = p && p.status === 'CANCELADO' && !p.erp_pedido_id && !p.foi_pro_erp
-        && (saldoUsado === 0 || Number(p.saldo) >= saldoUsado);
-      if (!podeReativar) {
-        this.log.warn(`PIX ${pagamentoId} pago após vencer; pedido ${pedidoId} não pode ser reativado — vira crédito na carteira`);
-        return 'credito';
-      }
-      if (saldoUsado > 0) {
-        // No vencimento o saldo usado voltou pra carteira; reativando, ele é usado de novo.
-        await q.query(
-          `insert into carteira_movimentos (cliente_id, valor, motivo, pedido_id) values ($1,$2,$3,$4)`,
-          [p.cliente_id, -saldoUsado, `Uso no pedido #${p.numero} (reativado)`, pedidoId],
-        );
-      }
-      await q.query(`update pedidos set status = 'RECEBIDO' where id = $1`, [pedidoId]);
-      await q.query(
-        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'RECEBIDO',$2,'sistema')`,
-        [pedidoId, 'PIX recebido depois do prazo — pedido reativado'],
-      );
-      await q.query(
-        `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
-        [pedidoId],
-      );
-      this.log.log(`PIX ${pagamentoId} pago após vencer: pedido #${p.numero} reativado`);
-      return 'reativado';
+      this.log.warn(`PIX ${pagamentoId} pago após vencer (pedido ${pedidoId}): vira crédito na carteira`);
+      return true;
     });
   }
 

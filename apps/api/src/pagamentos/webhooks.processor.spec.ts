@@ -69,7 +69,7 @@ describe('WebhooksProcessor', () => {
     expect(marcas[1][1]).toEqual(['wh-2', null]);
   });
 
-  it('webhook confirma pagamento já expirado aqui (pedido #12, 30/10/2026): reativa em vez de só registrar erro', async () => {
+  it('webhook confirma pagamento já expirado aqui (pedido #12, 30/10/2026): marca pago (vira crédito) em vez de só registrar erro', async () => {
     const query = jest.fn()
       .mockResolvedValueOnce({ rows: [{ id: 'wh-3', corpo_bruto: JSON.stringify({ ref: 'REF3', valor: 9 }) }] })
       .mockResolvedValueOnce({ rows: [{ id: 'pag-3', expira_em: new Date(Date.now() - 60_000), status: 'expirado' }] })
@@ -77,7 +77,7 @@ describe('WebhooksProcessor', () => {
       .mockResolvedValue({ rows: [], rowCount: 0 });
     const pagamentos = new PagamentosService();
     jest.spyOn(pagamentos, 'aplicarSituacao').mockResolvedValue();
-    const reativar = jest.spyOn(pagamentos, 'reativarPagoAposVencer').mockResolvedValue('reativado');
+    const reativar = jest.spyOn(pagamentos, 'registrarPagoAposVencer').mockResolvedValue(true);
     const provedor = new MockProvedor();
     jest.spyOn(provedor, 'consultar').mockResolvedValue({ status: 'pago', valorPago: 9, pagoEm: new Date(), payload: {} });
     const proc = new WebhooksProcessor(pagamentos);

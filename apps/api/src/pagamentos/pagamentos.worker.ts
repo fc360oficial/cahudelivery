@@ -95,7 +95,7 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
    * Rede de segurança do PIX: pagamento dado como vencido aqui mas pago no banco
    * (webhook perdido, ou prazo local errado como no pedido #12 de 30/10/2026).
    * A cada 5 min confere no provedor os PIX vencidos nas últimas 48 h; pago →
-   * reativa o pedido (ou o worker credita na carteira).
+   * marca pago e o pedido segue cancelado (creditosPix credita na carteira logo depois).
    */
   private ultimaConferenciaVencidos = new Map<string, number>();
   private async pixPagosAposVencer(slug: string, pool: Pool, provedor: ProvedorPagamento) {
@@ -113,12 +113,14 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
       try {
         const s = await provedor.consultar(p.provedor_ref);
         if (s.status !== 'pago') continue;
-        const r = await this.pagamentos.reativarPagoAposVencer(pool, p.id, s.valorPago ?? 0, s.pagoEm ?? new Date());
-        await pool.query(
-          `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
-           values ('pix_pago_apos_vencer','fluxo_para_erp',$1,$2,true)`,
-          [p.provedor_ref, r],
-        );
+        const mudou = await this.pagamentos.registrarPagoAposVencer(pool, p.id, s.valorPago ?? 0, s.pagoEm ?? new Date());
+        if (mudou) {
+          await pool.query(
+            `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+             values ('pix_pago_apos_vencer','fluxo_para_erp',$1,'pago depois de vencer: vira crédito na carteira',true)`,
+            [p.provedor_ref],
+          );
+        }
       } catch (e) {
         this.log.warn(`conferência de PIX vencido ${slug}/${p.provedor_ref}: ${e}`);
       }

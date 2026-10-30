@@ -37,12 +37,14 @@ export class ItauPixProvedor implements ProvedorPagamento {
     if (r.status < 200 || r.status >= 300) {
       throw new Error(`Itaú PIX cob ${r.status}: ${r.texto.slice(0, 300)}`);
     }
-    const criacao = r.body?.calendario?.criacao ? new Date(r.body.calendario.criacao) : new Date();
+    // Prazo pelo NOSSO relógio, nunca pelo calendario.criacao do Itaú: em 30/10/2026 o PIX do
+    // pedido #12 nasceu vencido (expirado 16 s depois de criado, pago 14 s depois disso) —
+    // a hora de criação devolvida pelo banco não bate com o fuso do servidor.
     const expiracao = Number(r.body?.calendario?.expiracao) || p.expiracaoSegundos;
     return {
       ref: r.body?.txid ?? p.ref,
       copiaCola: this.copiaColaDaResposta(r.body, p.ref),
-      expiraEm: new Date(criacao.getTime() + expiracao * 1000),
+      expiraEm: new Date(Date.now() + expiracao * 1000),
       payload: r.body,
     };
   }

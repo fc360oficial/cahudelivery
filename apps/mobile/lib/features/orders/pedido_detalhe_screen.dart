@@ -184,8 +184,9 @@ class _PedidoDetalheScreenState extends State<PedidoDetalheScreen> {
             // Cobrança (aparece quando o ERP fatura)
             if (cobranca != null) _cartaoCobranca(cobranca),
 
-            // Cartão na entrega: não há cobrança do ERP, o cliente paga na maquininha
-            if (cobranca == null && p['forma_pagamento'] == 'cartao') _cartaoPagamentoEntrega(),
+            // Cartão na entrega: não há cobrança do ERP, o cliente paga na maquininha.
+            // Cartão pago no app já aparece no bloco de cima — não repetir "na entrega".
+            if (cobranca == null && pagamento == null && p['forma_pagamento'] == 'cartao') _cartaoPagamentoEntrega(),
 
             // Nota fiscal
             if (nota != null) _cartaoNota(nota),

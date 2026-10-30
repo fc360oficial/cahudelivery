@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import type { Pool } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { PagamentosService } from './pagamentos.service';
-import { ProvedorCartao, ehProvedorCartao } from './provedor-pagamento';
+import { ProvedorCartao, ProvedorPagamento, ehProvedorCartao } from './provedor-pagamento';
 import { ProvedoresService } from './provedores.service';
 import { WebhooksProcessor } from './webhooks.processor';
 
@@ -73,8 +73,10 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
             if (ehProvedorCartao(pt.provedor)) {
               await this.reservas(slug, pool, pt.provedor);
               await this.estornos(slug, pool, pt.provedor);
+            } else {
+              await this.pixPagosAposVencer(slug, pool, pt.provedor);
+              await this.creditosPix(slug, pool, pt.provedor.nome);
             }
-            else await this.creditosPix(slug, pool, pt.provedor.nome);
           }
         } catch (e) {
           // Credencial quebrada ou banco fora do ar de UM tenant não pode parar os outros.
@@ -86,6 +88,40 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
       this.log.error(e);
     } finally {
       this.rodando = false;
+    }
+  }
+
+  /**
+   * Rede de segurança do PIX: pagamento dado como vencido aqui mas pago no banco
+   * (webhook perdido, ou prazo local errado como no pedido #12 de 30/10/2026).
+   * A cada 5 min confere no provedor os PIX vencidos nas últimas 48 h; pago →
+   * reativa o pedido (ou o worker credita na carteira).
+   */
+  private ultimaConferenciaVencidos = new Map<string, number>();
+  private async pixPagosAposVencer(slug: string, pool: Pool, provedor: ProvedorPagamento) {
+    const chave = `${slug}/${provedor.nome}`;
+    if (Date.now() - (this.ultimaConferenciaVencidos.get(chave) ?? 0) < 5 * 60_000) return;
+    this.ultimaConferenciaVencidos.set(chave, Date.now());
+    const { rows } = await pool.query(
+      `select id, provedor_ref from pagamentos
+        where provedor = $1 and metodo = 'pix' and status = 'expirado' and provedor_ref is not null
+          and atualizado_em > now() - interval '48 hours'
+        order by atualizado_em desc limit 30`,
+      [provedor.nome],
+    );
+    for (const p of rows) {
+      try {
+        const s = await provedor.consultar(p.provedor_ref);
+        if (s.status !== 'pago') continue;
+        const r = await this.pagamentos.reativarPagoAposVencer(pool, p.id, s.valorPago ?? 0, s.pagoEm ?? new Date());
+        await pool.query(
+          `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+           values ('pix_pago_apos_vencer','fluxo_para_erp',$1,$2,true)`,
+          [p.provedor_ref, r],
+        );
+      } catch (e) {
+        this.log.warn(`conferência de PIX vencido ${slug}/${p.provedor_ref}: ${e}`);
+      }
     }
   }
 

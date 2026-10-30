@@ -34,9 +34,13 @@ class TenantTheme extends ChangeNotifier {
       carregado = true;
       notifyListeners();
     } catch (_) {
-      // offline no boot: segue com o fallback embutido
+      // Offline no boot: segue com o fallback embutido e tenta de novo em segundo
+      // plano — sem a config, o checkout não sabe quais formas de pagamento estão ligadas.
+      if (_tentativas++ < 3) Future.delayed(const Duration(seconds: 5), carregar);
     }
   }
+
+  int _tentativas = 0;
 
   /// Cor de texto/ícone legível sobre a cor primária (escuro sobre amarelo).
   Color get corSobrePrimaria =>

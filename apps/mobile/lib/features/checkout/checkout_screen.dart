@@ -57,8 +57,10 @@ List<_FormaPagamento> _formasAceitas() {
   final conhecidas = _formasConhecidas
       .map((f) => f.codigo == 'cartao' && cfgs['cartao_online'] == true ? _cartaoOnline : f)
       .toList();
+  // Sem a config da retaguarda (GET /config falhou): só PIX. Antes mostrava todas
+  // as formas — boleto e "cartão na entrega" apareciam mesmo desligados (30/10/2026).
   final lista = conhecidas
-      .where((f) => cfg == null || cfg.contains(f.codigo))
+      .where((f) => cfg == null ? f.codigo == 'pix' : cfg.contains(f.codigo))
       .toList();
   // Config vazia/inválida: não deixa o cliente sem forma de pagar.
   return lista.isEmpty ? [conhecidas.first] : lista;
@@ -76,7 +78,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   String? _erro;
   String? _enderecoId;
   String _tipoEntrega = 'entrega';
-  late final List<_FormaPagamento> _formas = _formasAceitas();
+  List<_FormaPagamento> _formas = _formasAceitas();
   late String _pagamento = _formas.first.codigo;
   String? _condicaoPagamento;
 
@@ -92,6 +94,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.initState();
     _carregarEnderecos();
     _carregarSaldo();
+    _garantirConfig();
+  }
+
+  /// Config não veio na abertura do app (rede ruim): tenta de novo antes do
+  /// cliente escolher como pagar, e remonta as formas com o que a retaguarda ligou.
+  Future<void> _garantirConfig() async {
+    if (TenantTheme.instance.carregado) return;
+    await TenantTheme.instance.carregar();
+    if (!mounted || !TenantTheme.instance.carregado) return;
+    setState(() {
+      _formas = _formasAceitas();
+      if (!_formas.any((f) => f.codigo == _pagamento)) _pagamento = _formas.first.codigo;
+    });
   }
 
   Future<void> _carregarSaldo() async {

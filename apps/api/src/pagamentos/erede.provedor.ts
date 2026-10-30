@@ -286,13 +286,18 @@ export function traduzirStatusErede(body: any): SituacaoCobranca {
   const tid = body?.authorization?.tid ? String(body.authorization.tid) : undefined;
   const codigo3ds = body?.threeDSecure?.returnCode != null ? String(body.threeDSecure.returnCode) : undefined;
   if (st === 'Approved') {
-    const valor = Number(body?.capture?.amount ?? body?.authorization?.amount) || 0;
+    // Captura parcial (teste real 30/10/2026, reserva 100 → cobrança 50): a consulta devolve
+    // authorization.amount=50 (o valor da transação, que o estorno respeita) e capture.amount=100
+    // (o reservado). O valor cobrado de fato é o MENOR dos dois.
+    const autorizado = Number(body?.authorization?.amount) || 0;
+    const captura = Number(body?.capture?.amount) || 0;
+    const valor = captura > 0 && autorizado > 0 ? Math.min(captura, autorizado) : captura || autorizado;
     const quando = body?.capture?.dateTime ?? body?.authorization?.dateTime;
     // Grupo capture só existe depois da cobrança; sem ele, é reserva (pré-autorização).
-    const capturado = Number(body?.capture?.amount) > 0;
+    const capturado = captura > 0;
     return {
       status: 'pago', valorPago: valor / 100, pagoEm: quando ? new Date(quando) : new Date(), tid, codigo3ds,
-      capturado, valorCapturado: capturado ? Number(body.capture.amount) / 100 : undefined, payload: body,
+      capturado, valorCapturado: capturado ? valor / 100 : undefined, payload: body,
     };
   }
   if (st === 'Canceled') return { status: 'cancelado', tid, codigo3ds, payload: body };

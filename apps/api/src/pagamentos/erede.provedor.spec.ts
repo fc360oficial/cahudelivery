@@ -250,6 +250,13 @@ describe('EredeProvedor pré-autorização', () => {
     expect(cobrado.capturado).toBe(true);
     expect(cobrado.valorCapturado).toBe(80);
   });
+
+  it('captura parcial como a Rede devolve de verdade (30/10/2026): authorization 50, capture 100 → cobrado 0,50', () => {
+    const s = traduzirStatusErede({ authorization: { status: 'Approved', amount: 50, tid: 'T' }, capture: { amount: 100 } });
+    expect(s.capturado).toBe(true);
+    expect(s.valorCapturado).toBe(0.5);
+    expect(s.valorPago).toBe(0.5);
+  });
 });
 
 describe('corpo3ds', () => {

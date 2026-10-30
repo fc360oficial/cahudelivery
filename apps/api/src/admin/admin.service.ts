@@ -101,8 +101,14 @@ export class AdminService {
             'em', e.criado_em) order by e.criado_em) from pedido_eventos e where e.pedido_id = p.id) as eventos,
         (select row_to_json(co) from pedido_cobrancas co where co.pedido_id = p.id) as cobranca,
         (select to_jsonb(n) - 'xml' from pedido_notas n where n.pedido_id = p.id) as nota,
-        (select row_to_json(g) from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento,
-        (select f.total from pedido_faturamentos f where f.pedido_id = p.id) as total_faturado
+        (select to_jsonb(g) - 'payload_json' from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento,
+        (select f.total from pedido_faturamentos f where f.pedido_id = p.id) as total_faturado,
+        (select to_jsonb(en) - 'foto_canhoto' - 'foto_entrega'
+                || jsonb_build_object('tem_canhoto', en.foto_canhoto is not null, 'tem_foto', en.foto_entrega is not null)
+           from pedido_entregas en where en.pedido_id = p.id) as entrega,
+        (select json_agg(json_build_object('valor', e.valor, 'status', e.status, 'codigo', e.codigo, 'mensagem', e.mensagem,
+            'motivo', e.motivo, 'origem', e.origem, 'em', e.criado_em) order by e.criado_em)
+           from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
          from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
       [id],
     );

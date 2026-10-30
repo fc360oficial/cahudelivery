@@ -29,9 +29,10 @@ export class AppModule implements NestModule {
     // (MaxipagoAuthMiddleware) — o gateway não conhece nosso header X-Tenant.
     // As notas resolvem pelo slug no caminho (NotasTenantMiddleware) — o
     // navegador externo que abre o XML/DANFE não manda header nenhum.
+    // O retorno do 3DS é uma página estática pra onde o banco redireciona o cliente.
     consumer
       .apply(TenancyMiddleware)
-      .exclude('integracoes/dlinks/(.*)', 'integracoes/maxipago/(.*)', 'notas/(.*)', 'integracoes/pagamentos/(.*)')
+      .exclude('integracoes/dlinks/(.*)', 'integracoes/maxipago/(.*)', 'notas/(.*)', 'integracoes/pagamentos/(.*)', 'pagamentos/3ds/(.*)')
       .forRoutes('*');
   }
 }

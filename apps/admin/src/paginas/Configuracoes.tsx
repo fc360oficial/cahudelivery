@@ -13,6 +13,8 @@ interface Config {
   contato_whatsapp?: string;
   politica_cancelamento?: string;
   politica_privacidade?: string;
+  cartao_valor_maximo?: { valor: number };
+  cartao_pedidos_anteriores?: { valor: number };
 }
 
 export function Configuracoes() {
@@ -95,6 +97,27 @@ export function Configuracoes() {
             </div>
           )}
         </div>
+
+        {formas.includes('cartao') && (
+          <div className="card">
+            <div className="rotulo">Proteção do cartão online (chargeback)</div>
+            <div className="filtros" style={{ marginTop: 8, marginBottom: 0 }}>
+              <label>Valor máximo por pedido (R$)
+                <input type="number" step="0.01" min="0" value={cfg.cartao_valor_maximo?.valor ?? 0}
+                  onChange={(e) => setCfg({ ...cfg, cartao_valor_maximo: { valor: Number(e.target.value) } })}
+                  style={{ width: 130, marginLeft: 6 }} />
+              </label>
+              <label>Pedidos entregues antes de liberar
+                <input type="number" min="0" step="1" value={cfg.cartao_pedidos_anteriores?.valor ?? 0}
+                  onChange={(e) => setCfg({ ...cfg, cartao_pedidos_anteriores: { valor: Math.max(0, Math.round(Number(e.target.value))) } })}
+                  style={{ width: 80, marginLeft: 6 }} />
+              </label>
+            </div>
+            <div style={{ color: 'var(--texto-2)', marginTop: 6 }}>
+              0 = sem limite. Acima do valor, ou para cliente com menos pedidos faturados/entregues que o mínimo, o app pede PIX (PIX não tem chargeback).
+            </div>
+          </div>
+        )}
 
         <div className="card">
           <div className="rotulo">WhatsApp da distribuidora</div>

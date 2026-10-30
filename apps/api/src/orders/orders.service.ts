@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { CatalogService } from '../catalog/catalog.service';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
-import { DadosCartao, ehProvedorCartao } from '../pagamentos/provedor-pagamento';
+import { Contexto3ds, DadosCartao, ehProvedorCartao } from '../pagamentos/provedor-pagamento';
+import { urlsRetorno3ds } from '../pagamentos/tres-ds.controller';
 
 export type DonoCarrinho = { clienteId?: string; deviceId?: string };
 
@@ -102,6 +104,7 @@ export class OrdersService {
       condicaoPagamento?: string;
       usarSaldo?: boolean;
     },
+    origem: { ip: string | null; userAgent: string | null } = { ip: null, userAgent: null },
   ) {
     const { pool, tenant } = tenantCtx();
     const cliente = await pool.query(`select status from clientes where id = $1`, [clienteId]);
@@ -128,6 +131,7 @@ export class OrdersService {
     if (!formasAceitas.includes(dto.formaPagamento)) {
       throw new BadRequestException('Forma de pagamento não disponível');
     }
+    if (dto.formaPagamento === 'cartao') await this.validarRiscoCartao(clienteId, subtotal);
 
     if (dto.formaPagamento === 'boleto') {
       const cred = await pool.query(`select limite_credito from clientes where id = $1`, [clienteId]);
@@ -188,8 +192,8 @@ export class OrdersService {
       const pagarOnline = !!provedorTenant && valorACobrar > 0;
       const statusInicial = pagarOnline ? 'AGUARDANDO_PAGAMENTO' : 'RECEBIDO';
       const ped = await client.query(
-        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado, status)
-         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9) returning id, numero, status, criado_em`,
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado, status, aceite_json)
+         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9,$10) returning id, numero, status, criado_em`,
         [
           clienteId,
           enderecoJson,
@@ -200,6 +204,7 @@ export class OrdersService {
           dto.formaPagamento === 'boleto' ? (dto.condicaoPagamento ?? 'À vista') : null,
           valorSaldoUsado,
           statusInicial,
+          JSON.stringify(await this.aceite(origem)),
         ],
       );
       const pedidoId = ped.rows[0].id;
@@ -272,11 +277,21 @@ export class OrdersService {
    * checkout (o pedido nasce AGUARDANDO_PAGAMENTO com metodo 'cartao'). Recusa
    * devolve 200 com status 'recusado' — o cliente pode tentar outro cartão.
    */
-  async pagarCartao(clienteId: string, pedidoId: string, cartao: DadosCartao) {
+  async pagarCartao(
+    clienteId: string,
+    pedidoId: string,
+    cartao: DadosCartao,
+    aparelho: {
+      ip: string | null;
+      userAgent: string;
+      dispositivo?: { profundidadeCor?: number; altura: number; largura: number; idioma?: string; fusoHoras: number };
+    } = { ip: null, userAgent: '' },
+  ) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select g.id, g.status, g.metodo, g.valor, g.expira_em, g.provedor, p.numero
-         from pagamentos g join pedidos p on p.id = g.pedido_id
+      `select g.id, g.status, g.metodo, g.valor, g.expira_em, g.provedor, p.numero, p.endereco_snapshot_json,
+              c.email, c.telefone
+         from pagamentos g join pedidos p on p.id = g.pedido_id join clientes c on c.id = p.cliente_id
         where g.pedido_id = $1 and p.cliente_id = $2
         order by g.criado_em desc limit 1`,
       [pedidoId, clienteId],
@@ -291,6 +306,40 @@ export class OrdersService {
     if (!pt || !ehProvedorCartao(pt.provedor)) {
       throw new BadRequestException('Pagamento com cartão indisponível no momento. Tente novamente em instantes.');
     }
+    let ctx3ds: Contexto3ds | undefined;
+    if (pt.provedor.usa3ds) {
+      const urls = urlsRetorno3ds(tenant.slug);
+      if (!urls) {
+        this.log.error('3DS ligado mas PUBLIC_URL não está configurada — sem URL de retorno do banco');
+        throw new BadRequestException('Pagamento com cartão indisponível no momento. Use o PIX ou tente mais tarde.');
+      }
+      if (!aparelho.dispositivo) {
+        throw new BadRequestException('Atualize o aplicativo para pagar com cartão.');
+      }
+      const end = pg.endereco_snapshot_json ?? (await this.enderecoPadrao(clienteId));
+      ctx3ds = {
+        // Rede só aceita IPv4; cliente em IPv6 puro manda o placeholder em vez de travar a compra.
+        ip: aparelho.ip ?? '0.0.0.0',
+        userAgent: aparelho.userAgent,
+        dispositivo: {
+          profundidadeCor: aparelho.dispositivo.profundidadeCor ?? 24,
+          altura: aparelho.dispositivo.altura,
+          largura: aparelho.dispositivo.largura,
+          idioma: aparelho.dispositivo.idioma ?? 'pt-BR',
+          fusoHoras: aparelho.dispositivo.fusoHoras,
+        },
+        cobranca: {
+          endereco: end ? `${end.logradouro ?? ''}, ${end.numero ?? ''} - ${end.bairro ?? ''}`.trim() : '',
+          cidade: end?.cidade ?? '',
+          cep: end?.cep ?? '',
+          uf: end?.uf ?? '',
+          email: pg.email ?? '',
+          telefone: pg.telefone ?? '',
+        },
+        urlSucesso: urls.sucesso,
+        urlFalha: urls.falha,
+      };
+    }
     let r: Awaited<ReturnType<PagamentosService['pagarComCartao']>>;
     try {
       r = await this.pagamentos.pagarComCartao(
@@ -298,6 +347,7 @@ export class OrdersService {
         pt.provedor,
         { id: pg.id, numero: Number(pg.numero), valor: Number(pg.valor), expira_em: pg.expira_em },
         cartao,
+        ctx3ds,
       );
     } catch (e) {
       // Nunca logar dados do cartão — só o pedido e o erro do provedor.
@@ -309,6 +359,92 @@ export class OrdersService {
       throw new BadRequestException('O prazo deste pagamento venceu. Refaça o pedido para pagar com cartão.');
     }
     return r;
+  }
+
+  /**
+   * Volta do desafio 3DS: consulta a Rede pela ref da última tentativa. Nunca
+   * expira por prazo aqui (quem expira é o worker) — o cliente pode ter
+   * autenticado no último minuto.
+   */
+  async confirmarCartao(clienteId: string, pedidoId: string): Promise<{ status: string }> {
+    const { pool, tenant } = tenantCtx();
+    const { rows } = await pool.query(
+      `select g.id, g.status, g.metodo, g.expira_em, g.provedor, g.provedor_ref
+         from pagamentos g join pedidos p on p.id = g.pedido_id
+        where g.pedido_id = $1 and p.cliente_id = $2 order by g.criado_em desc limit 1`,
+      [pedidoId, clienteId],
+    );
+    const pg = rows[0];
+    if (!pg || pg.metodo !== 'cartao') throw new NotFoundException('Pedido sem pagamento com cartão');
+    if (pg.status !== 'pendente' || !pg.provedor_ref) return { status: pg.status };
+    const pt = await this.provedores.obterPorNome(tenant.slug, pg.provedor);
+    if (!pt) return { status: pg.status };
+    try {
+      const s = await pt.provedor.consultar(pg.provedor_ref);
+      await this.pagamentos.aplicarSituacao(pool, pg, s, { expirarSeVencido: false });
+    } catch (e) {
+      this.log.warn(`confirmação do cartão do pedido ${pedidoId}: ${e}`);
+    }
+    const depois = await pool.query(`select status from pagamentos where id = $1`, [pg.id]);
+    return { status: depois.rows[0].status };
+  }
+
+  /**
+   * Regras de risco do cartão (Retaguarda › Configurações): valor máximo por
+   * pedido e nº mínimo de pedidos já faturados/entregues antes de liberar o
+   * cartão. Cliente novo ou pedido grande vai de PIX (sem chargeback).
+   */
+  private async validarRiscoCartao(clienteId: string, subtotal: number) {
+    const { pool } = tenantCtx();
+    const cfg = await pool.query(
+      `select chave, valor_json from configuracoes where chave in ('cartao_valor_maximo','cartao_pedidos_anteriores')`,
+    );
+    const valor = (chave: string) => Number(cfg.rows.find((r) => r.chave === chave)?.valor_json?.valor ?? 0) || 0;
+    const maximo = valor('cartao_valor_maximo');
+    if (maximo > 0 && subtotal > maximo) {
+      throw new BadRequestException(
+        `Pedidos acima de R$ ${maximo.toFixed(2).replace('.', ',')} são pagos por PIX. Escolha PIX para continuar.`,
+      );
+    }
+    const minimoPedidos = valor('cartao_pedidos_anteriores');
+    if (minimoPedidos > 0) {
+      const feitos = await pool.query(
+        `select count(*)::int as n from pedidos where cliente_id = $1 and status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`,
+        [clienteId],
+      );
+      if (feitos.rows[0].n < minimoPedidos) {
+        throw new BadRequestException(
+          minimoPedidos === 1
+            ? 'O cartão fica disponível depois do seu primeiro pedido entregue. Pague este com PIX.'
+            : `O cartão fica disponível depois de ${minimoPedidos} pedidos entregues. Pague este com PIX.`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Prova do aceite pro caso de contestação: quando, de onde e qual versão do
+   * texto da política estava publicada (sha256 dos primeiros 16 hex).
+   */
+  private async aceite(origem: { ip: string | null; userAgent: string | null }) {
+    const { pool } = tenantCtx();
+    const pol = await pool.query(`select valor_json from configuracoes where chave = 'politica_cancelamento'`);
+    const texto = JSON.stringify(pol.rows[0]?.valor_json ?? null);
+    return {
+      em: new Date().toISOString(),
+      ip: origem.ip,
+      userAgent: origem.userAgent,
+      politicaCancelamento: pol.rows[0] ? createHash('sha256').update(texto).digest('hex').slice(0, 16) : null,
+    };
+  }
+
+  private async enderecoPadrao(clienteId: string) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select * from cliente_enderecos where cliente_id = $1 order by padrao desc limit 1`,
+      [clienteId],
+    );
+    return rows[0] ?? null;
   }
 
   async listar(clienteId: string, pagina: number) {

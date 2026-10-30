@@ -12,7 +12,7 @@ function fakePool(over: Record<string, any> = {}) {
   const query = jest.fn(async (sql: string) => {
     if (sql.includes('pg_try_advisory_lock')) return over.lock ?? { rows: [{ ok: true }] };
     if (sql.includes('pg_advisory_unlock')) return { rows: [] };
-    if (sql.includes('select provedor_ref, status from pagamentos'))
+    if (sql.includes('select provedor_ref, status, autenticacao_3ds'))
       return over.atual ?? { rows: [{ provedor_ref: null, status: 'pendente' }] };
     if (sql.includes('update pagamentos set provedor_ref')) return over.upRef ?? { rowCount: 1, rows: [] };
     if (sql.includes('update pagamentos set payload_json')) return { rowCount: 1, rows: [] };
@@ -49,8 +49,8 @@ describe('PagamentosService.pagarComCartao', () => {
     const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
 
     expect(r.status).toBe('pago');
-    expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO);
-    expect(confirmar).toHaveBeenCalledWith(pool, 'pag-1', 150.5, expect.any(Date), 'Cartão aprovado');
+    expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO, undefined);
+    expect(confirmar).toHaveBeenCalledWith(pool, 'pag-1', 150.5, expect.any(Date), 'Cartão aprovado', expect.any(Object));
     const upRef = query.mock.calls.find((c) => (c[0] as string).includes('update pagamentos set provedor_ref'));
     expect(upRef![1]).toEqual(['pag-1', 'P000042NOVAREF00']);
     expect(release).toHaveBeenCalled(); // lock sempre devolvido
@@ -113,5 +113,47 @@ describe('PagamentosService.pagarComCartao', () => {
     expect(prov.consultar).toHaveBeenCalledWith('P000042ANTERIOR0');
     expect(prov.cobrar).not.toHaveBeenCalled();
     expect(confirmar).toHaveBeenCalled();
+  });
+
+  const DESAFIO_ABERTO = {
+    provedor_ref: 'P000042DESAFIO0', status: 'pendente', autenticacao_3ds: '220',
+    url_3ds: 'https://mpi.rede/auth?token=x', desafio_recente: true,
+  };
+
+  it('3DS: desafio anterior ainda aberto reabre o mesmo desafio em vez de cobrar de novo', async () => {
+    const svc = new PagamentosService();
+    const { pool } = fakePool({ atual: { rows: [DESAFIO_ABERTO] } });
+    const prov = provedorCartao();
+
+    const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
+
+    expect(r).toEqual(expect.objectContaining({ status: 'autenticar', urlAutenticacao: 'https://mpi.rede/auth?token=x' }));
+    expect(prov.cobrar).not.toHaveBeenCalled();
+  });
+
+  it('3DS: desafio anterior negado ou velho libera nova tentativa', async () => {
+    const svc = new PagamentosService();
+    jest.spyOn(svc, 'confirmarPago').mockResolvedValue(true);
+    const negado = provedorCartao({ consultar: jest.fn().mockResolvedValue({ status: 'pendente', negada: true, payload: {} }) });
+    await svc.pagarComCartao(fakePool({ atual: { rows: [DESAFIO_ABERTO] } }).pool, negado, PAGAMENTO, CARTAO);
+    expect(negado.cobrar).toHaveBeenCalled();
+
+    const velho = provedorCartao();
+    await svc.pagarComCartao(fakePool({ atual: { rows: [{ ...DESAFIO_ABERTO, desafio_recente: false }] } }).pool, velho, PAGAMENTO, CARTAO);
+    expect(velho.cobrar).toHaveBeenCalled();
+  });
+
+  it('3DS: cobrar pediu desafio → status autenticar com a URL do banco', async () => {
+    const svc = new PagamentosService();
+    const { pool } = fakePool();
+    const prov = provedorCartao({
+      cobrar: jest.fn().mockResolvedValue({
+        aprovado: false, ref: 'P000042NOVAREF00', codigo: '220', codigo3ds: '220', mensagem: 'Confirme',
+        urlAutenticacao: 'https://mpi.rede/auth?token=y', payload: {},
+      }),
+    });
+    const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
+    expect(r.status).toBe('autenticar');
+    expect(r.urlAutenticacao).toBe('https://mpi.rede/auth?token=y');
   });
 });

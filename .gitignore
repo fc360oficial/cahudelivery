@@ -16,3 +16,6 @@ apps/mobile/.flutter-plugins*
 apps/mobile/android/key.properties
 apps/mobile/android/*.keystore
 apps/mobile/ios/Pods/
+
+# Comprovantes de entrega (nome/documento de quem recebeu) — nunca no git; vão no backup-cahu.js
+apps/api/uploads-privado/

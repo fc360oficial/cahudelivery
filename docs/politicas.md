@@ -1,5 +1,13 @@
 # Políticas do app — versão publicada em 23/10/2026
 
+**Revisão de 30/10/2026 (ainda NÃO publicada no app):** a política de cancelamento ganhou
+"Pedido que saiu e não foi entregue", "Confirmação do recebimento" (canhoto assinado),
+"Segurança do pagamento com cartão" (3DS, PIX para primeiros pedidos/valores altos,
+falar com a distribuidora antes de contestar) e a devolução da diferença quando o
+faturado é menor que o pago. Publicar = colar o texto abaixo em Configurações › Políticas
+do app. Cada pedido grava o hash do texto vigente (`pedidos.aceite_json`), então a
+versão aceita fica registrada pra uma contestação.
+
 Textos gravados nas configurações do tenant `cahu` (chaves `politica_cancelamento` e
 `politica_privacidade`). O app mostra as duas no Perfil e o link de cancelamento na tela
 do cartão. Edição pela retaguarda: Configurações › Políticas do app (texto puro, sem
@@ -28,6 +36,22 @@ REEMBOLSO
 Cartão de crédito: o estorno é solicitado à administradora do cartão em até 2 dias úteis após a confirmação do cancelamento. O valor volta na fatura conforme o prazo do banco emissor, em geral em até 2 faturas.
 
 PIX: a devolução é feita para a conta de origem do pagamento em até 2 dias úteis após a confirmação do cancelamento.
+
+Se faturarmos menos do que foi pago (item em falta, por exemplo), a diferença é estornada no mesmo cartão ou devolvida por PIX, nos mesmos prazos.
+
+PEDIDO QUE SAIU E NÃO FOI ENTREGUE
+
+Se o pedido saiu para entrega e não pôde ser entregue (estabelecimento fechado, endereço não localizado ou recusa no ato), fale com a distribuidora pelo WhatsApp: reagendamos a entrega sem custo ou cancelamos o pedido com estorno integral, à sua escolha. Pedido não entregue nunca fica cobrado.
+
+CONFIRMAÇÃO DO RECEBIMENTO
+
+Na entrega, quem recebe informa nome e documento e assina o canhoto da nota fiscal. A assinatura confirma que a mercadoria foi recebida conforme a nota. Qualquer divergência deve ser anotada no canhoto ou comunicada em até 48 horas, como explicado abaixo.
+
+SEGURANÇA DO PAGAMENTO COM CARTÃO
+
+Seu banco pode pedir que você confirme a compra no aplicativo ou site dele antes da aprovação. Por segurança, pedidos acima de determinado valor e os primeiros pedidos de um cadastro podem ser aceitos só por PIX.
+
+Antes de contestar uma compra com o banco do cartão, fale com a distribuidora: cancelamento e estorno feitos por nós são mais rápidos do que uma contestação.
 
 TROCAS E DEVOLUÇÕES
 

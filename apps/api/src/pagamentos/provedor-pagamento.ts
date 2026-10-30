@@ -25,6 +25,10 @@ export interface SituacaoCobranca {
   status: SituacaoStatus;
   valorPago?: number;
   pagoEm?: Date;
+  tid?: string;        // cartão: identificador da transação (estorno usa)
+  codigo3ds?: string;  // cartão com 3DS: returnCode da autenticação
+  /** Cartão: a tentativa existe na Rede e foi negada (≠ 'não existe' — desafio 3DS ainda em aberto). */
+  negada?: boolean;
   payload: unknown;
 }
 
@@ -59,15 +63,60 @@ export interface ResultadoCartao {
   mensagem: string;     // amigável, mostrada ao cliente quando recusado
   tid?: string;
   autorizacao?: string;
+  /** 3DS pediu desafio: o cliente precisa abrir esta URL do emissor pra se autenticar. */
+  urlAutenticacao?: string;
+  /** returnCode do 3DS (200 autenticado, 201 não exigido, 202 não autenticado...). */
+  codigo3ds?: string;
   payload: unknown;     // resposta crua (sem dados de cartão), vai pro payload_json
+}
+
+/**
+ * Dados do comprador pro 3DS 2.0 (o emissor usa na análise de risco). Vêm do
+ * aparelho (tela, idioma, fuso), da requisição (IP, navegador) e do cadastro.
+ */
+export interface Contexto3ds {
+  ip: string;
+  userAgent: string;
+  dispositivo: {
+    profundidadeCor: number;
+    altura: number;
+    largura: number;
+    idioma: string;
+    fusoHoras: number; // UTC - hora local, em horas (Recife = 3)
+  };
+  cobranca: {
+    endereco: string;
+    cidade: string;
+    cep: string;
+    uf: string;
+    email: string;
+    telefone: string;
+  };
+  urlSucesso: string;
+  urlFalha: string;
+}
+
+export interface ResultadoEstorno {
+  /** concluido = dinheiro devolvido (359/355); solicitado = Rede aceitou e processa em D+1 (360); falhou = recusado. */
+  status: 'concluido' | 'solicitado' | 'falhou';
+  codigo: string;
+  mensagem: string;
+  refundId?: string;
+  /** Falha passageira (rede fora, 368/370): o worker tenta de novo. */
+  tentarDeNovo?: boolean;
+  payload: unknown;
 }
 
 export interface ProvedorCartao extends ProvedorPagamento {
   readonly metodo: 'cartao';
+  /** 3DS ligado na config do provedor: o checkout precisa mandar o Contexto3ds. */
+  readonly usa3ds: boolean;
   /** Referência nova e válida no provedor (cada tentativa de cobrança usa uma). */
   novaRef(numeroPedido: number): string;
   /** Autoriza com captura automática. Recusa do emissor NÃO é exceção: vem em aprovado=false. */
-  cobrar(ref: string, valor: number, cartao: DadosCartao): Promise<ResultadoCartao>;
+  cobrar(ref: string, valor: number, cartao: DadosCartao, ctx3ds?: Contexto3ds): Promise<ResultadoCartao>;
+  /** Cancela (total ou parcial) uma transação aprovada. */
+  estornar(tid: string, valor: number): Promise<ResultadoEstorno>;
 }
 
 export function ehProvedorCartao(p: ProvedorPagamento): p is ProvedorCartao {

@@ -64,21 +64,36 @@ class _BlocoPixState extends State<BlocoPix> {
     final status = '${p['status']}';
     final codigo = p['copiaCola'] as String?;
     final cor = Theme.of(context).colorScheme.primary;
+    final cartao = '${p['metodo']}' == 'cartao';
+    final forma = cartao ? 'Cartão' : 'PIX';
 
     if (status == 'pago') {
-      return _cartao(Icons.check_circle, Colors.green.shade600, 'PIX pago',
+      return _cartao(Icons.check_circle, Colors.green.shade600, cartao ? 'Pago no cartão' : 'PIX pago',
           p['pagoEm'] != null ? 'Confirmado em ${dataHora(p['pagoEm'])}' : 'Pagamento confirmado');
     }
+    if (status == 'estorno_solicitado') {
+      return _cartao(Icons.undo, Colors.orange.shade700, 'Estorno solicitado',
+          'Pedimos o estorno de ${moeda(p['valor'])} à administradora do cartão. '
+          'O valor volta na fatura conforme o prazo do seu banco (em geral até 2 faturas).');
+    }
+    if (status == 'estornado') {
+      return _cartao(Icons.undo, Colors.green.shade600, 'Valor estornado',
+          'O estorno foi feito no cartão. O crédito aparece na fatura conforme o prazo do seu banco.');
+    }
+    if (cartao && status == 'pendente') {
+      return _cartao(Icons.credit_card, cor, 'Aguardando pagamento com cartão',
+          'Se saiu da tela de pagamento, o pedido é cancelado sozinho no fim do prazo, sem cobrança.');
+    }
     if (status == 'expirado') {
-      return _cartao(Icons.timer_off, Colors.red.shade600, 'PIX expirado',
+      return _cartao(Icons.timer_off, Colors.red.shade600, '$forma expirado',
           'O prazo de pagamento acabou e o pedido foi cancelado.');
     }
     if (status == 'cancelado') {
-      return _cartao(Icons.cancel, Colors.red.shade600, 'PIX cancelado',
+      return _cartao(Icons.cancel, Colors.red.shade600, '$forma cancelado',
           'A cobrança foi cancelada e o pedido não seguiu.');
     }
     if (status == 'falhou') {
-      return _cartao(Icons.error_outline, Colors.red.shade600, 'Falha no PIX',
+      return _cartao(Icons.error_outline, Colors.red.shade600, 'Falha no $forma',
           'Não foi possível gerar a cobrança. Refaça o pedido.');
     }
     if (status == 'pendente' && codigo == null) {

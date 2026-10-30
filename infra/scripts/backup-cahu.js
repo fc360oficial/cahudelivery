@@ -5,6 +5,7 @@
 // Entra no zip:
 //   - dump de cada banco PostgreSQL fluxo_* (pg_dump -Fc) + roles/senhas do Postgres (pg_dumpall --globals-only)
 //   - apps/api/uploads (fotos de produtos, logos, banners)
+//   - apps/api/uploads-privado (comprovantes de entrega: canhoto assinado, foto da entrega)
 //   - infra/caddy (HTTPS), apps/admin/.env.production
 //   - parâmetros NSSM dos serviços FluxoAPI e PostgreSQL16 (comando, pasta, variáveis com senhas)
 //   - infra/RESTAURAR-CAHU.md (roteiro de restauração)
@@ -123,6 +124,8 @@ async function gerarZip(tmp, arquivo) {
   const args = ['--format=zip', '-cf', alvo, '-C', tmp, ...fs.readdirSync(tmp)];
   const extras = [
     [path.join(RAIZ, 'apps/api'), 'uploads'],
+    // Comprovantes de entrega (canhoto assinado): prova em contestação de chargeback.
+    [path.join(RAIZ, 'apps/api'), 'uploads-privado'],
     [path.join(RAIZ, 'infra'), 'caddy'],
     [path.join(RAIZ, 'infra'), 'RESTAURAR-CAHU.md'],
     [path.join(RAIZ, 'apps/admin'), '.env.production'],

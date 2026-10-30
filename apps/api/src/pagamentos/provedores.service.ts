@@ -21,6 +21,7 @@ interface ConfigErede {
   softDescriptor?: string;
   ambiente?: 'producao' | 'sandbox';
   expiracaoSegundos?: number;
+  tresDS?: { ativo: boolean; seFalhar?: 'recusar' | 'continuar' };
 }
 
 export interface ProvedorDoTenant {
@@ -115,6 +116,7 @@ export class ProvedoresService {
       chaveIntegracao: cred.chaveIntegracao,
       softDescriptor: cfg.softDescriptor,
       ambiente: cfg.ambiente,
+      tresDS: cfg.tresDS,
     });
   }
 }

@@ -7,6 +7,7 @@ import { Categorias } from './paginas/Categorias';
 import { Clientes } from './paginas/Clientes';
 import { Configuracoes } from './paginas/Configuracoes';
 import { Dashboard } from './paginas/Dashboard';
+import { Dossie } from './paginas/Dossie';
 import { IndicaLanding } from './paginas/IndicaLanding';
 import { Indicacoes } from './paginas/Indicacoes';
 import { Login } from './paginas/Login';
@@ -53,6 +54,8 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/indica/:codigo" element={<IndicaLanding />} />
+        {/* Dossiê fora do Layout: página limpa pra imprimir / salvar PDF. */}
+        <Route path="/pedidos/:id/dossie" element={sessao() ? <Dossie /> : <Navigate to="/login" replace />} />
         {ROTAS.map(([caminho, el]) => (
           <Route key={caminho} path={caminho} element={<Protegido>{el}</Protegido>} />
         ))}

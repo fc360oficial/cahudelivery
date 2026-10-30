@@ -13,7 +13,8 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
 import type { Request } from 'express';
 import { JwtAuthGuard, OptionalAuthGuard, ClienteLogado } from '../auth/jwt.guard';
 import { DonoCarrinho, OrdersService } from './orders.service';
@@ -35,6 +36,16 @@ class CriarPedidoDto {
   @IsOptional() @IsBoolean() usarSaldo?: boolean;
 }
 
+/** Dados do aparelho pro 3DS (tela, idioma, fuso). O IP vem da requisição. */
+class DispositivoDto {
+  @IsOptional() @IsInt() @Min(1) @Max(48) profundidadeCor?: number;
+  @IsInt() @Min(1) @Max(100000) altura!: number;
+  @IsInt() @Min(1) @Max(100000) largura!: number;
+  @IsOptional() @IsString() @Length(1, 10) idioma?: string;
+  @IsInt() @Min(-14) @Max(14) fusoHoras!: number;
+  @IsOptional() @IsString() @Length(1, 255) userAgent?: string;
+}
+
 /** Dados do cartão só transitam até o provedor: nunca gravados, nunca logados. */
 class PagarCartaoDto {
   @Matches(/^\d{13,19}$/, { message: 'Número do cartão inválido' }) numero!: string;
@@ -42,6 +53,20 @@ class PagarCartaoDto {
   @IsInt() @Min(1) @Max(12) validadeMes!: number;
   @IsInt() @Min(2020) @Max(2099) validadeAno!: number;
   @Matches(/^\d{3,4}$/, { message: 'Código de segurança inválido' }) cvv!: string;
+  @IsOptional() @ValidateNested() @Type(() => DispositivoDto) dispositivo?: DispositivoDto;
+}
+
+/**
+ * IPv4 do cliente atrás do Caddy (X-Forwarded-For, primeiro da lista). A Rede
+ * só aceita IPv4 no 3DS; IPv6 sem IPv4 mapeado vira null e o serviço decide.
+ */
+export function ipv4DoCliente(req: Request): string | null {
+  const xff = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+  for (const bruto of [xff, req.socket?.remoteAddress ?? '']) {
+    const ip = bruto.replace(/^::ffff:/, '');
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip;
+  }
+  return null;
 }
 
 @Controller()
@@ -79,7 +104,10 @@ export class OrdersController {
   @Post('pedidos')
   @UseGuards(JwtAuthGuard)
   criar(@Req() req: ReqCliente, @Body() dto: CriarPedidoDto) {
-    return this.orders.criarPedido(req.cliente.clienteId, dto);
+    return this.orders.criarPedido(req.cliente.clienteId, dto, {
+      ip: ipv4DoCliente(req) ?? req.ip ?? null,
+      userAgent: String(req.headers['user-agent'] ?? '').slice(0, 255) || null,
+    });
   }
 
   @Get('pedidos')
@@ -109,12 +137,30 @@ export class OrdersController {
   @Post('pedidos/:id/pagar-cartao')
   @UseGuards(JwtAuthGuard)
   pagarCartao(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PagarCartaoDto) {
-    return this.orders.pagarCartao(req.cliente.clienteId, id, {
-      numero: dto.numero,
-      nome: dto.nome,
-      validadeMes: dto.validadeMes,
-      validadeAno: dto.validadeAno,
-      cvv: dto.cvv,
-    });
+    return this.orders.pagarCartao(
+      req.cliente.clienteId,
+      id,
+      {
+        numero: dto.numero,
+        nome: dto.nome,
+        validadeMes: dto.validadeMes,
+        validadeAno: dto.validadeAno,
+        cvv: dto.cvv,
+      },
+      {
+        ip: ipv4DoCliente(req),
+        // App nativo manda o user agent do WebView em que o desafio vai abrir; no
+        // navegador (app web) o header da própria requisição já é o navegador.
+        userAgent: dto.dispositivo?.userAgent ?? String(req.headers['user-agent'] ?? ''),
+        dispositivo: dto.dispositivo,
+      },
+    );
+  }
+
+  /** Depois do desafio 3DS: consulta a Rede e devolve o status atual do pagamento. */
+  @Post('pedidos/:id/pagar-cartao/confirmar')
+  @UseGuards(JwtAuthGuard)
+  confirmarCartao(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orders.confirmarCartao(req.cliente.clienteId, id);
   }
 }

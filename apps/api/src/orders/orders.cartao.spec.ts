@@ -29,6 +29,8 @@ function fakePool(over: Record<string, any> = {}) {
     if (sql.includes('insert into carrinhos')) return { rows: [{ id: 'carrinho-1' }] };
     if (sql.includes('from carrinho_itens ci')) return { rows: [ITEM_CARRINHO] };
     if (sql.includes(`chave = 'pedido_minimo'`)) return { rows: [] };
+    if (sql.includes(`'cartao_valor_maximo','cartao_pedidos_anteriores'`)) return over.risco ?? { rows: [] };
+    if (sql.includes('as n from pedidos where cliente_id')) return over.feitos ?? { rows: [{ n: 0 }] };
     // Cartão só passa na validação quando está nas formas aceitas da retaguarda.
     if (sql.includes(`chave = 'formas_pagamento'`)) return { rows: [{ valor_json: ['pix', 'boleto', 'cartao'] }] };
     if (sql.includes('from cliente_enderecos')) return { rows: [{ id: 'end-1', rua: 'Rua X' }] };
@@ -73,6 +75,34 @@ describe('OrdersService.criarPedido — cartão online', () => {
     expect(insertPedido![1]).toEqual(expect.arrayContaining(['AGUARDANDO_PAGAMENTO']));
     const outbox = query.mock.calls.find((c) => (c[0] as string).includes('insert into sync_outbox'));
     expect(outbox).toBeUndefined();
+  });
+
+  it('regras de risco: acima do valor máximo ou cliente sem pedidos entregues vai de PIX', async () => {
+    const obter = jest.fn();
+    const svc = montarServico({} as Partial<PagamentosService>, { obter } as unknown as Partial<ProvedoresService>);
+    const criar = (over: Record<string, any>) =>
+      runComTenant({ tenant: TENANT as any, pool: fakePool(over).pool }, () =>
+        svc.criarPedido('cli-1', { enderecoId: 'end-1', formaPagamento: 'cartao' }),
+      );
+    // carrinho do fake = R$ 20
+    await expect(criar({ risco: { rows: [{ chave: 'cartao_valor_maximo', valor_json: { valor: 15 } }] } })).rejects.toThrow('PIX');
+    await expect(criar({ risco: { rows: [{ chave: 'cartao_pedidos_anteriores', valor_json: { valor: 1 } }] } })).rejects.toThrow(
+      'primeiro pedido entregue',
+    );
+    expect(obter).not.toHaveBeenCalled(); // barrou antes de abrir pagamento
+  });
+
+  it('regras de risco: dentro do limite e com histórico, segue normal', async () => {
+    const obter = jest.fn().mockResolvedValue(null);
+    const svc = montarServico({} as Partial<PagamentosService>, { obter } as unknown as Partial<ProvedoresService>);
+    const { pool } = fakePool({
+      risco: { rows: [{ chave: 'cartao_valor_maximo', valor_json: { valor: 500 } }, { chave: 'cartao_pedidos_anteriores', valor_json: { valor: 2 } }] },
+      feitos: { rows: [{ n: 3 }] },
+    });
+    const r = await runComTenant({ tenant: TENANT as any, pool }, () =>
+      svc.criarPedido('cli-1', { enderecoId: 'end-1', formaPagamento: 'cartao' }, { ip: '1.2.3.4', userAgent: 'teste' }),
+    );
+    expect(r.id).toBe('ped-1');
   });
 
   it('cartão sem provedor: fluxo antigo (cartão na entrega) — RECEBIDO e na outbox', async () => {
@@ -128,6 +158,7 @@ describe('OrdersService.pagarCartao', () => {
       PROVEDOR_CARTAO,
       { id: 'pag-1', numero: 42, valor: 20, expira_em: LINHA.expira_em },
       CARTAO,
+      undefined, // provedor sem 3DS: não monta contexto do aparelho
     );
     expect(r).toEqual({ status: 'recusado', codigo: '111', mensagem: 'Sem limite' });
   });

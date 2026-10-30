@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../core/api_client.dart';
 import '../../core/formatadores.dart';
 import '../orders/pedido_detalhe_screen.dart';
 import '../profile/politica_screen.dart';
+import 'autenticacao_3ds_screen.dart';
 
 /// Depois do "Confirmar pedido" com cartão online: formulário do cartão e
 /// POST /pedidos/{id}/pagar-cartao. Recusa não cancela o pedido — o cliente
@@ -44,6 +47,7 @@ class _PagamentoCartaoScreenState extends State<PagamentoCartaoScreen> {
     });
     final partes = _validade.text.split('/');
     try {
+      final dispositivo = await _dadosDoAparelho();
       final r = await ApiClient.instance.post(
         '/pedidos/${widget.pedido['id']}/pagar-cartao',
         {
@@ -52,14 +56,28 @@ class _PagamentoCartaoScreenState extends State<PagamentoCartaoScreen> {
           'validadeMes': int.parse(partes[0]),
           'validadeAno': 2000 + int.parse(partes[1]),
           'cvv': _cvv.text.trim(),
+          'dispositivo': dispositivo,
         },
       ) as Map<String, dynamic>;
       if (!mounted) return;
       if (r['status'] == 'pago') {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Pagamento aprovado! Pedido enviado.')));
-        Navigator.of(context).pushReplacement(MaterialPageRoute(
-            builder: (_) => PedidoDetalheScreen(pedidoId: widget.pedido['id'] as String)));
+        _aprovado();
+        return;
+      }
+      if (r['status'] == 'autenticar' && r['urlAutenticacao'] != null) {
+        // 3DS: o banco pede confirmação. O pagamento segue pendente até voltar.
+        final status = await Navigator.of(context).push<String>(MaterialPageRoute(
+          builder: (_) => Autenticacao3dsScreen(
+              pedidoId: widget.pedido['id'] as String, url: '${r['urlAutenticacao']}'),
+        ));
+        if (!mounted) return;
+        if (status == 'pago') {
+          _aprovado();
+          return;
+        }
+        setState(() => _recusa = status == 'expirado'
+            ? 'O prazo deste pagamento venceu. Refaça o pedido.'
+            : 'O banco não confirmou a compra. Tente de novo, use outro cartão ou pague com PIX.');
         return;
       }
       // recusado: mantém o formulário pro cliente corrigir ou trocar de cartão
@@ -71,6 +89,36 @@ class _PagamentoCartaoScreenState extends State<PagamentoCartaoScreen> {
     } finally {
       if (mounted) setState(() => _pagando = false);
     }
+  }
+
+  void _aprovado() {
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pagamento aprovado! Pedido enviado.')));
+    Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => PedidoDetalheScreen(pedidoId: widget.pedido['id'] as String)));
+  }
+
+  /// O que o banco usa na análise do 3DS: tela, idioma, fuso e o navegador em
+  /// que o desafio vai abrir (no app nativo, o WebView; no web a API usa o do navegador).
+  Future<Map<String, dynamic>> _dadosDoAparelho() async {
+    final tela = MediaQuery.sizeOf(context);
+    String? userAgent;
+    if (!kIsWeb) {
+      try {
+        userAgent = await WebViewController().getUserAgent();
+      } catch (_) {
+        userAgent = null;
+      }
+    }
+    return {
+      'profundidadeCor': 24,
+      'altura': tela.height.round(),
+      'largura': tela.width.round(),
+      'idioma': PlatformDispatcher.instance.locale.toLanguageTag(),
+      // Rede quer UTC − hora local em horas (Recife, UTC−3 → 3).
+      'fusoHoras': -DateTime.now().timeZoneOffset.inHours,
+      if (userAgent != null && userAgent.isNotEmpty) 'userAgent': userAgent,
+    };
   }
 
   @override
@@ -217,7 +265,9 @@ class _PagamentoCartaoScreenState extends State<PagamentoCartaoScreen> {
                   Expanded(
                     child: Text(
                       'Pagamento processado pela Rede (Itaú). Os dados do cartão não ficam '
-                      'salvos no app nem na distribuidora.',
+                      'salvos no app nem na distribuidora. Seu banco pode pedir para você '
+                      'confirmar a compra no app dele. Ao pagar, você concorda com a política '
+                      'de cancelamento e reembolso abaixo.',
                       style: TextStyle(fontSize: 12.5, color: Colors.blue.shade900, height: 1.4),
                     ),
                   ),

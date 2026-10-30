@@ -3,11 +3,13 @@ import { randomBytes } from 'node:crypto';
 import https from 'node:https';
 import {
   CobrancaCriada,
+  Contexto3ds,
   DadosCartao,
   NovaCobranca,
   PagamentoRecebido,
   ProvedorCartao,
   ResultadoCartao,
+  ResultadoEstorno,
   SituacaoCobranca,
 } from './provedor-pagamento';
 
@@ -16,6 +18,14 @@ export interface EredeConfig {
   chaveIntegracao: string;  // gerada no portal userede (clientSecret)
   softDescriptor?: string;  // aparece na fatura do portador junto ao nome da loja
   ambiente?: 'producao' | 'sandbox';
+  /**
+   * 3DS 2.0 pelo MPI da Rede. Só ligar depois de contratar no portal useRede
+   * (para vender > e-commerce > 3DS > contratar) — sem contrato a Rede devolve 203.
+   * seFalhar 'recusar' (padrão) = cartão que não autentica não é cobrado: é o que
+   * passa a responsabilidade de chargeback por fraude pro emissor. 'continuar'
+   * cobra mesmo sem autenticar (sem essa proteção).
+   */
+  tresDS?: { ativo: boolean; seFalhar?: 'recusar' | 'continuar' };
 }
 
 // OAuth 2.0 obrigatório desde 05/01/2026 (BASIC descontinuado); token dura 24 min
@@ -43,6 +53,10 @@ export class EredeProvedor implements ProvedorCartao {
 
   constructor(private readonly cfg: EredeConfig) {}
 
+  get usa3ds(): boolean {
+    return this.cfg.tresDS?.ativo === true;
+  }
+
   private get hosts() {
     return HOSTS[this.cfg.ambiente === 'sandbox' ? 'sandbox' : 'producao'];
   }
@@ -63,7 +77,8 @@ export class EredeProvedor implements ProvedorCartao {
     };
   }
 
-  async cobrar(ref: string, valor: number, cartao: DadosCartao): Promise<ResultadoCartao> {
+  async cobrar(ref: string, valor: number, cartao: DadosCartao, ctx3ds?: Contexto3ds): Promise<ResultadoCartao> {
+    if (this.usa3ds && !ctx3ds) throw new Error('e.Rede: 3DS ligado mas o checkout não mandou os dados do aparelho');
     const corpo = {
       capture: true,
       kind: 'credit',
@@ -75,23 +90,52 @@ export class EredeProvedor implements ProvedorCartao {
       expirationYear: cartao.validadeAno,
       securityCode: cartao.cvv,
       ...(this.cfg.softDescriptor ? { softDescriptor: this.cfg.softDescriptor } : {}),
+      ...(this.usa3ds && ctx3ds ? corpo3ds(ctx3ds, this.cfg.tresDS?.seFalhar ?? 'recusar') : {}),
     };
     const r = await this.chamar('POST', '', corpo);
     const codigo = String(r.body?.returnCode ?? '');
+    const codigo3ds = r.body?.threeDSecure?.returnCode != null ? String(r.body.threeDSecure.returnCode) : undefined;
     // 400 sem returnCode = requisição malformada (bug nosso), não recusa do emissor.
     if (!codigo && (r.status < 200 || r.status >= 300)) {
       throw new Error(`e.Rede transação ${r.status}: ${r.texto.slice(0, 300)}`);
     }
     if (codigo === '00') {
-      this.log.log(`transação aprovada (ref=${ref}, tid=${r.body?.tid})`);
+      this.log.log(`transação aprovada (ref=${ref}, tid=${r.body?.tid}, 3ds=${codigo3ds ?? '-'})`);
       return {
         aprovado: true, ref, codigo, mensagem: 'Pagamento aprovado',
         tid: r.body?.tid, autorizacao: r.body?.brand?.authorizationCode ?? r.body?.authorizationCode,
-        payload: r.body,
+        codigo3ds, payload: r.body,
       };
     }
-    this.log.log(`transação recusada (ref=${ref}, codigo=${codigo}, brand=${r.body?.brand?.returnCode ?? '-'})`);
-    return { aprovado: false, ref, codigo, mensagem: mensagemRecusa(codigo, r.body?.brand?.returnCode), payload: r.body };
+    // 220 = emissor pediu desafio: a Rede só autoriza depois que o cliente se autentica
+    // na URL do emissor; o resultado vem pela consulta por reference.
+    if (codigo === '220' && r.body?.threeDSecure?.url) {
+      this.log.log(`3DS com desafio (ref=${ref})`);
+      return {
+        aprovado: false, ref, codigo, mensagem: 'Confirme a compra no aplicativo ou site do seu banco',
+        urlAutenticacao: String(r.body.threeDSecure.url), codigo3ds: '220', payload: r.body,
+      };
+    }
+    this.log.log(`transação recusada (ref=${ref}, codigo=${codigo}, 3ds=${codigo3ds ?? '-'}, brand=${r.body?.brand?.returnCode ?? '-'})`);
+    return {
+      aprovado: false, ref, codigo, codigo3ds,
+      mensagem: mensagemRecusa(codigo, r.body?.brand?.returnCode, codigo3ds), payload: r.body,
+    };
+  }
+
+  /**
+   * POST /v2/transactions/{tid}/refunds. No mesmo dia da venda a Rede cancela na
+   * hora (359); depois disso aceita e processa em D+1 (360) — o worker confirma
+   * pela consulta da transação (status Canceled).
+   */
+  async estornar(tid: string, valor: number): Promise<ResultadoEstorno> {
+    let r: RespostaHttp;
+    try {
+      r = await this.chamar('POST', `/${encodeURIComponent(tid)}/refunds`, { amount: Math.round(valor * 100) });
+    } catch (e) {
+      return { status: 'falhou', codigo: '', mensagem: `Rede fora do ar: ${e}`, tentarDeNovo: true, payload: null };
+    }
+    return traduzirEstorno(r.status, r.body);
   }
 
   async consultar(ref: string): Promise<SituacaoCobranca> {
@@ -185,20 +229,98 @@ export function sanearNome(nome: string): string {
  */
 export function traduzirStatusErede(body: any): SituacaoCobranca {
   const st = String(body?.authorization?.status ?? '');
+  const tid = body?.authorization?.tid ? String(body.authorization.tid) : undefined;
+  const codigo3ds = body?.threeDSecure?.returnCode != null ? String(body.threeDSecure.returnCode) : undefined;
   if (st === 'Approved') {
     const valor = Number(body?.capture?.amount ?? body?.authorization?.amount) || 0;
     const quando = body?.capture?.dateTime ?? body?.authorization?.dateTime;
-    return { status: 'pago', valorPago: valor / 100, pagoEm: quando ? new Date(quando) : new Date(), payload: body };
+    return { status: 'pago', valorPago: valor / 100, pagoEm: quando ? new Date(quando) : new Date(), tid, codigo3ds, payload: body };
   }
-  if (st === 'Canceled') return { status: 'cancelado', payload: body };
-  return { status: 'pendente', payload: body };
+  if (st === 'Canceled') return { status: 'cancelado', tid, codigo3ds, payload: body };
+  return { status: 'pendente', tid, codigo3ds, negada: st === 'Denied', payload: body };
+}
+
+/**
+ * Bloco threeDSecure + urls da requisição (manual e.Rede v1.29, "3DS 2.0 – Rede MPI").
+ * O desafio abre num WebView do app, por isso deviceType3ds BROWSER. As URLs de
+ * retorno têm limite de 87 caracteres na Rede.
+ */
+export function corpo3ds(ctx: Contexto3ds, seFalhar: 'recusar' | 'continuar') {
+  const soDigitos = (v: string) => String(v ?? '').replace(/\D/g, '');
+  const cep = soDigitos(ctx.cobranca.cep);
+  for (const u of [ctx.urlSucesso, ctx.urlFalha]) {
+    if (u.length > 87) throw new Error(`e.Rede: URL de retorno do 3DS passa de 87 caracteres (${u})`);
+  }
+  return {
+    threeDSecure: {
+      embedded: true,
+      onFailure: seFalhar === 'continuar' ? 'continue' : 'decline',
+      userAgent: String(ctx.userAgent || 'Mozilla/5.0').slice(0, 255),
+      ipAddress: ctx.ip,
+      device: {
+        colorDepth: ctx.dispositivo.profundidadeCor,
+        deviceType3ds: 'BROWSER',
+        javaEnabled: false,
+        language: String(ctx.dispositivo.idioma || 'pt-BR').slice(0, 8),
+        screenHeight: Math.round(ctx.dispositivo.altura),
+        screenWidth: Math.round(ctx.dispositivo.largura),
+        timeZoneOffset: ctx.dispositivo.fusoHoras,
+      },
+      billing: {
+        address: semAcento(ctx.cobranca.endereco).slice(0, 128),
+        city: semAcento(ctx.cobranca.cidade).slice(0, 64),
+        postalCode: cep.length === 8 ? `${cep.slice(0, 5)}-${cep.slice(5)}` : cep,
+        state: ctx.cobranca.uf,
+        country: 'Brasil',
+        emailAddress: ctx.cobranca.email.slice(0, 128),
+        phoneNumber: soDigitos(ctx.cobranca.telefone).slice(0, 32),
+      },
+    },
+    urls: [
+      { kind: 'threeDSecureSuccess', url: ctx.urlSucesso },
+      { kind: 'threeDSecureFailure', url: ctx.urlFalha },
+    ],
+  };
+}
+
+function semAcento(v: string): string {
+  return String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/** Retornos de cancelamento da e.Rede (tabela "Cancellation returns"). */
+export function traduzirEstorno(httpStatus: number, body: any): ResultadoEstorno {
+  const codigo = String(body?.returnCode ?? '');
+  const mensagem = String(body?.returnMessage ?? '');
+  const refundId = body?.refundId ? String(body.refundId) : undefined;
+  if (codigo === '359') return { status: 'concluido', codigo, mensagem: 'Estorno feito na Rede', refundId, payload: body };
+  if (codigo === '360') return { status: 'solicitado', codigo, mensagem: 'Estorno aceito pela Rede, processa no próximo dia útil', refundId, payload: body };
+  // 355 = já cancelada (outro canal, ou reenvio nosso): o dinheiro já voltou.
+  if (codigo === '355') return { status: 'concluido', codigo, mensagem: 'Transação já estava cancelada na Rede', refundId, payload: body };
+  const passageiro = codigo === '368' || codigo === '370' || (!codigo && (httpStatus === 0 || httpStatus >= 500));
+  const motivos: Record<string, string> = {
+    '351': 'Rede não permitiu o estorno (Forbidden)',
+    '353': 'Transação não encontrada na Rede',
+    '354': 'Prazo de estorno vencido — devolver por PIX/transferência',
+    '357': 'Valor do estorno maior que o da venda',
+    '358': 'Valor do estorno maior que o disponível',
+    '365': 'Estorno parcial não disponível pra esta transação',
+    '373': 'A Rede não aceita mais estornos nesta transação',
+    '374': 'Cliente já abriu chargeback — o estorno sai pela disputa, não por aqui',
+  };
+  return {
+    status: 'falhou', codigo, tentarDeNovo: passageiro, refundId, payload: body,
+    mensagem: motivos[codigo] ?? (mensagem || `Rede respondeu HTTP ${httpStatus}`),
+  };
 }
 
 /**
  * Mensagem pro cliente a partir do returnCode da Rede + código ABECS da bandeira.
  * Catálogo completo na doc da e.Rede (Returns); aqui só o que muda a ação do cliente.
  */
-export function mensagemRecusa(codigo: string, codigoBandeira?: string): string {
+export function mensagemRecusa(codigo: string, codigoBandeira?: string, codigo3ds?: string): string {
+  if (codigo3ds === '202') return 'O banco não confirmou que a compra é sua. Tente de novo ou use outro cartão.';
+  if (codigo3ds === '203') return 'Pagamento com cartão indisponível no momento. Use o PIX ou fale com a distribuidora.';
+  if (codigo3ds === '204') return 'Este cartão não tem verificação de segurança ativa no banco. Use outro cartão ou o PIX.';
   const cb = String(codigoBandeira ?? '');
   if (codigo === '111' || cb === '51' || cb === '116') return 'Cartão sem limite disponível. Tente outro cartão.';
   if (codigo === '112' || codigo === '79' || codigo === '86' || cb === '54') return 'Cartão vencido. Confira a validade.';

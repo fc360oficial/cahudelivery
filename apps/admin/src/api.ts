@@ -66,6 +66,35 @@ export async function uploadCompleto(arquivo: File, tipo?: 'produto' | 'categori
   return body as { url: string; urlMiniatura?: string };
 }
 
+/** POST multipart (fotos + campos) numa rota da API admin. */
+export async function apiForm<T = unknown>(path: string, fd: FormData): Promise<T> {
+  const s = sessao();
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: { 'X-Tenant': TENANT, ...(s ? { Authorization: `Bearer ${s.accessToken}` } : {}) },
+    body: fd,
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = Array.isArray(body?.message) ? body.message.join('\n') : body?.message ?? `Erro ${res.status}`;
+    throw new Error(msg);
+  }
+  return body as T;
+}
+
+/**
+ * Imagem de rota autenticada (ex.: foto do canhoto, que não é pública): baixa
+ * com o token e devolve um blob: URL pro <img>. Quem chama revoga quando sair.
+ */
+export async function apiImagem(path: string): Promise<string> {
+  const s = sessao();
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { 'X-Tenant': TENANT, ...(s ? { Authorization: `Bearer ${s.accessToken}` } : {}) },
+  });
+  if (!res.ok) throw new Error(`Foto indisponível (${res.status})`);
+  return URL.createObjectURL(await res.blob());
+}
+
 export const fmtMoeda = (v: unknown) =>
   Number(v ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 

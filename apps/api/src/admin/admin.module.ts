@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AdminAuthController } from './admin-auth.controller';
 import { AdminCatalogoController } from './admin-catalogo.controller';
 import { AdminConfigController } from './admin-config.controller';
+import { AdminEntregasController } from './admin-entregas.controller';
 import { AdminPatrocinadoresController } from './admin-patrocinadores.controller';
 import { AdminUploadController } from './admin-upload.controller';
 import { AdminController } from './admin.controller';
@@ -19,6 +20,7 @@ import { MapaService } from './mapa.service';
     AdminController,
     AdminCatalogoController,
     AdminConfigController,
+    AdminEntregasController,
     AdminPatrocinadoresController,
     AdminUploadController,
   ],

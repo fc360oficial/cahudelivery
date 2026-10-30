@@ -1,12 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
-import { DadosCartao, ProvedorCartao, ProvedorPagamento, SituacaoCobranca, ehProvedorCartao } from './provedor-pagamento';
+import { Contexto3ds, DadosCartao, ProvedorCartao, ProvedorPagamento, SituacaoCobranca, ehProvedorCartao } from './provedor-pagamento';
 
 export interface PagamentoResumo {
   id: string;
   metodo: 'pix' | 'cartao';
-  status: 'pendente' | 'pago' | 'expirado' | 'cancelado' | 'falhou';
+  status: 'pendente' | 'pago' | 'expirado' | 'cancelado' | 'falhou' | 'estorno_solicitado' | 'estornado';
   valor: number;
   copiaCola: string | null;
   expiraEm: Date;
@@ -78,12 +78,20 @@ export class PagamentosService {
   }
 
   /** pendente -> pago. Retorna false se já não estava pendente (idempotente). */
-  async confirmarPago(pool: Executor, pagamentoId: string, valorPago: number, pagoEm: Date, detalhe: string = 'PIX pago'): Promise<boolean> {
+  async confirmarPago(
+    pool: Executor,
+    pagamentoId: string,
+    valorPago: number,
+    pagoEm: Date,
+    detalhe: string = 'PIX pago',
+    cartao: { tid?: string; codigo3ds?: string } = {},
+  ): Promise<boolean> {
     return this.emTransacao(pool, async (q) => {
       const up = await q.query(
-        `update pagamentos set status = 'pago', valor_pago = $2, pago_em = $3, atualizado_em = now()
+        `update pagamentos set status = 'pago', valor_pago = $2, pago_em = $3, atualizado_em = now(),
+                provedor_tid = coalesce($4, provedor_tid), autenticacao_3ds = coalesce($5, autenticacao_3ds)
           where id = $1 and status = 'pendente' returning pedido_id`,
-        [pagamentoId, valorPago, pagoEm],
+        [pagamentoId, valorPago, pagoEm, cartao.tid ?? null, cartao.codigo3ds ?? null],
       );
       if (up.rowCount === 0) return false;
       const pedidoId = up.rows[0].pedido_id;
@@ -154,7 +162,9 @@ export class PagamentosService {
   ): Promise<void> {
     const cartao = pagamento.metodo === 'cartao';
     if (s.status === 'pago') {
-      await this.confirmarPago(pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date(), cartao ? 'Cartão aprovado' : 'PIX pago');
+      await this.confirmarPago(pool, pagamento.id, s.valorPago ?? 0, s.pagoEm ?? new Date(), cartao ? 'Cartão aprovado' : 'PIX pago', {
+        tid: s.tid, codigo3ds: s.codigo3ds,
+      });
       return;
     }
     if (s.status === 'expirado') {
@@ -181,7 +191,13 @@ export class PagamentosService {
     provedor: ProvedorCartao,
     pagamento: { id: string; numero: number; valor: number; expira_em: Date },
     cartao: DadosCartao,
-  ): Promise<{ status: 'pago' | 'recusado' | 'expirado' | 'processando'; codigo?: string; mensagem?: string }> {
+    ctx3ds?: Contexto3ds,
+  ): Promise<{
+    status: 'pago' | 'recusado' | 'expirado' | 'processando' | 'autenticar';
+    codigo?: string;
+    mensagem?: string;
+    urlAutenticacao?: string;
+  }> {
     if (new Date(pagamento.expira_em).getTime() < Date.now()) {
       await this.expirar(pool, pagamento.id, 'Pagamento com cartão expirado');
       return { status: 'expirado' };
@@ -192,15 +208,29 @@ export class PagamentosService {
       if (!lk.rows[0]?.ok) return { status: 'processando' };
       // Antes de nova tentativa, confere a anterior: um timeout aqui pode ter sido
       // aprovado lá — cobrar de novo sem checar seria cobrança dupla no cartão.
-      const atual = await client.query(`select provedor_ref, status from pagamentos where id = $1`, [pagamento.id]);
+      const atual = await client.query(
+        `select provedor_ref, status, autenticacao_3ds, payload_json->'threeDSecure'->>'url' as url_3ds,
+                atualizado_em > now() - interval '10 minutes' as desafio_recente
+           from pagamentos where id = $1`,
+        [pagamento.id],
+      );
       if (atual.rows[0]?.status === 'pago') return { status: 'pago' };
       if (atual.rows[0]?.provedor_ref) {
         // Se o provedor está fora do ar pra consultar, não arrisca cobrar às cegas:
         // a exceção sobe e o cliente tenta de novo quando o provedor voltar.
         const s = await provedor.consultar(atual.rows[0].provedor_ref);
         if (s.status === 'pago') {
-          await this.confirmarPago(pool, pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), 'Cartão aprovado');
+          await this.confirmarPago(pool, pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), 'Cartão aprovado', {
+            tid: s.tid, codigo3ds: s.codigo3ds,
+          });
           return { status: 'pago' };
+        }
+        // Desafio 3DS da tentativa anterior ainda aberto (não negado, < 10 min):
+        // cobrar de novo agora podia virar cobrança dupla se o cliente concluir o
+        // desafio antigo numa aba esquecida. Reabre o mesmo desafio.
+        const a = atual.rows[0];
+        if (a.autenticacao_3ds === '220' && a.url_3ds && a.desafio_recente && !s.negada) {
+          return { status: 'autenticar', urlAutenticacao: a.url_3ds, mensagem: 'Conclua a confirmação da compra no seu banco' };
         }
       }
       // Referência nova por tentativa: a e.Rede não aceita reference repetida (nem de recusa).
@@ -215,20 +245,122 @@ export class PagamentosService {
         const st = await client.query(`select status from pagamentos where id = $1`, [pagamento.id]);
         return st.rows[0]?.status === 'pago' ? { status: 'pago' } : { status: 'expirado' };
       }
-      const r = await provedor.cobrar(ref, pagamento.valor, cartao);
-      await client.query(`update pagamentos set payload_json = $2, atualizado_em = now() where id = $1`, [
-        pagamento.id,
-        JSON.stringify(r.payload ?? null),
-      ]);
+      const r = await provedor.cobrar(ref, pagamento.valor, cartao, ctx3ds);
+      await client.query(
+        // autenticacao_3ds é da tentativa corrente (sem coalesce): um '220' antigo não pode
+        // continuar travando novas tentativas depois que outra já respondeu.
+        `update pagamentos set payload_json = $2, autenticacao_3ds = $3, atualizado_em = now() where id = $1`,
+        [pagamento.id, JSON.stringify(r.payload ?? null), r.codigo3ds ?? null],
+      );
       if (r.aprovado) {
-        await this.confirmarPago(pool, pagamento.id, pagamento.valor, new Date(), 'Cartão aprovado');
+        await this.confirmarPago(pool, pagamento.id, pagamento.valor, new Date(), 'Cartão aprovado', {
+          tid: r.tid, codigo3ds: r.codigo3ds,
+        });
         return { status: 'pago' };
       }
-      this.log.log(`cartão recusado (pagamento ${pagamento.id}, codigo ${r.codigo})`);
+      if (r.urlAutenticacao) {
+        // Pagamento segue pendente: a Rede autoriza depois do desafio e o app
+        // (ou o worker) confirma consultando pela ref desta tentativa.
+        return { status: 'autenticar', urlAutenticacao: r.urlAutenticacao, mensagem: r.mensagem };
+      }
+      this.log.log(`cartão recusado (pagamento ${pagamento.id}, codigo ${r.codigo}, 3ds ${r.codigo3ds ?? '-'})`);
       return { status: 'recusado', codigo: r.codigo, mensagem: r.mensagem };
     } finally {
       await client.query('select pg_advisory_unlock(hashtext($1))', [pagamento.id]).catch(() => {});
       client.release();
     }
+  }
+
+  /**
+   * Estorna (total ou parcial) um pagamento de cartão aprovado na Rede.
+   * `valor` ausente = o que ainda não foi estornado. Advisory lock por pagamento
+   * + checagem do que já foi pedido: clique duplo, worker e retaguarda ao mesmo
+   * tempo nunca viram dois estornos. Cada tentativa vira uma linha em
+   * pagamento_estornos (é o que a retaguarda mostra e o worker reprocessa).
+   */
+  async estornarCartao(
+    pool: Pool,
+    provedor: ProvedorCartao,
+    pagamentoId: string,
+    opts: { valor?: number; motivo: string; origem: 'erp' | 'retaguarda' | 'sistema'; usuarioAdminId?: string },
+  ): Promise<{ status: 'concluido' | 'solicitado' | 'falhou' | 'nada_a_estornar' | 'processando'; mensagem: string; valor?: number }> {
+    const client = await pool.connect();
+    const chave = `estorno:${pagamentoId}`;
+    try {
+      const lk = await client.query('select pg_try_advisory_lock(hashtext($1)) as ok', [chave]);
+      if (!lk.rows[0]?.ok) return { status: 'processando', mensagem: 'Estorno já em andamento' };
+      const { rows } = await client.query(
+        `select g.id, g.pedido_id, g.status, g.metodo, g.valor, g.valor_pago, g.provedor_ref, g.provedor_tid, p.numero,
+                coalesce((select sum(e.valor) from pagamento_estornos e
+                           where e.pagamento_id = g.id and e.status in ('solicitado','concluido')), 0) as ja_estornado
+           from pagamentos g join pedidos p on p.id = g.pedido_id where g.id = $1`,
+        [pagamentoId],
+      );
+      const g = rows[0];
+      if (!g || g.metodo !== 'cartao') return { status: 'falhou', mensagem: 'Pagamento não é de cartão' };
+      if (g.status !== 'pago' && g.status !== 'estorno_solicitado') {
+        return { status: 'nada_a_estornar', mensagem: g.status === 'estornado' ? 'Pagamento já estornado' : 'Pagamento não foi aprovado' };
+      }
+      const pago = Number(g.valor_pago ?? g.valor);
+      const disponivel = Number((pago - Number(g.ja_estornado)).toFixed(2));
+      const valor = Number((opts.valor ?? disponivel).toFixed(2));
+      if (disponivel <= 0) return { status: 'nada_a_estornar', mensagem: 'Nada a estornar: o valor pago já foi devolvido' };
+      if (!(valor > 0) || valor > disponivel) {
+        return { status: 'falhou', mensagem: `Valor inválido: dá pra estornar até R$ ${disponivel.toFixed(2)}` };
+      }
+
+      let tid: string | null = g.provedor_tid;
+      if (!tid && g.provedor_ref) {
+        // Pagamento aprovado antes de guardarmos o tid: recupera na consulta por reference.
+        const s = await provedor.consultar(g.provedor_ref);
+        tid = s.tid ?? null;
+        if (tid) await client.query(`update pagamentos set provedor_tid = $2 where id = $1`, [g.id, tid]);
+      }
+      if (!tid) return { status: 'falhou', mensagem: 'Transação não encontrada na Rede (sem tid) — estornar pelo portal useRede' };
+
+      const r = await provedor.estornar(tid, valor);
+      await client.query(
+        `insert into pagamento_estornos (pagamento_id, valor, status, refund_id, codigo, mensagem, tentar_de_novo, motivo, origem, usuario_admin_id, payload_json)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+        [g.id, valor, r.status, r.refundId ?? null, r.codigo, r.mensagem, r.tentarDeNovo === true, opts.motivo, opts.origem,
+         opts.usuarioAdminId ?? null, JSON.stringify(r.payload ?? null)],
+      );
+      if (r.status !== 'falhou') {
+        const total = valor >= disponivel;
+        const novoStatus = r.status === 'concluido' ? (total ? 'estornado' : g.status) : 'estorno_solicitado';
+        await client.query(`update pagamentos set status = $2, atualizado_em = now() where id = $1`, [g.id, novoStatus]);
+        await client.query(
+          `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,(select status from pedidos where id = $1),$2,$3)`,
+          [g.pedido_id,
+           `${r.status === 'concluido' ? 'Estorno do cartão feito' : 'Estorno do cartão solicitado à Rede'}: R$ ${valor.toFixed(2).replace('.', ',')} (${opts.motivo})`,
+           opts.origem === 'erp' ? 'sistema' : opts.origem],
+        );
+      }
+      this.log.log(`estorno ${r.status} pagamento ${g.id} pedido #${g.numero} valor ${valor} codigo ${r.codigo}`);
+      return { status: r.status, mensagem: r.mensagem, valor };
+    } finally {
+      await client.query('select pg_advisory_unlock(hashtext($1))', [chave]).catch(() => {});
+      client.release();
+    }
+  }
+
+  /**
+   * Estorno 360 (D+1): a Rede só confirma depois. Quando a consulta da
+   * transação volta Canceled, fecha o estorno e o pagamento.
+   */
+  async confirmarEstornoSolicitado(pool: Pool, provedor: ProvedorCartao, pagamento: { id: string; provedor_ref: string }): Promise<boolean> {
+    const s = await provedor.consultar(pagamento.provedor_ref);
+    if (s.status !== 'cancelado') return false;
+    await this.emTransacao(pool, async (q) => {
+      await q.query(
+        `update pagamento_estornos set status = 'concluido', atualizado_em = now() where pagamento_id = $1 and status = 'solicitado'`,
+        [pagamento.id],
+      );
+      await q.query(
+        `update pagamentos set status = 'estornado', atualizado_em = now() where id = $1 and status in ('estorno_solicitado','pago')`,
+        [pagamento.id],
+      );
+    });
+    return true;
   }
 }

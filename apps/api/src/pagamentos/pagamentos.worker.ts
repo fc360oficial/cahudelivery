@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import type { Pool } from 'pg';
 import { DatabaseService } from '../database/database.service';
 import { PagamentosService } from './pagamentos.service';
+import { ProvedorCartao, ehProvedorCartao } from './provedor-pagamento';
 import { ProvedoresService } from './provedores.service';
 import { WebhooksProcessor } from './webhooks.processor';
 
@@ -68,6 +70,7 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
                 );
               }
             }
+            if (ehProvedorCartao(pt.provedor)) await this.estornos(slug, pool, pt.provedor);
           }
         } catch (e) {
           // Credencial quebrada ou banco fora do ar de UM tenant não pode parar os outros.
@@ -79,6 +82,48 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
       this.log.error(e);
     } finally {
       this.rodando = false;
+    }
+  }
+
+  /**
+   * Estorno automático: pedido CANCELADO (pelo ERP, ou cartão aprovado depois
+   * que a janela já tinha vencido) com cartão ainda 'pago' → estorna o que falta.
+   * Falha definitiva da Rede (prazo vencido, chargeback aberto...) para aqui e
+   * aparece na retaguarda; falha passageira tenta de novo, no máximo 10 vezes.
+   * Depois confere os estornos D+1 (360) que a Rede ainda não confirmou.
+   */
+  private async estornos(slug: string, pool: Pool, provedor: ProvedorCartao) {
+    const { rows } = await pool.query(
+      `select g.id from pagamentos g join pedidos p on p.id = g.pedido_id
+        where g.provedor = $1 and g.metodo = 'cartao' and g.status = 'pago' and p.status = 'CANCELADO'
+          and not exists (select 1 from pagamento_estornos e where e.pagamento_id = g.id and e.status = 'falhou' and not e.tentar_de_novo)
+          and (select count(*) from pagamento_estornos e where e.pagamento_id = g.id and e.status = 'falhou') < 10
+        order by g.atualizado_em limit 20`,
+      [provedor.nome],
+    );
+    for (const p of rows) {
+      try {
+        const r = await this.pagamentos.estornarCartao(pool, provedor, p.id, { motivo: 'Pedido cancelado', origem: 'sistema' });
+        await pool.query(
+          `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+           values ($1,'fluxo_para_erp',$2,$3,$4)`,
+          [`${provedor.nome}_estorno`, p.id, `${r.status}: ${r.mensagem}`.slice(0, 500), r.status === 'concluido' || r.status === 'solicitado'],
+        );
+      } catch (e) {
+        this.log.warn(`estorno automático ${slug}/${p.id}: ${e}`);
+      }
+    }
+    const solicitados = await pool.query(
+      `select id, provedor_ref from pagamentos where provedor = $1 and status = 'estorno_solicitado' and provedor_ref is not null
+        order by atualizado_em limit 20`,
+      [provedor.nome],
+    );
+    for (const p of solicitados.rows) {
+      try {
+        await this.pagamentos.confirmarEstornoSolicitado(pool, provedor, p);
+      } catch (e) {
+        this.log.warn(`confirmação de estorno ${slug}/${p.id}: ${e}`);
+      }
     }
   }
 }

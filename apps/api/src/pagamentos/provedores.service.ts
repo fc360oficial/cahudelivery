@@ -19,6 +19,7 @@ interface ConfigItau {
 interface ConfigErede {
   credencialArquivo: string;     // JSON fora do repo: { pv, chaveIntegracao }
   softDescriptor?: string;
+  softDescriptorHabilitado?: boolean; // só com o recurso liberado pela Rede no PV (senão: recusa 63)
   ambiente?: 'producao' | 'sandbox';
   expiracaoSegundos?: number;
   tresDS?: { ativo: boolean; seFalhar?: 'recusar' | 'continuar' };
@@ -116,6 +117,7 @@ export class ProvedoresService {
       pv: String(cred.pv),
       chaveIntegracao: cred.chaveIntegracao,
       softDescriptor: cfg.softDescriptor,
+      softDescriptorHabilitado: cfg.softDescriptorHabilitado,
       ambiente: cfg.ambiente,
       tresDS: cfg.tresDS,
       preAutorizacao: cfg.preAutorizacao,

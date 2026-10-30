@@ -9,6 +9,8 @@
 insert into pagamento_provedores (tenant_id, provedor, config_json)
 select t.id, 'erede', jsonb_build_object(
   'credencialArquivo', 'C:\erede-cahu\credencial.json',
+  -- Só vai pra Rede com softDescriptorHabilitado=true: o PV 109038630 NÃO tem o recurso
+  -- (teste real 30/10/2026: HTTP 422, returnCode 63) e mandar recusa a transação inteira.
   'softDescriptor', 'CAHUDELIVERY',
   'ambiente', 'producao',
   'expiracaoSegundos', 1800)

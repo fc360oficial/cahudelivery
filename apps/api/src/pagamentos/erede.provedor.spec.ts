@@ -39,7 +39,15 @@ describe('EredeProvedor', () => {
     expect(corpo.kind).toBe('credit');
     expect(corpo.amount).toBe(15050);
     expect(corpo.reference).toBe('P000042AAAAAAAAA');
-    expect(corpo.softDescriptor).toBe('CAHUDELIVERY');
+    // PV sem o recurso: mandar softDescriptor faz a Rede recusar tudo (63).
+    expect(corpo.softDescriptor).toBeUndefined();
+  });
+
+  it('softDescriptor só vai com softDescriptorHabilitado', async () => {
+    const p = new EredeProvedor({ ...cfg, softDescriptorHabilitado: true });
+    const chamar = jest.spyOn(p as any, 'chamar').mockResolvedValue({ status: 200, body: { returnCode: '00', tid: 'T' }, texto: '{}' });
+    await p.cobrar('P000042AAAAAAAAA', 10, cartao);
+    expect((chamar.mock.calls[0][2] as any).softDescriptor).toBe('CAHUDELIVERY');
   });
 
   it('cobrar recusada: aprovado=false com mensagem amigável, sem exceção', async () => {

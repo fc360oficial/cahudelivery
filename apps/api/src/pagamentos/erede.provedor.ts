@@ -19,6 +19,12 @@ export interface EredeConfig {
   pv: string;               // nº de filiação (clientId no OAuth) — sem zeros à esquerda
   chaveIntegracao: string;  // gerada no portal userede (clientSecret)
   softDescriptor?: string;  // aparece na fatura do portador junto ao nome da loja
+  /**
+   * O softDescriptor só vai pra Rede com isto true. Sem o recurso habilitado no PV a
+   * Rede recusa a transação inteira (HTTP 422, returnCode 63 "Softdescriptor: Not
+   * enabled for this merchant") — visto no teste real de 30/10/2026 no PV 109038630.
+   */
+  softDescriptorHabilitado?: boolean;
   ambiente?: 'producao' | 'sandbox';
   /**
    * 3DS 2.0 pelo MPI da Rede. Só ligar depois de contratar no portal useRede
@@ -115,7 +121,7 @@ export class EredeProvedor implements ProvedorCartao {
       expirationMonth: cartao.validadeMes,
       expirationYear: cartao.validadeAno,
       securityCode: cartao.cvv,
-      ...(this.cfg.softDescriptor ? { softDescriptor: this.cfg.softDescriptor } : {}),
+      ...(this.cfg.softDescriptor && this.cfg.softDescriptorHabilitado === true ? { softDescriptor: this.cfg.softDescriptor } : {}),
       ...(this.usa3ds && ctx3ds ? corpo3ds(ctx3ds, this.cfg.tresDS?.seFalhar ?? 'recusar') : {}),
     };
     const r = await this.chamar('POST', '', corpo);

@@ -13,6 +13,7 @@ import {
   ResultadoCartao,
   ResultadoEstorno,
   SituacaoCobranca,
+  TransacaoCartao,
 } from './provedor-pagamento';
 
 export interface EredeConfig {
@@ -201,6 +202,21 @@ export class EredeProvedor implements ProvedorCartao {
     return traduzirStatusErede(r.body);
   }
 
+  async consultarTransacao(busca: { tid?: string; ref?: string }): Promise<TransacaoCartao | null> {
+    const sufixo = busca.tid ? `/${encodeURIComponent(busca.tid)}` : `?reference=${encodeURIComponent(busca.ref ?? '')}`;
+    const r = await this.chamar('GET', sufixo);
+    if (r.status === 404 || String(r.body?.returnCode) === '78') return null;
+    if (r.status < 200 || r.status >= 300) throw new Error(`e.Rede consulta ${r.status}: ${r.texto.slice(0, 300)}`);
+    // Estornos ficam em GET /{tid}/refunds (404 + returnCode 369 = nenhum).
+    const tid = r.body?.authorization?.tid;
+    let estornos: unknown[] = [];
+    if (tid) {
+      const rf = await this.chamar('GET', `/${encodeURIComponent(String(tid))}/refunds`);
+      if (rf.status >= 200 && rf.status < 300) estornos = Array.isArray(rf.body) ? rf.body : rf.body?.refunds ?? [];
+    }
+    return resumirTransacao({ ...r.body, refunds: estornos });
+  }
+
   /** e.Rede de cartão não tem webhook: confirmação é síncrona em cobrar(). */
   tratarWebhook(): PagamentoRecebido[] {
     return [];
@@ -302,6 +318,43 @@ export function traduzirStatusErede(body: any): SituacaoCobranca {
   }
   if (st === 'Canceled') return { status: 'cancelado', tid, codigo3ds, payload: body };
   return { status: 'pendente', tid, codigo3ds, negada: st === 'Denied', payload: body };
+}
+
+/**
+ * Consulta da transação → resumo da retaguarda. Cobrado = menor entre
+ * authorization.amount e capture.amount (captura parcial, teste real 30/10/2026);
+ * sem grupo capture, é só reserva (nada cobrado).
+ */
+export function resumirTransacao(body: any): TransacaoCartao | null {
+  const a = body?.authorization;
+  if (!a?.tid) return null;
+  const autorizado = Number(a.amount) || 0;
+  const captura = Number(body?.capture?.amount) || 0;
+  const cobrado = captura > 0 ? Math.min(captura, autorizado || captura) : 0;
+  const estornos = (Array.isArray(body?.refunds) ? body.refunds : []).map((x: any) => ({
+    refundId: x?.refundId ? String(x.refundId) : null,
+    status: String(x?.status ?? ''),
+    valor: (Number(x?.amount) || 0) / 100,
+    data: x?.refundDateTime ?? null,
+  }));
+  // Estorno negado não devolveu nada; o resto (processado/pendente) conta.
+  const estornado = estornos.filter((e: { status: string }) => !/denied|negad|cancel/i.test(e.status)).reduce((t: number, e: { valor: number }) => t + e.valor, 0);
+  const base = a.status === 'Canceled' ? 0 : captura > 0 ? cobrado / 100 : autorizado / 100;
+  return {
+    tid: String(a.tid),
+    referencia: a.reference ? String(a.reference) : null,
+    status: String(a.status ?? ''),
+    valorAutorizado: autorizado / 100,
+    valorCobrado: cobrado / 100,
+    valorEstornado: Number(estornado.toFixed(2)),
+    disponivelEstorno: Math.max(0, Number((base - estornado).toFixed(2))),
+    data: a.dateTime ?? null,
+    nsu: a.nsu ? String(a.nsu) : null,
+    autorizacao: a.authorizationCode ? String(a.authorizationCode) : null,
+    cartao: a.cardBin || a.last4 ? `${a.cardBin ?? ''}******${a.last4 ?? ''}` : null,
+    bandeira: a.brand?.name ?? body?.brand?.name ?? null,
+    estornos,
+  };
 }
 
 /**

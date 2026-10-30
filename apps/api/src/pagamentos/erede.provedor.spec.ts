@@ -1,4 +1,4 @@
-import { EredeProvedor, corpo3ds, mensagemRecusa, sanearNome, traduzirEstorno, traduzirStatusErede } from './erede.provedor';
+import { EredeProvedor, corpo3ds, mensagemRecusa, resumirTransacao, sanearNome, traduzirEstorno, traduzirStatusErede } from './erede.provedor';
 
 const cfg = { pv: '109038630', chaveIntegracao: 'chave-teste', softDescriptor: 'CAHUDELIVERY' };
 
@@ -256,6 +256,32 @@ describe('EredeProvedor pré-autorização', () => {
     expect(s.capturado).toBe(true);
     expect(s.valorCapturado).toBe(0.5);
     expect(s.valorPago).toBe(0.5);
+  });
+});
+
+describe('resumirTransacao', () => {
+  // Resposta real do GET /v2/transactions/{tid} do teste de 30/10/2026 (reserva 1,00 → cobrou 0,50).
+  const REAL = {
+    authorization: {
+      status: 'Approved', reference: 'TPAMVV3CF46M6L2', tid: '10492610301147049728', nsu: '502174041',
+      authorizationCode: '074913', amount: 50, cardBin: '545368', last4: '8551', dateTime: '2026-10-30T11:52:01-03:00',
+    },
+    capture: { amount: 100, dateTime: '2026-10-30T11:52:02-03:00' },
+  };
+
+  it('captura parcial: cobrado 0,50 e dá pra estornar 0,50', () => {
+    const t = resumirTransacao({ ...REAL, refunds: [] })!;
+    expect(t.valorCobrado).toBe(0.5);
+    expect(t.disponivelEstorno).toBe(0.5);
+    expect(t.cartao).toBe('545368******8551');
+  });
+
+  it('desconta estornos feitos; cancelada não tem nada a estornar; só reserva libera o reservado', () => {
+    expect(resumirTransacao({ ...REAL, refunds: [{ amount: 50, status: 'Done' }] })!.disponivelEstorno).toBe(0);
+    expect(resumirTransacao({ authorization: { ...REAL.authorization, status: 'Canceled' } })!.disponivelEstorno).toBe(0);
+    const reserva = resumirTransacao({ authorization: { ...REAL.authorization, amount: 100 } })!;
+    expect(reserva.valorCobrado).toBe(0);
+    expect(reserva.disponivelEstorno).toBe(1);
   });
 });
 

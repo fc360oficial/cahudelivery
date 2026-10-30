@@ -9,6 +9,7 @@ const LINKS = [
   { para: '/credito', rotulo: '💳 Crédito' },
   { para: '/indicacoes', rotulo: '🎁 Indique e Ganhe' },
   { para: '/carteira', rotulo: '💰 Carteira' },
+  { para: '/cartao-rede', rotulo: '💳 Cartão (Rede)' },
   { para: '/produtos', rotulo: '📦 Produtos' },
   { para: '/categorias', rotulo: '🗂️ Categorias' },
   { para: '/marcas', rotulo: '🏭 Fornecedores' },

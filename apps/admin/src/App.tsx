@@ -19,6 +19,7 @@ import { PedidoDetalhe } from './paginas/PedidoDetalhe';
 import { Pedidos } from './paginas/Pedidos';
 import { Produtos } from './paginas/Produtos';
 import { Promocoes } from './paginas/Promocoes';
+import { RedeCartao } from './paginas/RedeCartao';
 import { Patrocinadores } from './paginas/Patrocinadores';
 import { SolicitacoesCredito } from './paginas/SolicitacoesCredito';
 import { Usuarios } from './paginas/Usuarios';
@@ -36,6 +37,7 @@ const ROTAS: [string, React.ReactNode][] = [
   ['/credito', <SolicitacoesCredito />],
   ['/indicacoes', <Indicacoes />],
   ['/carteira', <Carteira />],
+  ['/cartao-rede', <RedeCartao />],
   ['/produtos', <Produtos />],
   ['/categorias', <Categorias />],
   ['/marcas', <Marcas />],

@@ -146,6 +146,25 @@ export interface ProvedorCartao extends ProvedorPagamento {
   capturar(tid: string, valor: number): Promise<ResultadoCaptura>;
   /** Cancela uma transação: estorno se cobrada, libera o limite se só reservada. */
   estornar(tid: string, valor: number): Promise<ResultadoEstorno>;
+  /** Qualquer venda do PV (feita pelo app ou não), por tid ou reference — pra tela da retaguarda. */
+  consultarTransacao(busca: { tid?: string; ref?: string }): Promise<TransacaoCartao | null>;
+}
+
+/** Venda na Rede resumida pra retaguarda (sem dado sensível: só bin e final do cartão). */
+export interface TransacaoCartao {
+  tid: string;
+  referencia: string | null;
+  status: string;            // Approved | Denied | Canceled | Pending
+  valorAutorizado: number;   // reais
+  valorCobrado: number;      // reais (0 = só reservado)
+  valorEstornado: number;    // reais, soma dos estornos que a Rede listou
+  disponivelEstorno: number; // reais
+  data: string | null;
+  nsu: string | null;
+  autorizacao: string | null;
+  cartao: string | null;     // "544828******0007"
+  bandeira: string | null;
+  estornos: Array<{ refundId: string | null; status: string; valor: number; data: string | null }>;
 }
 
 export function ehProvedorCartao(p: ProvedorPagamento): p is ProvedorCartao {

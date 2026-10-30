@@ -3,6 +3,7 @@ import { AdminAuthController } from './admin-auth.controller';
 import { AdminCatalogoController } from './admin-catalogo.controller';
 import { AdminConfigController } from './admin-config.controller';
 import { AdminEntregasController } from './admin-entregas.controller';
+import { AdminRedeController } from './admin-rede.controller';
 import { AdminPatrocinadoresController } from './admin-patrocinadores.controller';
 import { AdminUploadController } from './admin-upload.controller';
 import { AdminController } from './admin.controller';
@@ -21,6 +22,7 @@ import { MapaService } from './mapa.service';
     AdminCatalogoController,
     AdminConfigController,
     AdminEntregasController,
+    AdminRedeController,
     AdminPatrocinadoresController,
     AdminUploadController,
   ],

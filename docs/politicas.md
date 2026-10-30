@@ -4,7 +4,9 @@
 "Pedido que saiu e não foi entregue", "Confirmação do recebimento" (canhoto assinado),
 "Segurança do pagamento com cartão" (3DS, PIX para primeiros pedidos/valores altos,
 falar com a distribuidora antes de contestar) e a devolução da diferença quando o
-faturado é menor que o pago. Publicar = colar o texto abaixo em Configurações › Políticas
+faturado é menor que o pago. PIX passa a voltar como crédito na carteira do app
+(automático); dinheiro de volta só se o cliente pedir. Cartão continua sempre estornado
+no cartão (crédito no lugar do estorno provoca chargeback). Publicar = colar o texto abaixo em Configurações › Políticas
 do app. Cada pedido grava o hash do texto vigente (`pedidos.aceite_json`), então a
 versão aceita fica registrada pra uma contestação.
 
@@ -35,13 +37,13 @@ REEMBOLSO
 
 Cartão de crédito: o estorno é solicitado à administradora do cartão em até 2 dias úteis após a confirmação do cancelamento. O valor volta na fatura conforme o prazo do banco emissor, em geral em até 2 faturas.
 
-PIX: a devolução é feita para a conta de origem do pagamento em até 2 dias úteis após a confirmação do cancelamento.
+PIX: o valor pago vira crédito na sua carteira do app na hora do cancelamento, para usar no próximo pedido. Se preferir o dinheiro de volta, peça pelo WhatsApp e devolvemos para a conta de origem do pagamento em até 2 dias úteis (desde que o crédito ainda não tenha sido usado).
 
-Se faturarmos menos do que foi pago (item em falta, por exemplo), a diferença é estornada no mesmo cartão ou devolvida por PIX, nos mesmos prazos.
+Se faturarmos menos do que foi pago (item em falta, por exemplo), a diferença é estornada no mesmo cartão (cartão de crédito) ou vira crédito na carteira do app (PIX), nas mesmas condições acima.
 
 PEDIDO QUE SAIU E NÃO FOI ENTREGUE
 
-Se o pedido saiu para entrega e não pôde ser entregue (estabelecimento fechado, endereço não localizado ou recusa no ato), fale com a distribuidora pelo WhatsApp: reagendamos a entrega sem custo ou cancelamos o pedido com estorno integral, à sua escolha. Pedido não entregue nunca fica cobrado.
+Se o pedido saiu para entrega e não pôde ser entregue (estabelecimento fechado, endereço não localizado ou recusa no ato), fale com a distribuidora pelo WhatsApp: reagendamos a entrega sem custo ou cancelamos o pedido e devolvemos o valor integral como explicado em Reembolso, à sua escolha. Pedido não entregue nunca fica cobrado.
 
 CONFIRMAÇÃO DO RECEBIMENTO
 
@@ -67,7 +69,7 @@ CONTATO
 
 Fale com a distribuidora pelos canais informados no app (Perfil e botão "Falar com a distribuidora").
 
-Última atualização: 23/10/2026
+Última atualização: 30/10/2026
 
 ---
 

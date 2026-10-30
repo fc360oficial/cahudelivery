@@ -345,6 +345,117 @@ export class PagamentosService {
   }
 
   /**
+   * PIX devolvido vira crédito na carteira do app, na hora (padrão da política).
+   * - 'cancelado': pedido cancelado → credita tudo o que foi pago e ainda não voltou;
+   * - 'diferenca': faturou menos que o pedido → credita (pago + saldo usado − faturado − já devolvido).
+   * Linha travada (for update) + cálculo dentro da transação: worker e retaguarda
+   * ao mesmo tempo nunca creditam duas vezes. O cliente que preferir o dinheiro
+   * pede pelo WhatsApp e a retaguarda registra com registrarDevolucaoPix.
+   */
+  async creditarPixNaCarteira(
+    pool: Pool,
+    pagamentoId: string,
+    opts: { modo: 'cancelado' | 'diferenca'; origem: 'sistema' | 'retaguarda'; usuarioAdminId?: string },
+  ): Promise<{ creditado: number }> {
+    return this.emTransacao(pool, async (q) => {
+      const { rows } = await q.query(
+        `select g.id, g.pedido_id, g.status, g.metodo, g.valor, g.valor_pago, p.numero, p.cliente_id, p.status as pedido_status,
+                p.valor_saldo_usado, (select f.total from pedido_faturamentos f where f.pedido_id = p.id) as faturado,
+                coalesce((select sum(e.valor) from pagamento_estornos e
+                           where e.pagamento_id = g.id and e.status in ('solicitado','concluido')), 0) as ja_devolvido
+           from pagamentos g join pedidos p on p.id = g.pedido_id where g.id = $1 for update of g`,
+        [pagamentoId],
+      );
+      const g = rows[0];
+      if (!g || g.metodo !== 'pix' || g.status !== 'pago') return { creditado: 0 };
+      const pago = Number(g.valor_pago ?? g.valor);
+      const disponivel = pago - Number(g.ja_devolvido);
+      let valor: number;
+      if (opts.modo === 'cancelado') {
+        if (g.pedido_status !== 'CANCELADO') return { creditado: 0 };
+        valor = disponivel;
+      } else {
+        if (g.faturado == null) return { creditado: 0 };
+        valor = Math.min(disponivel, pago + Number(g.valor_saldo_usado || 0) - Number(g.faturado) - Number(g.ja_devolvido));
+      }
+      valor = Number(valor.toFixed(2));
+      if (valor < 0.01) return { creditado: 0 };
+      const motivo = opts.modo === 'cancelado'
+        ? `Crédito do PIX do pedido #${g.numero} (pedido cancelado)`
+        : `Crédito da diferença do pedido #${g.numero} (faturado menor que o pago)`;
+      await q.query(
+        `insert into carteira_movimentos (cliente_id, valor, motivo, pedido_id, criado_por) values ($1,$2,$3,$4,$5)`,
+        [g.cliente_id, valor, motivo, g.pedido_id, opts.usuarioAdminId ?? null],
+      );
+      await q.query(
+        `insert into pagamento_estornos (pagamento_id, valor, destino, status, motivo, origem, usuario_admin_id)
+         values ($1,$2,'carteira','concluido',$3,$4,$5)`,
+        [g.id, valor, motivo, opts.origem, opts.usuarioAdminId ?? null],
+      );
+      if (valor >= disponivel - 0.009) {
+        await q.query(`update pagamentos set status = 'creditado', atualizado_em = now() where id = $1`, [g.id]);
+      }
+      await q.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,$4)`,
+        [g.pedido_id, g.pedido_status, `R$ ${valor.toFixed(2).replace('.', ',')} viraram crédito na carteira do app`, opts.origem],
+      );
+      this.log.log(`PIX ${g.id} pedido #${g.numero}: ${valor} creditado na carteira (${opts.modo})`);
+      return { creditado: valor };
+    });
+  }
+
+  /**
+   * Cliente preferiu o dinheiro: a distribuidora devolve o PIX pelo Itaú e
+   * registra aqui. Tira da carteira o que foi creditado por este pedido (não
+   * dá pra devolver em dinheiro um crédito que o cliente já gastou).
+   */
+  async registrarDevolucaoPix(
+    pool: Pool,
+    pagamentoId: string,
+    opts: { valor: number; motivo: string; usuarioAdminId: string },
+  ): Promise<{ devolvido: number }> {
+    return this.emTransacao(pool, async (q) => {
+      const { rows } = await q.query(
+        `select g.id, g.pedido_id, g.metodo, g.status, p.numero, p.cliente_id, p.status as pedido_status,
+                coalesce((select sum(e.valor) from pagamento_estornos e where e.pagamento_id = g.id
+                           and e.destino = 'carteira' and e.status = 'concluido'), 0)
+              - coalesce((select sum(e.valor) from pagamento_estornos e where e.pagamento_id = g.id
+                           and e.destino = 'pix' and e.status = 'concluido'), 0) as creditado_restante,
+                (select coalesce(sum(m.valor),0) from carteira_movimentos m where m.cliente_id = p.cliente_id) as saldo
+           from pagamentos g join pedidos p on p.id = g.pedido_id where g.id = $1 for update of g`,
+        [pagamentoId],
+      );
+      const g = rows[0];
+      if (!g || g.metodo !== 'pix') throw new Error('Pagamento não é PIX');
+      const restante = Number(g.creditado_restante);
+      const saldo = Number(g.saldo);
+      const valor = Number(opts.valor.toFixed(2));
+      if (restante < 0.01) throw new Error('Este pedido não tem crédito de PIX para devolver em dinheiro');
+      if (valor > restante + 0.009) throw new Error(`Dá pra devolver até R$ ${restante.toFixed(2)} (crédito deste pedido)`);
+      if (valor > saldo + 0.009) {
+        throw new Error(`O cliente já usou parte do crédito: saldo atual na carteira é R$ ${saldo.toFixed(2)}`);
+      }
+      await q.query(
+        `insert into carteira_movimentos (cliente_id, valor, motivo, pedido_id, criado_por) values ($1,$2,$3,$4,$5)`,
+        [g.cliente_id, -valor, `Devolvido por PIX (pedido #${g.numero})`, g.pedido_id, opts.usuarioAdminId],
+      );
+      await q.query(
+        `insert into pagamento_estornos (pagamento_id, valor, destino, status, motivo, origem, usuario_admin_id)
+         values ($1,$2,'pix','concluido',$3,'retaguarda',$4)`,
+        [g.id, valor, opts.motivo, opts.usuarioAdminId],
+      );
+      if (valor >= restante - 0.009 && g.status === 'creditado') {
+        await q.query(`update pagamentos set status = 'estornado', atualizado_em = now() where id = $1`, [g.id]);
+      }
+      await q.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'retaguarda')`,
+        [g.pedido_id, g.pedido_status, `R$ ${valor.toFixed(2).replace('.', ',')} devolvidos por PIX a pedido do cliente`],
+      );
+      return { devolvido: valor };
+    });
+  }
+
+  /**
    * Estorno 360 (D+1): a Rede só confirma depois. Quando a consulta da
    * transação volta Canceled, fecha o estorno e o pagamento.
    */

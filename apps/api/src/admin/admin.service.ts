@@ -106,8 +106,8 @@ export class AdminService {
         (select to_jsonb(en) - 'foto_canhoto' - 'foto_entrega'
                 || jsonb_build_object('tem_canhoto', en.foto_canhoto is not null, 'tem_foto', en.foto_entrega is not null)
            from pedido_entregas en where en.pedido_id = p.id) as entrega,
-        (select json_agg(json_build_object('valor', e.valor, 'status', e.status, 'codigo', e.codigo, 'mensagem', e.mensagem,
-            'motivo', e.motivo, 'origem', e.origem, 'em', e.criado_em) order by e.criado_em)
+        (select json_agg(json_build_object('valor', e.valor, 'destino', e.destino, 'status', e.status, 'codigo', e.codigo,
+            'mensagem', e.mensagem, 'motivo', e.motivo, 'origem', e.origem, 'em', e.criado_em) order by e.criado_em)
            from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
          from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
       [id],

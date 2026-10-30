@@ -71,6 +71,7 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
               }
             }
             if (ehProvedorCartao(pt.provedor)) await this.estornos(slug, pool, pt.provedor);
+            else await this.creditosPix(slug, pool, pt.provedor.nome);
           }
         } catch (e) {
           // Credencial quebrada ou banco fora do ar de UM tenant não pode parar os outros.
@@ -82,6 +83,42 @@ export class PagamentosWorker implements OnModuleInit, OnModuleDestroy {
       this.log.error(e);
     } finally {
       this.rodando = false;
+    }
+  }
+
+  /**
+   * PIX não volta em dinheiro por padrão: vira crédito na carteira do app.
+   * Pedido CANCELADO com PIX pago → crédito total; faturado menor que o pago
+   * (já com a NF-e) → crédito da diferença. O cálculo final é refeito com a
+   * linha travada em creditarPixNaCarteira; aqui é só o filtro de candidatos.
+   */
+  private async creditosPix(slug: string, pool: Pool, provedorNome: string) {
+    const { rows } = await pool.query(
+      `select g.id, case when p.status = 'CANCELADO' then 'cancelado' else 'diferenca' end as modo
+         from pagamentos g join pedidos p on p.id = g.pedido_id
+         left join pedido_faturamentos f on f.pedido_id = p.id
+        where g.provedor = $1 and g.metodo = 'pix' and g.status = 'pago'
+          and (p.status = 'CANCELADO'
+               or (p.status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE') and f.total is not null
+                   and coalesce(g.valor_pago, g.valor) + coalesce(p.valor_saldo_usado, 0) - f.total
+                       - coalesce((select sum(e.valor) from pagamento_estornos e
+                                    where e.pagamento_id = g.id and e.status in ('solicitado','concluido')), 0) >= 0.01))
+        order by g.atualizado_em limit 20`,
+      [provedorNome],
+    );
+    for (const p of rows) {
+      try {
+        const r = await this.pagamentos.creditarPixNaCarteira(pool, p.id, { modo: p.modo, origem: 'sistema' });
+        if (r.creditado > 0) {
+          await pool.query(
+            `insert into integracao_logs (operacao, direcao, request_resumo, response_resumo, sucesso)
+             values ('pix_credito_carteira','fluxo_para_erp',$1,$2,true)`,
+            [p.id, `${p.modo}: R$ ${r.creditado.toFixed(2)}`],
+          );
+        }
+      } catch (e) {
+        this.log.warn(`crédito PIX ${slug}/${p.id}: ${e}`);
+      }
     }
   }
 

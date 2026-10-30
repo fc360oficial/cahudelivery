@@ -77,8 +77,15 @@ class _BlocoPixState extends State<BlocoPix> {
           'O valor volta na fatura conforme o prazo do seu banco (em geral até 2 faturas).');
     }
     if (status == 'estornado') {
-      return _cartao(Icons.undo, Colors.green.shade600, 'Valor estornado',
-          'O estorno foi feito no cartão. O crédito aparece na fatura conforme o prazo do seu banco.');
+      return _cartao(Icons.undo, Colors.green.shade600, cartao ? 'Valor estornado' : 'Valor devolvido',
+          cartao
+              ? 'O estorno foi feito no cartão. O crédito aparece na fatura conforme o prazo do seu banco.'
+              : 'Devolvemos o valor por PIX para a conta de origem.');
+    }
+    if (status == 'creditado') {
+      return _cartao(Icons.account_balance_wallet_outlined, Colors.green.shade600, 'Valor virou crédito',
+          'O que você pagou neste pedido está na sua carteira do app para usar no próximo pedido. '
+          'Se preferir o dinheiro de volta, fale com a distribuidora pelo WhatsApp.');
     }
     if (cartao && status == 'pendente') {
       return _cartao(Icons.credit_card, cor, 'Aguardando pagamento com cartão',

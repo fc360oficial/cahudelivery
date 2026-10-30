@@ -4,8 +4,10 @@ import { api, apiForm, apiImagem, fmtData, fmtDocumento, fmtMoeda, PAGAMENTO_LAB
 
 const PAGAMENTO_STATUS_LABEL: Record<string, string> = {
   pendente: 'Aguardando', pago: 'Pago', expirado: 'Expirado', cancelado: 'Cancelado', falhou: 'Falhou',
-  estorno_solicitado: 'Estorno solicitado', estornado: 'Estornado',
+  estorno_solicitado: 'Estorno solicitado', estornado: 'Estornado', creditado: 'Virou crédito na carteira',
 };
+
+const DESTINO_LABEL: Record<string, string> = { cartao: 'estorno no cartão', carteira: 'crédito na carteira', pix: 'devolvido por PIX' };
 
 /** returnCode do 3DS da Rede → texto curto pra quem confere o pagamento. */
 export const AUTENTICACAO_3DS: Record<string, string> = {
@@ -108,6 +110,60 @@ function RegistrarEntrega({ pedidoId, onPronto, refazer }: { pedidoId: string; o
   );
 }
 
+/**
+ * Cliente preferiu o dinheiro ao crédito: depois de fazer a devolução PIX no
+ * Itaú, registra aqui — o valor sai da carteira dele. Só papel admin.
+ */
+function DevolverPix({ pedidoId, maximo, onPronto }: { pedidoId: string; maximo: number; onPronto: () => void }) {
+  const [aberto, setAberto] = useState(false);
+  const [valor, setValor] = useState(maximo.toFixed(2));
+  const [motivo, setMotivo] = useState('Cliente pediu o dinheiro de volta');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault();
+    const v = Number(valor.replace(',', '.'));
+    if (!window.confirm(`Confirma que JÁ devolveu ${fmtMoeda(v)} por PIX pelo Itaú? O valor sai da carteira do cliente.`)) return;
+    setEnviando(true); setErro(null);
+    try {
+      await api(`/admin/pedidos/${pedidoId}/devolucao-pix`, { method: 'POST', body: JSON.stringify({ valor: v, motivo: motivo.trim() }) });
+      setAberto(false);
+      onPronto();
+    } catch (err) {
+      setErro((err as Error).message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (!aberto) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <button className="btn btn-mini" onClick={() => setAberto(true)}>Cliente pediu o dinheiro (devolução PIX)</button>
+      </div>
+    );
+  }
+  return (
+    <form onSubmit={enviar} style={{ display: 'grid', gap: 8, marginTop: 12, maxWidth: 420 }}>
+      <div style={{ color: 'var(--texto-2)' }}>
+        1) Faça a devolução PIX no Itaú para a conta de origem. 2) Registre aqui — o valor sai do crédito do cliente.
+      </div>
+      <label>Valor devolvido (até {fmtMoeda(maximo)})
+        <input value={valor} onChange={(e) => setValor(e.target.value)} inputMode="decimal" style={{ width: 140, marginLeft: 8 }} />
+      </label>
+      <label>Motivo
+        <input required minLength={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} style={{ width: '100%', marginTop: 4 }} />
+      </label>
+      {erro && <div className="erro-texto">{erro}</div>}
+      <div className="filtros" style={{ marginBottom: 0 }}>
+        <button className="btn btn-mini" disabled={enviando}>{enviando ? 'Registrando…' : 'Registrar devolução'}</button>
+        <button type="button" className="btn btn-mini" onClick={() => setAberto(false)}>Cancelar</button>
+      </div>
+    </form>
+  );
+}
+
 /** Estorno do cartão: total (padrão) ou parcial, com motivo. Só papel admin. */
 function EstornarCartao({ pedidoId, disponivel, onPronto }: { pedidoId: string; disponivel: number; onPronto: () => void }) {
   const [aberto, setAberto] = useState(false);
@@ -199,7 +255,10 @@ interface Detalhe {
     latitude?: string | null; longitude?: string | null; entregue_em: string;
     tem_canhoto: boolean; tem_foto: boolean;
   } | null;
-  estornos?: { valor: string; status: string; codigo?: string; mensagem?: string; motivo: string; origem: string; em: string }[] | null;
+  estornos?: {
+    valor: string; destino: 'cartao' | 'carteira' | 'pix'; status: string; codigo?: string; mensagem?: string;
+    motivo: string; origem: string; em: string;
+  }[] | null;
 }
 
 export function PedidoDetalhe() {
@@ -251,7 +310,10 @@ export function PedidoDetalhe() {
   const podeEstornar = !!pg && pg.metodo === 'cartao' && (pg.status === 'pago' || pg.status === 'estorno_solicitado')
     && disponivelEstorno > 0.009 && sessao()?.papel === 'admin';
   const estornoFalhouDefinitivo = p.status === 'CANCELADO' && pg?.status === 'pago' && (p.estornos ?? []).some((e) => e.status === 'falhou');
-  const pixADevolver = p.status === 'CANCELADO' && pg?.metodo === 'pix' && pg.status === 'pago';
+  const somaDestino = (d: string) => (p.estornos ?? [])
+    .filter((e) => e.destino === d && e.status === 'concluido').reduce((t, e) => t + Number(e.valor), 0);
+  const creditoPixRestante = pg?.metodo === 'pix' ? somaDestino('carteira') - somaDestino('pix') : 0;
+  const podeDevolverPix = creditoPixRestante > 0.009 && sessao()?.papel === 'admin';
   const podeRegistrarEntrega = !['CANCELADO', 'AGUARDANDO_PAGAMENTO'].includes(p.status);
 
   return (
@@ -268,12 +330,6 @@ export function PedidoDetalhe() {
         <div className="card" style={{ marginBottom: 16, borderColor: '#fecaca' }}>
           <strong>Pedido cancelado e o estorno automático do cartão não passou.</strong>{' '}
           Veja o motivo em "Estornos" abaixo e devolva pelo portal useRede ou por PIX/transferência.
-        </div>
-      )}
-      {pixADevolver && (
-        <div className="card" style={{ marginBottom: 16, borderColor: '#fde68a' }}>
-          <strong>Pedido cancelado com PIX pago:</strong> devolver {fmtMoeda(pg?.valor_pago ?? pg?.valor)} para a conta de origem em até 2 dias úteis
-          (a devolução PIX ainda é manual, pelo app/portal do Itaú).
         </div>
       )}
 
@@ -320,7 +376,9 @@ export function PedidoDetalhe() {
             {p.pagamento.valor_pago && p.total_faturado && Number(p.pagamento.valor_pago) > Number(p.total_faturado) && (
               <div className="valor alerta" style={{ fontSize: 15, marginTop: 8 }}>
                 A devolver: {fmtMoeda(Number(p.pagamento.valor_pago) - Number(p.total_faturado))}
-                <span style={{ fontWeight: 400, fontSize: 12.5 }}> (faturado menor que o pago)</span>
+                <span style={{ fontWeight: 400, fontSize: 12.5 }}>
+                  {' '}(faturado menor que o pago{p.pagamento.metodo === 'pix' ? ' — vira crédito na carteira sozinho' : ' — use "Estornar no cartão" com esse valor'})
+                </span>
               </div>
             )}
           </div>
@@ -335,7 +393,8 @@ export function PedidoDetalhe() {
               <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
                 {p.estornos.map((e, k) => (
                   <li key={k}>
-                    {fmtData(e.em)} · {fmtMoeda(e.valor)} · <strong>{ESTORNO_STATUS_LABEL[e.status] ?? e.status}</strong>
+                    {fmtData(e.em)} · {fmtMoeda(e.valor)} · {DESTINO_LABEL[e.destino] ?? e.destino} ·{' '}
+                    <strong>{ESTORNO_STATUS_LABEL[e.status] ?? e.status}</strong>
                     {' '}<small>({e.origem === 'sistema' ? 'automático' : e.origem})</small> — {e.motivo}
                     {e.status === 'falhou' && e.mensagem && <div className="erro-texto">Rede: {e.mensagem}{e.codigo ? ` (${e.codigo})` : ''}</div>}
                   </li>
@@ -344,6 +403,7 @@ export function PedidoDetalhe() {
             </div>
           )}
           {podeEstornar && <EstornarCartao pedidoId={p.id} disponivel={disponivelEstorno} onPronto={carregar} />}
+          {podeDevolverPix && <DevolverPix pedidoId={p.id} maximo={creditoPixRestante} onPronto={carregar} />}
         </div>
       )}
 

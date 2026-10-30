@@ -53,6 +53,11 @@ class EstornoDto {
   @IsString() @Length(3, 200) motivo!: string;
 }
 
+class DevolucaoPixDto {
+  @Type(() => Number) @IsNumber() @Min(0.01) valor!: number;
+  @IsString() @Length(3, 200) motivo!: string;
+}
+
 @Controller('admin/pedidos/:id')
 @UseGuards(AdminGuard)
 export class AdminEntregasController {
@@ -195,6 +200,35 @@ export class AdminEntregasController {
   }
 
   /**
+   * Cliente preferiu o dinheiro ao crédito: a distribuidora faz a devolução PIX
+   * pelo Itaú e registra aqui (tira o valor da carteira do cliente). Só admin.
+   */
+  @Post('devolucao-pix')
+  async devolucaoPix(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: DevolucaoPixDto) {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores podem registrar devolução');
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select id from pagamentos where pedido_id = $1 and metodo = 'pix' and status in ('pago','creditado')
+        order by criado_em desc limit 1`,
+      [id],
+    );
+    if (!rows[0]) throw new BadRequestException('Pedido sem PIX creditado na carteira');
+    let r: { devolvido: number };
+    try {
+      r = await this.pagamentos.registrarDevolucaoPix(pool, rows[0].id, {
+        valor: dto.valor, motivo: dto.motivo.trim(), usuarioAdminId: req.admin.usuarioId,
+      });
+    } catch (e) {
+      throw new BadRequestException((e as Error).message);
+    }
+    await pool.query(
+      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json) values ($1,'devolver_pix','pedido',$2,$3)`,
+      [req.admin.usuarioId, id, JSON.stringify(dto)],
+    );
+    return r;
+  }
+
+  /**
    * Dossiê pra contestar chargeback: tudo que prova a venda e a entrega num
    * lugar só (a retaguarda monta a página de impressão / PDF).
    */
@@ -223,8 +257,8 @@ export class AdminEntregasController {
                   'final', coalesce(g.payload_json->>'last4', g.payload_json->'authorization'->>'last4'),
                   'bandeira', coalesce(g.payload_json->'brand'->>'name', g.payload_json->'authorization'->'brand'->>'name'))
                  from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento,
-              (select json_agg(json_build_object('valor', e.valor, 'status', e.status, 'codigo', e.codigo, 'mensagem', e.mensagem,
-                  'motivo', e.motivo, 'em', e.criado_em) order by e.criado_em)
+              (select json_agg(json_build_object('valor', e.valor, 'destino', e.destino, 'status', e.status, 'codigo', e.codigo,
+                  'mensagem', e.mensagem, 'motivo', e.motivo, 'em', e.criado_em) order by e.criado_em)
                  from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
          from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
       [id],

@@ -73,6 +73,18 @@ describe('geocodificar', () => {
     expect(urls[4]).toContain('postalcode=51240-300');
   });
 
+  it('por último encurta o bairro que o OSM não conhece ("Camela Centro" → "Camela")', async () => {
+    const fetchFn = fetchDe(
+      () => viacep({ logradouro: 'Praça Afonso Luiz Soares', bairro: 'Camela Centro', localidade: 'Ipojuca', uf: 'PE' }),
+      [vazio, vazio, vazio, vazio, vazio, () => hit('-8.49', '-35.08', { city_district: 'Camela' })],
+    );
+    const c = await geocodificar({ ...end, cep: '55594022', numero: '65' }, fetchFn, semEspera);
+    expect(c?.precisao).toBe('cep');
+    const urls = urlsNominatim(fetchFn);
+    expect(urls).toHaveLength(6);
+    expect(urls[5]).toContain('q=Camela%2C+Ipojuca%2C+PE');
+  });
+
   it('etapa de bairro devolve precisão cep (aproximada)', async () => {
     const fetchFn = fetchDe(viacepOk, [vazio, vazio, vazio, () => hit('-8.12', '-34.93')]);
     expect((await geocodificar(end, fetchFn, semEspera))?.precisao).toBe('cep');

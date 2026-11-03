@@ -58,6 +58,13 @@ export async function geocodificar(end: EnderecoGeo, fetchFn: FetchFn = fetch, e
   }
   if (bairro && cidade) etapas.push({ filtros: { q: sufixo }, precisao: 'cep' });
   if (cepFormatado) etapas.push({ filtros: { postalcode: cepFormatado }, precisao: 'cep' });
+  // Bairro do Correios mais detalhado que o do OSM ("Camela Centro" → "Camela"): corta palavras do fim.
+  const palavras = bairro.split(' ');
+  if (cidade) {
+    for (let n = palavras.length - 1; n >= 1; n--) {
+      etapas.push({ filtros: { q: [palavras.slice(0, n).join(' '), cidade, uf].filter(Boolean).join(', ') }, precisao: 'cep' });
+    }
+  }
 
   for (let i = 0; i < etapas.length; i++) {
     if (i > 0) await esperar(INTERVALO_MS);

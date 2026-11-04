@@ -28,15 +28,12 @@ class ApiClient extends ChangeNotifier {
   String? _accessToken;
   String? _refreshToken;
   String? _deviceId;
-  bool _senhaProvisoria = false;
-  bool get senhaProvisoria => _senhaProvisoria;
 
   Future<void> carregarSessao() async {
     final prefs = await SharedPreferences.getInstance();
     _accessToken = prefs.getString('accessToken');
     _refreshToken = prefs.getString('refreshToken');
     _deviceId = prefs.getString('deviceId');
-    _senhaProvisoria = prefs.getBool('senhaProvisoria') ?? false;
     if (_deviceId == null) {
       _deviceId = _uuidV4();
       await prefs.setString('deviceId', _deviceId!);
@@ -44,13 +41,6 @@ class ApiClient extends ChangeNotifier {
   }
 
   bool get logado => _accessToken != null;
-
-  Future<void> marcarSenhaProvisoria(bool valor) async {
-    _senhaProvisoria = valor;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('senhaProvisoria', valor);
-    notifyListeners();
-  }
 
   Future<void> salvarTokens(String access, String refresh) async {
     _accessToken = access;
@@ -67,8 +57,6 @@ class ApiClient extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('accessToken');
     await prefs.remove('refreshToken');
-    _senhaProvisoria = false;
-    await prefs.remove('senhaProvisoria');
     notifyListeners();
   }
 

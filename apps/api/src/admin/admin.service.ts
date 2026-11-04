@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { hashSenhaProvisoria } from '../auth/senha-provisoria';
+import { CODIGO_VALIDADE_DIAS, gerarCodigoAcesso, hashCodigoAcesso } from '../auth/codigo-acesso';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
 import { ehProvedorCartao } from '../pagamentos/provedor-pagamento';
@@ -211,8 +211,12 @@ export class AdminService {
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select id, tipo, documento, nome_fantasia, email, telefone, status, criado_em, tabela_preco_id,
-        (select count(*)::int from pedidos p where p.cliente_id = clientes.id) as pedidos
-         from clientes where ${cond.join(' and ')}
+        (select count(*)::int from pedidos p where p.cliente_id = clientes.id) as pedidos,
+        coalesce(cc.senha_provisoria, true) as aguardando_acesso, cc.senha_definida_em, cc.ultimo_login_em,
+        (select k.expira_em from cliente_codigos_acesso k
+          where k.cliente_id = clientes.id and k.usado_em is null and k.expira_em > now()) as codigo_expira_em
+         from clientes left join cliente_credenciais cc on cc.cliente_id = clientes.id
+        where ${cond.join(' and ')}
         order by criado_em desc limit 25 offset $${params.length}`,
       params,
     );
@@ -284,22 +288,33 @@ export class AdminService {
     return { ok: true };
   }
 
-  async redefinirSenhaCliente(id: string, usuarioId: string) {
+  /**
+   * Código de uso único para o cliente criar a senha (1º acesso ou esqueceu).
+   * Só aparece nesta resposta: o banco guarda o hash. Gerar outro invalida o
+   * anterior, e a senha atual do cliente continua valendo até ele usar o código.
+   */
+  async gerarCodigoAcessoCliente(id: string, usuarioId: string) {
     const { pool } = tenantCtx();
-    const r = await pool.query(
-      `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria)
-       select id, $2, true from clientes where id = $1
-       on conflict (cliente_id) do update set senha_hash = excluded.senha_hash, senha_provisoria = true
-       returning cliente_id`,
-      [id, await hashSenhaProvisoria()],
+    const c = await pool.query(`select status from clientes where id = $1`, [id]);
+    if (!c.rows[0]) throw new NotFoundException('Cliente não encontrado');
+    if (c.rows[0].status === 'bloqueado' || c.rows[0].status === 'excluido') {
+      throw new BadRequestException('Cliente bloqueado ou excluído não recebe código de acesso');
+    }
+    const codigo = gerarCodigoAcesso();
+    const { rows } = await pool.query(
+      `insert into cliente_codigos_acesso (cliente_id, codigo_hash, expira_em, gerado_por)
+       values ($1,$2, now() + make_interval(days => $3), $4)
+       on conflict (cliente_id) do update set codigo_hash = excluded.codigo_hash, expira_em = excluded.expira_em,
+         usado_em = null, tentativas = 0, gerado_por = excluded.gerado_por, criado_em = now()
+       returning expira_em`,
+      [id, hashCodigoAcesso(id, codigo), CODIGO_VALIDADE_DIAS, usuarioId],
     );
-    if (!r.rowCount) throw new NotFoundException('Cliente não encontrado');
     await pool.query(
       `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id)
-       values ($1,'redefinir_senha','cliente',$2)`,
+       values ($1,'gerar_codigo_acesso','cliente',$2)`,
       [usuarioId, id],
     );
-    return { ok: true };
+    return { codigo, expiraEm: rows[0].expira_em };
   }
 
   async filaCredito(pagina: number) {
@@ -356,6 +371,7 @@ export class AdminService {
       await client.query(`delete from carrinhos where cliente_id = $1`, [id]);
       await client.query(`delete from cliente_enderecos where cliente_id = $1`, [id]);
       await client.query(`delete from cliente_credenciais where cliente_id = $1`, [id]);
+      await client.query(`delete from cliente_codigos_acesso where cliente_id = $1`, [id]);
       await client.query(`delete from dispositivos where cliente_id = $1`, [id]);
       await client.query(`delete from notificacao_entregas where cliente_id = $1`, [id]);
       await client.query(`delete from refresh_tokens where sujeito_id = $1 and sujeito = 'cliente'`, [id]);

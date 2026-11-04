@@ -134,11 +134,11 @@ export class AdminController {
     return this.admin.excluirCliente(id, req.admin.usuarioId);
   }
 
-  @Post('clientes/:id/redefinir-senha')
+  @Post('clientes/:id/codigo-acesso')
   @HttpCode(200)
-  redefinirSenha(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
+  codigoAcesso(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {
     if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
-    return this.admin.redefinirSenhaCliente(id, req.admin.usuarioId);
+    return this.admin.gerarCodigoAcessoCliente(id, req.admin.usuarioId);
   }
 
   @Get('produtos')

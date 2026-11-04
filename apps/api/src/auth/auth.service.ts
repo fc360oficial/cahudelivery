@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { tenantCtx } from '../tenancy/tenant-context';
-import { SENHA_PROVISORIA } from './senha-provisoria';
+import { senhaFraca } from './senha-provisoria';
+import { CODIGO_MAX_TENTATIVAS, hashCodigoAcesso } from './codigo-acesso';
+import { LimiteAuthService } from './limite-auth.service';
 import { resolverInscricaoEstadual } from './inscricao-estadual';
 
 export interface TokenPair {
@@ -12,10 +14,18 @@ export interface TokenPair {
 }
 
 const REFRESH_DIAS = 90; // cliente que abre o app pelo menos 1x a cada 90 dias nunca precisa logar de novo
+const MSG_SENHA_FRACA = 'Essa senha é fácil de adivinhar. Escolha outra.';
+
+function codigoConfere(a: string, b: string): boolean {
+  return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly limite: LimiteAuthService,
+  ) {}
 
   async registrar(
     dados: {
@@ -45,6 +55,7 @@ export class AuthService {
   ) {
     const { pool } = tenantCtx();
     const doc = dados.documento.replace(/\D/g, '');
+    if (senhaFraca(dados.senha, doc)) throw new BadRequestException(MSG_SENHA_FRACA);
     const ie = resolverInscricaoEstadual(dados);
     if (!ie.ok) throw new BadRequestException(ie.erro);
     const client = await pool.connect();
@@ -62,7 +73,7 @@ export class AuthService {
         throw new ConflictException({
           statusCode: 409,
           message: provisoria
-            ? 'Você já é cliente CAHU. Entre com seu CNPJ/CPF e a senha inicial 123456.'
+            ? 'Você já é cliente CAHU. Peça à distribuidora o código de acesso para criar sua senha.'
             : 'Já existe cadastro para este CNPJ/CPF. Use Entrar.',
           codigo: provisoria ? 'CLIENTE_JA_EXISTE_PRIMEIRO_ACESSO' : 'CLIENTE_JA_EXISTE',
         });
@@ -108,7 +119,7 @@ export class AuthService {
           e.codigoMunicipio?.replace(/\D/g, '') || null,
         ],
       );
-      await client.query(`insert into cliente_credenciais (cliente_id, senha_hash) values ($1,$2)`, [
+      await client.query(`insert into cliente_credenciais (cliente_id, senha_hash, senha_definida_em) values ($1,$2,now())`, [
         rows[0].id,
         await argon2.hash(dados.senha),
       ]);
@@ -140,10 +151,13 @@ export class AuthService {
   async login(
     identificador: string,
     senha: string,
+    ip: string,
     deviceId?: string,
-  ): Promise<TokenPair & { status: string; senhaProvisoria: boolean }> {
+  ): Promise<TokenPair & { status: string }> {
     const { pool, tenant } = tenantCtx();
     const doc = identificador.replace(/\D/g, '');
+    const chaves = [`doc:${doc}`, `ip:${ip}`];
+    await this.limite.conferir(chaves);
     const { rows } = await pool.query(
       `select c.id, c.status, cc.senha_hash, cc.senha_provisoria
          from clientes c join cliente_credenciais cc on cc.cliente_id = c.id
@@ -151,24 +165,110 @@ export class AuthService {
       [doc],
     );
     const reg = rows[0];
+    if (reg?.senha_provisoria) {
+      throw new UnauthorizedException({
+        statusCode: 401,
+        message: 'Você ainda não criou sua senha. Peça à distribuidora o código de acesso.',
+        codigo: 'PRIMEIRO_ACESSO_PENDENTE',
+      });
+    }
     if (!reg || !(await argon2.verify(reg.senha_hash, senha))) {
+      await this.limite.registrarFalha(chaves);
       throw new UnauthorizedException('CNPJ/CPF ou senha inválidos');
     }
     if (reg.status === 'bloqueado' || reg.status === 'excluido') throw new UnauthorizedException('Cadastro bloqueado');
+    await this.limite.limpar(chaves[0]);
     await pool.query(`update cliente_credenciais set ultimo_login_em = now() where cliente_id = $1`, [reg.id]);
     await this.reivindicarCarrinho(reg.id, deviceId);
-    return { ...(await this.emitirTokens(reg.id, tenant.slug)), status: reg.status, senhaProvisoria: reg.senha_provisoria };
+    return { ...(await this.emitirTokens(reg.id, tenant.slug)), status: reg.status };
+  }
+
+  /**
+   * Primeiro acesso e "esqueci minha senha": com o código da retaguarda o cliente
+   * cria a senha e já entra. A senha anterior vale até aqui, e as sessões abertas
+   * caem com a troca. Código errado conta tentativa nele e no limite de login.
+   */
+  async primeiroAcesso(
+    identificador: string,
+    codigo: string,
+    novaSenha: string,
+    ip: string,
+    deviceId?: string,
+  ): Promise<TokenPair & { status: string }> {
+    const { pool, tenant } = tenantCtx();
+    const doc = identificador.replace(/\D/g, '');
+    const chaves = [`doc:${doc}`, `ip:${ip}`];
+    await this.limite.conferir(chaves);
+    if (senhaFraca(novaSenha, doc)) throw new BadRequestException(MSG_SENHA_FRACA);
+    const senhaHash = await argon2.hash(novaSenha);
+
+    const client = await pool.connect();
+    let cliente: { id: string; status: string } | undefined;
+    try {
+      await client.query('begin');
+      const { rows } = await client.query(
+        `select c.id, c.status, k.codigo_hash, k.tentativas
+           from clientes c
+           join cliente_codigos_acesso k on k.cliente_id = c.id
+          where c.documento = $1 and c.status not in ('bloqueado','excluido')
+            and k.usado_em is null and k.expira_em > now() and k.tentativas < $2
+          for update of k`,
+        [doc, CODIGO_MAX_TENTATIVAS],
+      );
+      const k = rows[0];
+      if (k && codigoConfere(hashCodigoAcesso(k.id, codigo), k.codigo_hash)) {
+        await client.query(`update cliente_codigos_acesso set usado_em = now() where cliente_id = $1`, [k.id]);
+        await client.query(
+          `insert into cliente_credenciais (cliente_id, senha_hash, senha_provisoria, senha_definida_em, ultimo_login_em)
+           values ($1,$2,false,now(),now())
+           on conflict (cliente_id) do update set senha_hash = excluded.senha_hash, senha_provisoria = false,
+             senha_definida_em = now(), ultimo_login_em = now()`,
+          [k.id, senhaHash],
+        );
+        // Apaga em vez de revogar: o refresh aceita token revogado há menos de 30 s.
+        await client.query(`delete from refresh_tokens where sujeito_id = $1 and sujeito = 'cliente'`, [k.id]);
+        await client.query(
+          `insert into auditoria (acao, entidade, entidade_id) values ('senha_por_codigo','cliente',$1)`,
+          [k.id],
+        );
+        cliente = { id: k.id, status: k.status };
+      } else if (k) {
+        await client.query(`update cliente_codigos_acesso set tentativas = tentativas + 1 where cliente_id = $1`, [k.id]);
+      }
+      await client.query('commit');
+    } catch (e) {
+      await client.query('rollback');
+      throw e;
+    } finally {
+      client.release();
+    }
+    if (!cliente) {
+      await this.limite.registrarFalha(chaves);
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Código inválido ou vencido. Confira os dados ou peça um novo à distribuidora.',
+        codigo: 'CODIGO_INVALIDO',
+      });
+    }
+    await this.limite.limpar(chaves[0]);
+    await this.reivindicarCarrinho(cliente.id, deviceId);
+    return { ...(await this.emitirTokens(cliente.id, tenant.slug)), status: cliente.status };
   }
 
   async definirSenha(clienteId: string, senhaAtual: string, novaSenha: string) {
     const { pool } = tenantCtx();
-    if (novaSenha === SENHA_PROVISORIA) throw new BadRequestException('Escolha uma senha diferente da senha inicial');
-    const { rows } = await pool.query(`select senha_hash from cliente_credenciais where cliente_id = $1`, [clienteId]);
-    if (!rows[0] || !(await argon2.verify(rows[0].senha_hash, senhaAtual))) {
+    const { rows } = await pool.query(
+      `select cc.senha_hash, cc.senha_provisoria, c.documento
+         from cliente_credenciais cc join clientes c on c.id = cc.cliente_id
+        where cc.cliente_id = $1`,
+      [clienteId],
+    );
+    if (!rows[0] || rows[0].senha_provisoria || !(await argon2.verify(rows[0].senha_hash, senhaAtual))) {
       throw new UnauthorizedException('Senha atual incorreta');
     }
+    if (senhaFraca(novaSenha, rows[0].documento)) throw new BadRequestException(MSG_SENHA_FRACA);
     await pool.query(
-      `update cliente_credenciais set senha_hash = $2, senha_provisoria = false where cliente_id = $1`,
+      `update cliente_credenciais set senha_hash = $2, senha_provisoria = false, senha_definida_em = now() where cliente_id = $1`,
       [clienteId, await argon2.hash(novaSenha)],
     );
     return { ok: true };

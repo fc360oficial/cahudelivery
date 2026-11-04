@@ -6,7 +6,7 @@ import '../../core/config.dart';
 import '../../core/tenant_theme.dart';
 import '../shell/home_shell.dart';
 import 'cadastro_screen.dart';
-import 'nova_senha_screen.dart';
+import 'primeiro_acesso_screen.dart';
 
 /// Login do cliente da distribuidora (CNPJ/CPF + senha).
 class LoginScreen extends StatefulWidget {
@@ -42,37 +42,37 @@ class _LoginScreenState extends State<LoginScreen> {
         r['accessToken'],
         r['refreshToken'],
       );
-      await ApiClient.instance.marcarSenhaProvisoria(
-        r['senhaProvisoria'] == true,
-      );
       if (!mounted) return;
-      void seguir() {
-        if (widget.retornarAoLogar) {
-          Navigator.of(context).pop(true);
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeShell()),
-          );
-        }
-      }
-
-      if (r['senhaProvisoria'] == true) {
-        await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) =>
-                NovaSenhaScreen(aoConcluir: () => Navigator.of(context).pop()),
-          ),
-        );
-        if (!mounted) return;
-      }
-      seguir();
+      _seguir();
     } on ApiException catch (e) {
       setState(() => _erro = e.message);
+      if (e.codigo == 'PRIMEIRO_ACESSO_PENDENTE') _abrirPrimeiroAcesso();
     } catch (_) {
       setState(() => _erro = 'Sem conexão — tente novamente');
     } finally {
       if (mounted) setState(() => _carregando = false);
     }
+  }
+
+  void _seguir() {
+    if (widget.retornarAoLogar) {
+      Navigator.of(context).pop(true);
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeShell()),
+      );
+    }
+  }
+
+  Future<void> _abrirPrimeiroAcesso() async {
+    final entrou = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PrimeiroAcessoScreen(
+          documento: _identificador.text.replaceAll(RegExp(r'\D'), ''),
+        ),
+      ),
+    );
+    if (entrou == true && mounted) _seguir();
   }
 
   @override
@@ -156,22 +156,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text('Criar minha conta'),
                   ),
                   TextButton(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text('Esqueci minha senha'),
-                        content: const Text(
-                          'Peça à distribuidora para redefinir sua senha. Você entra com o CNPJ/CPF e a senha inicial 123456 e cria uma nova.',
-                        ),
-                        actions: [
-                          FilledButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Entendi'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    child: const Text('Esqueci minha senha'),
+                    onPressed: _abrirPrimeiroAcesso,
+                    child: const Text('Primeiro acesso ou esqueci a senha'),
                   ),
                 ],
               ),

@@ -4,6 +4,7 @@ import { Type } from 'class-transformer';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard, ClienteLogado } from './jwt.guard';
+import { ipDaRequisicao } from './limite-auth.service';
 
 type ReqCliente = Request & { cliente: ClienteLogado };
 
@@ -45,6 +46,12 @@ class SenhaDto {
   @MinLength(6) novaSenha!: string;
 }
 
+class PrimeiroAcessoDto {
+  @IsNotEmpty() identificador!: string;
+  @IsNotEmpty() codigo!: string;
+  @MinLength(6) novaSenha!: string;
+}
+
 class RefreshDto {
   @IsNotEmpty() refreshToken!: string;
 }
@@ -60,8 +67,14 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(200)
-  login(@Body() dto: LoginDto, @Headers('x-device-id') deviceId?: string) {
-    return this.auth.login(dto.identificador, dto.senha, deviceId);
+  login(@Req() req: Request, @Body() dto: LoginDto, @Headers('x-device-id') deviceId?: string) {
+    return this.auth.login(dto.identificador, dto.senha, ipDaRequisicao(req), deviceId);
+  }
+
+  @Post('primeiro-acesso')
+  @HttpCode(200)
+  primeiroAcesso(@Req() req: Request, @Body() dto: PrimeiroAcessoDto, @Headers('x-device-id') deviceId?: string) {
+    return this.auth.primeiroAcesso(dto.identificador, dto.codigo, dto.novaSenha, ipDaRequisicao(req), deviceId);
   }
 
   @Post('refresh')

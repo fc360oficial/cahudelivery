@@ -15,6 +15,10 @@ interface LinhaCliente {
   criado_em: string;
   pedidos: number;
   tabela_preco_id: string | null;
+  aguardando_acesso: boolean;
+  senha_definida_em: string | null;
+  ultimo_login_em: string | null;
+  codigo_expira_em: string | null;
 }
 
 interface TabelaPreco {
@@ -26,6 +30,49 @@ function fmtDataCurta(iso: string) {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+/** Situação da conta. Senha nunca aparece: o sistema não consegue lê-la. */
+function SituacaoAcesso({ c }: { c: LinhaCliente }) {
+  const linhas = [
+    c.senha_definida_em ? `Senha criada em ${fmtData(c.senha_definida_em)}` : null,
+    c.ultimo_login_em ? `Último acesso em ${fmtData(c.ultimo_login_em)}` : null,
+    c.codigo_expira_em ? `Código válido até ${fmtData(c.codigo_expira_em)}` : null,
+  ].filter(Boolean);
+  return (
+    <>
+      <span className={`badge ${c.aguardando_acesso ? 'pendente' : 'aprovado'}`}>
+        {c.aguardando_acesso ? 'Aguardando 1º acesso' : 'Ativa'}
+      </span>
+      {linhas.map((l) => <div className="sub" key={l}>{l}</div>)}
+    </>
+  );
+}
+
+/** Mostrado uma vez só: fechou, só gerando outro. */
+function CodigoGerado({ cliente, codigo, expiraEm, onFechar }: {
+  cliente: LinhaCliente; codigo: string; expiraEm: string; onFechar: () => void;
+}) {
+  const [copiado, setCopiado] = useState(false);
+  async function copiar() {
+    await navigator.clipboard.writeText(codigo);
+    setCopiado(true);
+  }
+  return (
+    <div className="modal-fundo">
+      <div className="modal">
+        <div className="modal-cab"><strong>Código de acesso</strong></div>
+        <p>{cliente.nome_fantasia} · <span className="mono">{fmtDocumento(cliente.documento)}</span></p>
+        <div className="mono" style={{ fontSize: 28, fontWeight: 700, textAlign: 'center', letterSpacing: 2, margin: '16px 0' }}>{codigo}</div>
+        <p>Confirme com quem você está falando antes de passar o código. Ele vale uma vez, até {fmtData(expiraEm)}.</p>
+        <p>No app: <strong>Primeiro acesso ou esqueci a senha</strong>. Este código não aparece de novo depois que você fechar.</p>
+        <div className="acoes">
+          <button className="btn-mini" onClick={copiar}>{copiado ? 'Copiado' : 'Copiar'}</button>
+          <button className="btn-mini btn-ok" onClick={onFechar}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Clientes() {
   const [params, setParams] = useSearchParams();
   const status = params.get('status') ?? '';
@@ -35,6 +82,7 @@ export function Clientes() {
   const [resumo, setResumo] = useState<Record<string, number> | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [fichaId, setFichaId] = useState<string | null>(null);
+  const [gerado, setGerado] = useState<{ cliente: LinhaCliente; codigo: string; expiraEm: string } | null>(null);
 
   useEffect(() => setPagina(1), [status, busca]);
 
@@ -90,11 +138,12 @@ export function Clientes() {
     }
   }
 
-  async function redefinirSenha(c: LinhaCliente) {
-    if (!confirm(`Redefinir a senha de acesso de ${c.nome_fantasia}? O cliente passa a entrar com o CNPJ/CPF e a senha inicial 123456, e será obrigado a criar uma nova no próximo acesso.`)) return;
+  async function gerarCodigo(c: LinhaCliente) {
+    if (c.codigo_expira_em && !confirm(`${c.nome_fantasia} já tem um código válido. Gerar outro invalida o anterior. Continuar?`)) return;
     try {
-      await api(`/admin/clientes/${c.id}/redefinir-senha`, { method: 'POST' });
-      alert(`Senha redefinida. Informe ao cliente: entrar com o CNPJ/CPF e a senha 123456.`);
+      const r = await api<{ codigo: string; expiraEm: string }>(`/admin/clientes/${c.id}/codigo-acesso`, { method: 'POST' });
+      setGerado({ cliente: c, ...r });
+      carregar();
     } catch (e) {
       setErro((e as Error).message);
     }
@@ -118,7 +167,7 @@ export function Clientes() {
       <div className="tabela-wrap">
         <table className="tabela-clientes">
           <thead>
-            <tr><th>Cliente</th><th>Pedidos</th><th>Tabela de preço</th><th>Status</th><th>Cadastro</th><th>Ações</th></tr>
+            <tr><th>Cliente</th><th>Pedidos</th><th>Tabela de preço</th><th>Status</th><th>Acesso ao app</th><th>Cadastro</th><th>Ações</th></tr>
           </thead>
           <tbody>
             {dados?.map((c) => (
@@ -142,6 +191,7 @@ export function Clientes() {
                   )}
                 </td>
                 <td><span className={`badge ${c.status}`}>{c.status}</span></td>
+                <td>{c.status === 'excluido' ? '—' : <SituacaoAcesso c={c} />}</td>
                 <td title={fmtData(c.criado_em)}>{fmtDataCurta(c.criado_em)}</td>
                 <td>
                   {c.status !== 'excluido' && (
@@ -153,19 +203,22 @@ export function Clientes() {
                       {c.status !== 'bloqueado' && (
                         <button className="btn-mini btn-perigo" onClick={() => mudar(c.id, 'bloqueado')}>Bloquear</button>
                       )}
-                      <button className="btn-mini" onClick={() => redefinirSenha(c)}>Redefinir senha</button>
+                      {c.status !== 'bloqueado' && (
+                        <button className="btn-mini" onClick={() => gerarCodigo(c)}>Gerar código</button>
+                      )}
                       <button className="btn-mini btn-perigo" onClick={() => excluir(c)}>Excluir</button>
                     </div>
                   )}
                 </td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={6} className="vazio">Nenhum cliente encontrado</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={7} className="vazio">Nenhum cliente encontrado</td></tr>}
           </tbody>
         </table>
       </div>
       {dados && <Paginacao pagina={pagina} qtdNaPagina={dados.length} onMudar={setPagina} />}
       {fichaId && <FichaCliente id={fichaId} onFechar={() => setFichaId(null)} />}
+      {gerado && <CodigoGerado {...gerado} onFechar={() => setGerado(null)} />}
     </>
   );
 }

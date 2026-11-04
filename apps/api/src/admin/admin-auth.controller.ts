@@ -1,7 +1,9 @@
-import { Body, Controller, ForbiddenException, HttpCode, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, HttpCode, Post, Req, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import type { Request } from 'express';
+import { LimiteAuthService, ipDaRequisicao } from '../auth/limite-auth.service';
 import { tenantCtx } from '../tenancy/tenant-context';
 
 class AdminLoginDto {
@@ -17,7 +19,10 @@ class BootstrapDto {
 
 @Controller('admin/auth')
 export class AdminAuthController {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly limite: LimiteAuthService,
+  ) {}
 
   /** Cria o PRIMEIRO usuário admin do tenant. Bloqueado assim que existir um. */
   @Post('bootstrap')
@@ -34,16 +39,20 @@ export class AdminAuthController {
 
   @Post('login')
   @HttpCode(200)
-  async login(@Body() dto: AdminLoginDto) {
+  async login(@Req() req: Request, @Body() dto: AdminLoginDto) {
     const { pool, tenant } = tenantCtx();
+    const chaves = [`admin:${dto.email.toLowerCase()}`, `ip:${ipDaRequisicao(req)}`];
+    await this.limite.conferir(chaves);
     const { rows } = await pool.query(
       `select id, nome, papel, senha_hash, ativo from usuarios_admin where email = $1`,
       [dto.email.toLowerCase()],
     );
     const u = rows[0];
     if (!u || !u.ativo || !(await argon2.verify(u.senha_hash, dto.senha))) {
+      await this.limite.registrarFalha(chaves);
       throw new UnauthorizedException('Credenciais inválidas');
     }
+    await this.limite.limpar(chaves[0]);
     const accessToken = await this.jwt.signAsync(
       { sub: u.id, slug: tenant.slug, tipo: 'admin', papel: u.papel },
       { expiresIn: '12h' },

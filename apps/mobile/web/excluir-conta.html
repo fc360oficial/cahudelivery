@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excluir minha conta</title>
+<style>
+  body { margin: 0; background: #fff; color: #1a1a1a; font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  header { background: #ffd500; padding: 16px; font-weight: 700; }
+  main { max-width: 480px; margin: 0 auto; padding: 16px; }
+  label { display: block; margin-top: 14px; font-weight: 600; }
+  input { box-sizing: border-box; width: 100%; padding: 10px; font: inherit; border: 1px solid #bbb; border-radius: 8px; }
+  button { margin-top: 18px; width: 100%; padding: 12px; font: inherit; font-weight: 700; color: #fff; background: #c62828; border: 0; border-radius: 8px; cursor: pointer; }
+  button:disabled { opacity: .6; }
+  #msg { margin-top: 14px; }
+  .erro { color: #c62828; }
+</style>
+</head>
+<body>
+<header>CAHU Delivery</header>
+<main>
+  <h1>Excluir minha conta</h1>
+  <p>Você também pode excluir pelo app, em Perfil › Excluir minha conta.</p>
+  <p>Ao excluir, você perde o acesso ao app. Seus dados de contato, endereços, favoritos e carrinho são apagados. Notas fiscais e o histórico de compras são mantidos pelo prazo exigido em lei.</p>
+  <p>Não é possível excluir com pedido em andamento ou com crédito na carteira.</p>
+  <form id="form">
+    <label for="doc">CNPJ ou CPF</label>
+    <input id="doc" inputmode="numeric" autocomplete="username" required>
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" autocomplete="current-password" required>
+    <button id="botao">Excluir minha conta</button>
+  </form>
+  <div id="msg"></div>
+  <p><a href="privacidade.html">Política de privacidade</a></p>
+</main>
+<script>
+  const form = document.getElementById('form');
+  const msg = document.getElementById('msg');
+  const botao = document.getElementById('botao');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!confirm('Excluir sua conta? Essa ação não pode ser desfeita.')) return;
+    botao.disabled = true;
+    msg.className = '';
+    msg.textContent = '';
+    try {
+      const r = await fetch('/v1/auth/excluir-conta', {
+        method: 'POST',
+        headers: { 'X-Tenant': 'cahu', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identificador: document.getElementById('doc').value,
+          senha: document.getElementById('senha').value,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.message);
+      form.remove();
+      msg.textContent = 'Sua conta foi excluída.';
+    } catch (err) {
+      msg.className = 'erro';
+      msg.textContent = err.message || 'Não foi possível excluir. Tente novamente.';
+      botao.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

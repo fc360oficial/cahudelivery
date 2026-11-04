@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de privacidade</title>
+<style>
+  body { margin: 0; background: #fff; color: #1a1a1a; font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  header { background: #ffd500; padding: 16px; font-weight: 700; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  #texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<header>CAHU Delivery</header>
+<main>
+  <h1>Política de privacidade</h1>
+  <div id="texto">Carregando…</div>
+  <p><a href="excluir-conta.html">Excluir minha conta</a></p>
+</main>
+<script>
+  fetch('/v1/config', { headers: { 'X-Tenant': 'cahu' } })
+    .then((r) => r.json())
+    .then((c) => {
+      document.getElementById('texto').textContent = c.configuracoes.politica_privacidade;
+    })
+    .catch(() => {
+      document.getElementById('texto').textContent = 'Não foi possível carregar a política. Tente novamente mais tarde.';
+    });
+</script>
+</body>
+</html>

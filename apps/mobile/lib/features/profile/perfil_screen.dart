@@ -9,6 +9,7 @@ import '../../widgets/estados.dart';
 import 'carteira_screen.dart';
 import 'credito_screen.dart';
 import 'enderecos_screen.dart';
+import 'excluir_conta_screen.dart';
 import 'indicacoes_screen.dart';
 import 'notas_fiscais_screen.dart';
 import 'notificacoes_screen.dart';
@@ -78,6 +79,20 @@ class _PerfilScreenState extends State<PerfilScreen> {
     CarrinhoStore.instance.limpar();
     await CarrinhoStore.instance.carregar(); // carrinho novo do device
     if (mounted) setState(() {});
+  }
+
+  Future<void> _excluirConta() async {
+    final excluida = await Navigator.of(context).push<bool>(MaterialPageRoute(
+        builder: (_) =>
+            ExcluirContaScreen(documento: '${_perfil?['documento'] ?? ''}')));
+    if (excluida != true || !mounted) return;
+    await ApiClient.instance.sair();
+    CarrinhoStore.instance.limpar();
+    await CarrinhoStore.instance.carregar(); // carrinho novo do device
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Sua conta foi excluída')));
+    }
   }
 
   void _sobre() {
@@ -249,6 +264,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       const SizedBox(height: 14),
                       Card(
                         child: _opcao(Icons.logout, 'Sair da conta', _sair,
+                            cor: Colors.red.shade600),
+                      ),
+                      const SizedBox(height: 14),
+                      Card(
+                        child: _opcao(Icons.delete_outline, 'Excluir minha conta',
+                            _excluirConta,
                             cor: Colors.red.shade600),
                       ),
                     ],

@@ -46,6 +46,11 @@ class SenhaDto {
   @MinLength(6) novaSenha!: string;
 }
 
+class ExcluirContaDto {
+  @IsNotEmpty() identificador!: string;
+  @IsNotEmpty() senha!: string;
+}
+
 class PrimeiroAcessoDto {
   @IsNotEmpty() identificador!: string;
   @IsNotEmpty() codigo!: string;
@@ -75,6 +80,13 @@ export class AuthController {
   @HttpCode(200)
   primeiroAcesso(@Req() req: Request, @Body() dto: PrimeiroAcessoDto, @Headers('x-device-id') deviceId?: string) {
     return this.auth.primeiroAcesso(dto.identificador, dto.codigo, dto.novaSenha, ipDaRequisicao(req), deviceId);
+  }
+
+  /** Sem token: serve ao app e à página pública exigida pela Play. A senha confirma. */
+  @Post('excluir-conta')
+  @HttpCode(200)
+  excluirConta(@Req() req: Request, @Body() dto: ExcluirContaDto) {
+    return this.auth.excluirConta(dto.identificador, dto.senha, ipDaRequisicao(req));
   }
 
   @Post('refresh')

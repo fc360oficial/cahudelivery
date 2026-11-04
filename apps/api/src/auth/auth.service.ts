@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { excluirCliente } from '../clientes/excluir-cliente';
 import { senhaFraca } from './senha-provisoria';
 import { CODIGO_MAX_TENTATIVAS, hashCodigoAcesso } from './codigo-acesso';
 import { LimiteAuthService } from './limite-auth.service';
@@ -253,6 +254,55 @@ export class AuthService {
     await this.limite.limpar(chaves[0]);
     await this.reivindicarCarrinho(cliente.id, deviceId);
     return { ...(await this.emitirTokens(cliente.id, tenant.slug)), status: cliente.status };
+  }
+
+  /**
+   * O cliente exclui a própria conta. Pedido em andamento e crédito na carteira
+   * travam: o dinheiro é dele e sem a conta não haveria como usar ou devolver.
+   */
+  async excluirConta(identificador: string, senha: string, ip: string) {
+    const { pool } = tenantCtx();
+    const doc = identificador.replace(/\D/g, '');
+    const chaves = [`doc:${doc}`, `ip:${ip}`];
+    await this.limite.conferir(chaves);
+    const { rows } = await pool.query(
+      `select c.id, c.status, cc.senha_hash, cc.senha_provisoria
+         from clientes c join cliente_credenciais cc on cc.cliente_id = c.id
+        where c.documento = $1`,
+      [doc],
+    );
+    const reg = rows[0];
+    if (!reg || reg.senha_provisoria || reg.status === 'excluido' || !(await argon2.verify(reg.senha_hash, senha))) {
+      await this.limite.registrarFalha(chaves);
+      throw new UnauthorizedException('CNPJ/CPF ou senha inválidos');
+    }
+    await this.limite.limpar(chaves[0]);
+    if (reg.status === 'bloqueado') throw new UnauthorizedException('Cadastro bloqueado');
+    const pedidos = await pool.query(
+      `select 1 from pedidos where cliente_id = $1 and status not in ('ENTREGUE','CANCELADO') limit 1`,
+      [reg.id],
+    );
+    if (pedidos.rowCount) {
+      throw new ConflictException({
+        statusCode: 409,
+        message: 'Você tem pedido em andamento. Exclua a conta depois que ele for entregue ou cancelado.',
+        codigo: 'PEDIDO_EM_ANDAMENTO',
+      });
+    }
+    const carteira = await pool.query(
+      `select coalesce(sum(valor),0) as saldo from carteira_movimentos where cliente_id = $1`,
+      [reg.id],
+    );
+    const saldo = Number(carteira.rows[0].saldo);
+    if (saldo > 0.009) {
+      throw new ConflictException({
+        statusCode: 409,
+        message: `Você tem R$ ${saldo.toFixed(2).replace('.', ',')} de crédito na carteira. Use o crédito ou peça a devolução à distribuidora antes de excluir a conta.`,
+        codigo: 'CREDITO_NA_CARTEIRA',
+      });
+    }
+    await excluirCliente(pool, reg.id, null, 'cliente');
+    return { ok: true };
   }
 
   async definirSenha(clienteId: string, senhaAtual: string, novaSenha: string) {

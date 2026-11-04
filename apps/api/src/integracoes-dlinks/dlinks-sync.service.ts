@@ -214,9 +214,15 @@ export class DlinksSyncService {
              saldo_titulos_aberto = excluded.saldo_titulos_aberto,
              inscricao_estadual = coalesce(excluded.inscricao_estadual, clientes.inscricao_estadual),
              tabela_preco_id = case when $8::text is null then clientes.tabela_preco_id else coalesce(excluded.tabela_preco_id, clientes.tabela_preco_id) end
+           where clientes.status <> 'excluido'
            returning id, (xmax = 0) as inserido`,
           [tipo, documento, item.razao_social, email, item.codigo, item.limite_credito ?? null, item.saldo_titulos_aberto ?? null, item.tabela_preco_id ?? null, inscricaoEstadual],
         );
+        // Conta excluída não volta pelo ERP: nada é regravado na linha anonimizada.
+        if (!rows[0]) {
+          processados++;
+          continue;
+        }
         const { id: clienteId, inserido } = rows[0];
         if (inserido) {
           await pool.query(

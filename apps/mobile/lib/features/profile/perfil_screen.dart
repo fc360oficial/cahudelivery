@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/api_client.dart';
 import '../../core/carrinho_store.dart';
@@ -6,6 +7,7 @@ import '../../core/formatadores.dart' as fmt;
 import '../../core/tenant_theme.dart';
 import '../../widgets/convite_login.dart';
 import '../../widgets/estados.dart';
+import '../checkout/cartao_em_breve.dart' show linkWhatsApp;
 import 'carteira_screen.dart';
 import 'credito_screen.dart';
 import 'enderecos_screen.dart';
@@ -94,6 +96,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
           const SnackBar(content: Text('Sua conta foi excluída')));
     }
   }
+
+  String? get _whatsapp => linkWhatsApp(
+      TenantTheme.instance.configuracoes['contato_whatsapp'] as String?);
 
   void _sobre() {
     final t = TenantTheme.instance;
@@ -254,6 +259,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
                                     builder: (_) => const PoliticaScreen(
                                         titulo: 'Política de privacidade',
                                         chave: 'politica_privacidade')));
+                              }),
+                            ],
+                            if (_whatsapp != null) ...[
+                              _divisor(),
+                              _opcao(Icons.chat_outlined, 'Falar com a distribuidora', () {
+                                launchUrl(Uri.parse(_whatsapp!),
+                                    mode: LaunchMode.externalApplication);
                               }),
                             ],
                             _divisor(),

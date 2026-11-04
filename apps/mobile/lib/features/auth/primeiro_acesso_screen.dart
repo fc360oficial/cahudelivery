@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../widgets/campo_senha.dart';
 
 import '../../core/api_client.dart';
+import '../../core/tenant_theme.dart';
+import '../checkout/cartao_em_breve.dart' show linkWhatsApp;
 
 /// Primeiro acesso e "esqueci minha senha": a distribuidora gera um código na
 /// retaguarda e o cliente cria a senha com ele. Devolve true quando entrou.
@@ -62,6 +65,9 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final whatsapp = linkWhatsApp(
+      TenantTheme.instance.configuracoes['contato_whatsapp'] as String?,
+    );
     return Scaffold(
       appBar: AppBar(title: const Text('Criar senha')),
       body: SafeArea(
@@ -73,6 +79,17 @@ class _PrimeiroAcessoScreenState extends State<PrimeiroAcessoScreen> {
               const Text(
                 'Peça o código de acesso à distribuidora. Com ele você cria sua senha e já entra no app.',
               ),
+              if (whatsapp != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: () => launchUrl(
+                      Uri.parse(whatsapp),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    child: const Text('Falar com a distribuidora'),
+                  ),
+                ),
               const SizedBox(height: 20),
               TextFormField(
                 controller: _documento,

@@ -267,7 +267,7 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
    continua existindo só como última saída. */
 @media (max-width: 1599px) {
   .tabela-clientes th, .tabela-clientes td { padding: 10px 12px; }
-  .tabela-clientes .acoes { flex-wrap: wrap; max-width: 230px; }
+  .tabela-clientes .acoes { flex-wrap: wrap; width: 230px; }
   .tabela-clientes .col-cliente { min-width: 230px; }
   .tabela-clientes select { max-width: 210px; }
 }
@@ -275,6 +275,6 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
   .tabela-clientes th, .tabela-clientes td { padding: 9px 10px; font-size: 13px; }
   .tabela-clientes .col-cliente { min-width: 200px; }
   .tabela-clientes select { max-width: 180px; font-size: 12.5px; }
-  .tabela-clientes .acoes { max-width: 200px; }
+  .tabela-clientes .acoes { width: 200px; }
   .tabela-clientes .badge { font-size: 11.5px; padding: 3px 8px; }
 }

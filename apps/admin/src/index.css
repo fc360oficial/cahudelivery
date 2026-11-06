@@ -259,3 +259,22 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
   .dossie { padding: 0; max-width: none; }
   .dossie section { break-inside: avoid; }
 }
+
+/* Lista de clientes em monitor menor (ou janela lado a lado): abaixo de 1600 px
+   os botões de Ações quebram em 2 linhas (a linha já tem 2-3 linhas em Cliente,
+   então a altura não muda) e as células apertam; abaixo de 1400 px a coluna
+   Cliente e o select encolhem mais um pouco. A rolagem lateral do wrapper
+   continua existindo só como última saída. */
+@media (max-width: 1599px) {
+  .tabela-clientes th, .tabela-clientes td { padding: 10px 12px; }
+  .tabela-clientes .acoes { flex-wrap: wrap; max-width: 230px; }
+  .tabela-clientes .col-cliente { min-width: 230px; }
+  .tabela-clientes select { max-width: 210px; }
+}
+@media (max-width: 1399px) {
+  .tabela-clientes th, .tabela-clientes td { padding: 9px 10px; font-size: 13px; }
+  .tabela-clientes .col-cliente { min-width: 200px; }
+  .tabela-clientes select { max-width: 180px; font-size: 12.5px; }
+  .tabela-clientes .acoes { max-width: 200px; }
+  .tabela-clientes .badge { font-size: 11.5px; padding: 3px 8px; }
+}

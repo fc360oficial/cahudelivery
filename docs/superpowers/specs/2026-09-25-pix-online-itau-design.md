@@ -100,9 +100,29 @@ Nada muda do lado do Dlinks: nenhuma tela, tabela ou campo deles, e o contrato d
 
 - `GET /integracoes/dlinks/pedidos` (`listar`) exclui `status = 'AGUARDANDO_PAGAMENTO'`. Pedido PIX só aparece depois de pago; pedido expirado nunca aparece.
 - `POST .../recebido` já só aceita `RECEBIDO`; não há caminho pra confirmar pedido não pago.
-- Campo opcional novo na resposta de `listar`: `pagamentoOnline: { status: 'pago', pagoEm, txid, valor }` quando existir. Dlinks pode ignorar.
+- Campo opcional novo na resposta de `listar`: `pagamentoOnline: { status: 'pago' | 'autorizado', pagoEm, txid, valor }` quando existir. Dlinks pode ignorar.
 - Operação da CAHU: o dinheiro já está na conta quando o pedido chega no Dlinks. O faturamento não pode gerar cobrança nova; como o título é dado como quitado no Dlinks é combinação com eles, fora deste projeto. `pagamentoOnline` é a referência.
-- Corte de item no faturamento: cliente pagou o total, Dlinks fatura menos. V1: devolução manual pelo Itaú; retaguarda mostra "valor a devolver" no card de pagamento quando `valores.total` do `pedidos-faturados` for menor que `valor_pago`.
+- Corte de item no faturamento: cliente pagou o total, Dlinks fatura menos. V1: devolução manual pelo Itaú; retaguarda mostra "valor a devolver" no card de pagamento quando `valores.total` do `pedidos-faturados` for menor que `valor_pago`. Desde 30/10/2026 PIX devolve como crédito na carteira do app (automático pelo worker), não em dinheiro.
+
+### Pré-autorização no cartão (`status: 'autorizado'`, desde 30/10/2026, chave `preAutorizacao` do provedor e.Rede, desligada até a CAHU ligar)
+
+Com a pré-autorização ligada, pedido pago com cartão no app chega ao Dlinks com `pagamentoOnline.status = 'autorizado'` em vez de `'pago'`. Significa: o valor do pedido está **reservado** no cartão do cliente (limite bloqueado), mas **ainda não foi cobrado**. Quem cobra é a CAHU, depois, pelo valor da nota:
+
+| Momento | O que a CAHU faz sozinha | O que o Dlinks precisa fazer |
+|---|---|---|
+| Pedido chega (`listar`) | `pagamentoOnline = { status: 'autorizado', pagoEm: data da reserva, txid: TID da Rede, valor: valor reservado }` | Tratar como pago online: **não gerar título nem cobrança**, igual ao `'pago'` |
+| `POST /pedidos-faturados` com `status: 'FATURADO'` e `valores.total` | Cobra no cartão o `valores.total` (captura parcial se for menor que o reservado; nunca mais que o reservado) | Mandar `valores.total` (e a NF-e) como já manda hoje. É esse número que vira a cobrança |
+| `FATURADO` sem `valores` há 6 h | Cobra o valor reservado inteiro | Nada; é só a saída de segurança |
+| `POST /pedidos/cancelado` ou `pedidos-faturados` com `status: 'CANCELADO'` | Libera a reserva (o limite volta pro cliente, sem estorno) | Nada além do cancelamento normal |
+| Reserva perto de vencer sem nota (prazo da Rede − folga) | Cobra o reservado e segue | Nada; faturar dentro do prazo evita isso |
+
+Regras pro Dlinks:
+
+- `'autorizado'` e `'pago'` são equivalentes pro ERP: pedido pago no app, sem cobrança a gerar. A diferença é só interna da CAHU (cobrança acontece no faturamento).
+- `pagamentoOnline.valor` em `'autorizado'` é o valor **reservado**, que pode ser maior que o faturado. O valor realmente cobrado é o `valores.total` que o próprio Dlinks mandou. Não usar `pagamentoOnline.valor` como valor recebido.
+- Depois que a CAHU cobra, o mesmo pagamento vira `'pago'` (`valor` = valor cobrado, `pagoEm` = data da cobrança). Se o Dlinks consultar `listar` de novo pro mesmo período, o pedido aparece com `'pago'`. Não é pedido novo nem pagamento novo: mesmo `codigo`, mesmo `txid`. O Dlinks não precisa consultar de novo pra isso.
+- Pedido com `'autorizado'` cancelado depois de faturado: a CAHU já cobrou; o estorno é pela retaguarda (manual ou automático pelo worker no `CANCELADO`), nunca pelo Dlinks.
+- Pedidos com cartão na entrega ou boleto continuam sem `pagamentoOnline`, como hoje.
 
 ## App (Flutter)
 

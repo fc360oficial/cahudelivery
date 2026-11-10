@@ -20,18 +20,18 @@ export class AdminService {
     const [hoje, porStatus, mes, topProdutos, clientes, falhas] = await Promise.all([
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento
-           from pedidos where criado_em::date = current_date and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
+           from pedidos where origem = 'app_cliente' and criado_em::date = current_date and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
       ),
-      pool.query(`select status, count(*)::int as qtd from pedidos group by status`),
+      pool.query(`select status, count(*)::int as qtd from pedidos where origem = 'app_cliente' group by status`),
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento,
                 coalesce(avg(total),0) as ticket_medio
-           from pedidos where criado_em > now() - interval '30 days' and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
+           from pedidos where origem = 'app_cliente' and criado_em > now() - interval '30 days' and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
       ),
       pool.query(
         `select i.descricao_snapshot as produto, sum(i.quantidade)::numeric as qtd, sum(i.total) as valor
            from pedido_itens i join pedidos p on p.id = i.pedido_id
-          where p.criado_em > now() - interval '30 days' and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
+          where p.origem = 'app_cliente' and p.criado_em > now() - interval '30 days' and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
           group by 1 order by valor desc limit 5`,
       ),
       pool.query(
@@ -41,13 +41,13 @@ export class AdminService {
                 count(*) filter (where status = 'bloqueado')::int as bloqueados,
                 count(*) filter (where status <> 'excluido' and criado_em > now() - interval '30 days')::int as novos_30d,
                 count(*) filter (where status <> 'excluido'
-                                   and exists (select 1 from pedidos p where p.cliente_id = clientes.id
+                                   and exists (select 1 from pedidos p where p.cliente_id = clientes.id and p.origem = 'app_cliente'
                                                   and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
                                                   and p.criado_em > now() - interval '30 days'))::int as compraram_30d
            from clientes`,
       ),
       pool.query(
-        `select count(*)::int as qtd from pedidos where status = 'FALHA_INTEGRACAO'`,
+        `select count(*)::int as qtd from pedidos where origem = 'app_cliente' and status = 'FALHA_INTEGRACAO'`,
       ),
     ]);
     const c = clientes.rows[0];
@@ -69,13 +69,18 @@ export class AdminService {
     };
   }
 
-  async pedidos(f: { status?: string; busca?: string; pagina: number }) {
+  async pedidos(f: { status?: string; busca?: string; origem?: string; pagina: number }) {
     const { pool } = tenantCtx();
     const cond: string[] = ['true'];
     const params: unknown[] = [];
     if (f.status) {
       params.push(f.status);
       cond.push(`p.status = $${params.length}`);
+    }
+    const origem = f.origem === 'vendedor' || f.origem === 'todos' ? f.origem : 'app_cliente';
+    if (origem !== 'todos') {
+      params.push(origem);
+      cond.push(`p.origem = $${params.length}`);
     }
     if (f.busca) {
       params.push(`%${f.busca}%`);
@@ -84,8 +89,10 @@ export class AdminService {
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select p.id, p.numero, p.status, p.forma_pagamento, p.total, p.erp_pedido_id, p.criado_em,
+              p.origem, v.nome as vendedor_nome,
               c.nome_fantasia as cliente, c.documento
          from pedidos p join clientes c on c.id = p.cliente_id
+         left join vendedores v on v.id = p.vendedor_id
         where ${cond.join(' and ')}
         order by p.criado_em desc limit 25 offset $${params.length}`,
       params,
@@ -96,7 +103,7 @@ export class AdminService {
   async pedido(id: string) {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select p.*, c.nome_fantasia as cliente, c.documento, c.email, c.telefone,
+      `select p.*, v.nome as vendedor_nome, c.nome_fantasia as cliente, c.documento, c.email, c.telefone,
         (select json_agg(json_build_object('descricao', i.descricao_snapshot, 'quantidade', i.quantidade,
             'precoUnit', i.preco_unit, 'total', i.total)) from pedido_itens i where i.pedido_id = p.id) as itens,
         (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'origem', e.origem,
@@ -111,7 +118,8 @@ export class AdminService {
         (select json_agg(json_build_object('valor', e.valor, 'destino', e.destino, 'status', e.status, 'codigo', e.codigo,
             'mensagem', e.mensagem, 'motivo', e.motivo, 'origem', e.origem, 'em', e.criado_em) order by e.criado_em)
            from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
-         from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
+         from pedidos p join clientes c on c.id = p.cliente_id
+         left join vendedores v on v.id = p.vendedor_id where p.id = $1`,
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');

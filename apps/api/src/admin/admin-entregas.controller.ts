@@ -293,7 +293,7 @@ export class AdminEntregasController {
       `select p.id, p.numero, p.status, p.criado_em, p.total, p.subtotal, p.forma_pagamento, p.tipo_entrega,
               p.endereco_snapshot_json, p.aceite_json, p.observacoes,
               c.razao_social, c.nome_fantasia, c.documento, c.email, c.telefone, c.criado_em as cliente_desde,
-              (select count(*)::int from pedidos x where x.cliente_id = c.id and x.status in ('FATURADO','ENTREGUE') and x.id <> p.id) as pedidos_anteriores,
+              (select count(*)::int from pedidos x where x.cliente_id = c.id and x.origem = 'app_cliente' and x.status in ('FATURADO','ENTREGUE') and x.id <> p.id) as pedidos_anteriores,
               (select json_agg(json_build_object('descricao', i.descricao_snapshot, 'quantidade', i.quantidade,
                   'precoUnit', i.preco_unit, 'total', i.total)) from pedido_itens i where i.pedido_id = p.id) as itens,
               (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'origem', e.origem, 'em', e.criado_em)

@@ -36,7 +36,7 @@ export class MapaService {
               order by (e1.id::text = p.endereco_snapshot_json->>'id') desc, e1.padrao desc
               limit 1
            ) e on true
-          where p.criado_em::date between $1 and $2
+          where p.origem = 'app_cliente' and p.criado_em::date between $1 and $2
             and p.status = any($3)
             and e.id is not null
           order by p.criado_em desc`,
@@ -48,7 +48,7 @@ export class MapaService {
              where c.status not in ('bloqueado', 'excluido')
                and not exists (select 1 from cliente_enderecos e where e.cliente_id = c.id and e.latitude is not null)) as clientes,
            (select count(*)::int from pedidos p
-             where p.criado_em::date between $1 and $2 and p.status = any($3)
+             where p.origem = 'app_cliente' and p.criado_em::date between $1 and $2 and p.status = any($3)
                and not exists (
                  select 1 from cliente_enderecos e
                   where e.cliente_id = p.cliente_id and e.latitude is not null

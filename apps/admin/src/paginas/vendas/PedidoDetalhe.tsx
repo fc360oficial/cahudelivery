@@ -16,7 +16,6 @@ interface Pedido {
   clienteTelefone: string | null;
   vendedor: string | null;
   tabela: string | null;
-  condicao: string | null;
   forma: string | null;
   tipoEntrega: string;
   observacoes: string | null;
@@ -85,11 +84,10 @@ export function VendasPedidoDetalhe() {
           {p.clienteTelefone && <p>{p.clienteTelefone}</p>}
         </Cartao>
         <Cartao>
-          <h2>Vendedor, tabela e condição</h2>
+          <h2>Vendedor, tabela e forma de pagamento</h2>
           <p><strong>{p.vendedor ?? '—'}</strong></p>
           <p>Tabela: {p.tabela ?? '—'}</p>
-          <p>Condição: {p.condicao ?? '—'}</p>
-          {p.forma && <p>Forma: {p.forma}</p>}
+          <p>Forma: {p.forma ?? '—'}</p>
         </Cartao>
         <Cartao>
           <h2>{retirada ? 'Retirada' : 'Entrega'}</h2>

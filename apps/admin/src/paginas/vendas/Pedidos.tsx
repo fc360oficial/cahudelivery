@@ -13,7 +13,7 @@ interface Linha {
   clienteCodigo: string | null;
   vendedor: string | null;
   tabela: string | null;
-  condicao: string | null;
+  forma: string | null;
   total: number;
   status: string;
   divergencias: Divergencia[];
@@ -100,7 +100,7 @@ export function VendasPedidos() {
             <div className="tabela-vendas-wrap">
               <table className="tabela-vendas">
                 <thead>
-                  <tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Tabela</th><th>Condição</th><th className="num">Total</th><th>Situação</th></tr>
+                  <tr><th>Nº</th><th>Data</th><th>Cliente</th><th>Vendedor</th><th>Tabela</th><th>Forma</th><th className="num">Total</th><th>Situação</th></tr>
                 </thead>
                 <tbody>
                   {dados.dados.map((p) => (
@@ -110,7 +110,7 @@ export function VendasPedidos() {
                       <td>{p.cliente}{p.clienteCodigo && <span className="sub">Cód. {p.clienteCodigo}</span>}</td>
                       <td>{p.vendedor ?? '—'}</td>
                       <td>{p.tabela ?? '—'}</td>
-                      <td>{p.condicao ?? '—'}</td>
+                      <td>{p.forma ?? '—'}</td>
                       <td className="num">{formatarReais(p.total)}</td>
                       <td>
                         <SeloStatus status={p.status} />

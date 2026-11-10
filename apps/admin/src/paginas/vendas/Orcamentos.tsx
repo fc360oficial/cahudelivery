@@ -9,6 +9,7 @@ interface Linha {
   cliente: string;
   vendedor: string | null;
   tabela: string | null;
+  forma: string | null;
   total: number;
   itens: number;
   status: string;
@@ -77,7 +78,7 @@ export function VendasOrcamentos() {
             <div className="tabela-vendas-wrap">
               <table className="tabela-vendas">
                 <thead>
-                  <tr><th>Cliente</th><th>Vendedor</th><th>Tabela</th><th className="num">Itens</th><th className="num">Total</th><th>Situação</th><th>Atualizado em</th></tr>
+                  <tr><th>Cliente</th><th>Vendedor</th><th>Tabela</th><th>Forma</th><th className="num">Itens</th><th className="num">Total</th><th>Situação</th><th>Atualizado em</th></tr>
                 </thead>
                 <tbody>
                   {dados.dados.map((o) => {
@@ -87,6 +88,7 @@ export function VendasOrcamentos() {
                         <td>{o.cliente}</td>
                         <td>{o.vendedor ?? '—'}</td>
                         <td>{o.tabela ?? '—'}</td>
+                        <td>{o.forma ?? '—'}</td>
                         <td className="num">{o.itens}</td>
                         <td className="num">{formatarReais(o.total)}</td>
                         <td>

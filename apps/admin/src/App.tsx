@@ -41,7 +41,7 @@ type Area = Solucao | 'admin';
  * Guarda de cada área. Sem sessão vai ao login; sem acesso à área, vai à solução do usuário
  * (ou a /solucoes quando não houver nenhuma para onde ir). Nenhum destino volta para a mesma guarda.
  */
-function Protegido({ area = 'delivery', children }: { area?: Area; children: React.ReactNode }) {
+function Protegido({ area = 'delivery', semLayout = false, children }: { area?: Area; semLayout?: boolean; children: React.ReactNode }) {
   const s = sessao();
   const lista = solucoesDaSessao(s);
   useEffect(() => {
@@ -56,6 +56,7 @@ function Protegido({ area = 'delivery', children }: { area?: Area; children: Rea
     const outra: Solucao = area === 'delivery' ? 'vendas' : 'delivery';
     return <Navigate to={lista.includes(outra) ? HOME_DA_SOLUCAO[outra] : '/solucoes'} replace />;
   }
+  if (semLayout) return <>{children}</>;
   return area === 'vendas' ? <LayoutVendas>{children}</LayoutVendas> : <Layout>{children}</Layout>;
 }
 
@@ -97,7 +98,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/indica/:codigo" element={<IndicaLanding />} />
         {/* Dossiê fora do Layout: página limpa pra imprimir / salvar PDF. */}
-        <Route path="/pedidos/:id/dossie" element={sessao() ? <Dossie /> : <Navigate to="/login" replace />} />
+        <Route path="/pedidos/:id/dossie" element={<Protegido semLayout><Dossie /></Protegido>} />
         {ROTAS.map(([caminho, el]) => (
           <Route key={caminho} path={caminho} element={<Protegido>{el}</Protegido>} />
         ))}

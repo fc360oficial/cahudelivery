@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, sessao } from '../../api';
 import { CabecalhoPagina, Cartao, Selo, Vazio, formatarDataHora } from '../../vendas-ui';
 import './cadastros.css';
@@ -31,6 +31,7 @@ export function VendasVendedores() {
   const [aviso, setAviso] = useState<string | null>(null);
 
   const [carteiraDe, setCarteiraDe] = useState<Vendedor | null>(null);
+  const carteiraPedida = useRef<string | null>(null);
   const [carteira, setCarteira] = useState<ItemCarteira[] | null>(null);
   const [erroCarteira, setErroCarteira] = useState<string | null>(null);
 
@@ -65,11 +66,12 @@ export function VendasVendedores() {
   }
 
   function verCarteira(v: Vendedor) {
-    if (carteiraDe?.id === v.id) { setCarteiraDe(null); return; }
+    if (carteiraDe?.id === v.id) { carteiraPedida.current = null; setCarteiraDe(null); return; }
+    carteiraPedida.current = v.id;
     setCarteiraDe(v); setCarteira(null); setErroCarteira(null);
     api<ItemCarteira[]>(`/admin/vendas/vendedores/${v.id}/carteira`)
-      .then(setCarteira)
-      .catch((err: Error) => setErroCarteira(err.message));
+      .then((c) => { if (carteiraPedida.current === v.id) setCarteira(c); })
+      .catch((err: Error) => { if (carteiraPedida.current === v.id) setErroCarteira(err.message); });
   }
 
   return (

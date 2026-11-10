@@ -25,8 +25,11 @@ export function Solucoes() {
         </div>
       </header>
       <main className="solucoes-corpo">
-        <h1>Onde você quer entrar?</h1>
-        <div className="solucoes-cartoes">
+        {!admin && minhas.length === 0 && (
+          <p>Seu usuário ainda não tem acesso a nenhuma solução. Peça a um administrador.</p>
+        )}
+        {(admin || minhas.length > 0) && <h1>Onde você quer entrar?</h1>}
+        {(admin || minhas.length > 0) && <div className="solucoes-cartoes">
           {minhas.includes('delivery') && (
             <Link className="solucao-cartao" to={HOME_DA_SOLUCAO.delivery}>
               <Icone><path d="M3 4h2l2.4 11h10.2L20 7H6.2" /><circle cx="9" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /></Icone>
@@ -47,7 +50,7 @@ export function Solucoes() {
             <span>Rotas e acompanhamento das entregas</span>
             <em>Em breve</em>
           </div>
-        </div>
+        </div>}
         {admin && (
           <section className="solucoes-admin">
             <h2>Administração</h2>

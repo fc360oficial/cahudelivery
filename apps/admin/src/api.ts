@@ -15,12 +15,12 @@ export interface Sessao {
 
 export type Solucao = 'delivery' | 'vendas';
 
-/** Lista efetiva de soluções: sessão antiga sem lista = só Delivery; admin = as duas. */
+/** Lista efetiva de soluções: sessão antiga SEM lista = só Delivery; lista vazia fica vazia; admin = as duas. */
 export function solucoesDaSessao(s: Sessao | null = sessao()): Solucao[] {
   if (!s) return [];
   if (s.papel === 'admin') return ['delivery', 'vendas'];
   const l = (s.solucoes ?? ['delivery']).filter((x): x is Solucao => x === 'delivery' || x === 'vendas');
-  return l.length ? l : ['delivery'];
+  return l;
 }
 
 /** Página inicial de cada solução. */

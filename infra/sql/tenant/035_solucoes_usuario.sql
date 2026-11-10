@@ -8,7 +8,7 @@ alter table usuarios_admin add column if not exists solucoes text[] not null def
 
 alter table usuarios_admin drop constraint if exists usuarios_admin_solucoes_check;
 alter table usuarios_admin add constraint usuarios_admin_solucoes_check
-  check (solucoes <@ array['delivery','vendas']::text[]);
+  check (solucoes <@ array['delivery','vendas']::text[] and cardinality(solucoes) > 0);
 
 update usuarios_admin set solucoes = '{delivery,vendas}' where papel = 'admin' and solucoes <> '{delivery,vendas}';
 

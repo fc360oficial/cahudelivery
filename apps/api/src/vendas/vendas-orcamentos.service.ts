@@ -62,6 +62,14 @@ export class VendasOrcamentosService {
       return { id, status: 'aberto' as const, total };
     } catch (e) {
       await client.query('rollback');
+      // Catálogo desatualizado no celular: produto, tabela ou condição já não existem no cadastro.
+      if ((e as { code?: string }).code === '23503') {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Produto, tabela ou condição de pagamento não existe mais. Sincronize o aplicativo.',
+          codigo: 'REFERENCIA_INVALIDA',
+        });
+      }
       throw e;
     } finally {
       client.release();

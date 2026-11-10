@@ -1,5 +1,5 @@
 // apps/api/src/vendas/vendas-orcamentos.spec.ts
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { runComTenant } from '../tenancy/tenant-context';
 import { VendasOrcamentosService } from './vendas-orcamentos.service';
 
@@ -13,12 +13,14 @@ const dto = {
   ],
 };
 
-function montar(opcoes: { naCarteira?: boolean; gravou?: boolean } = {}) {
+function montar(opcoes: { naCarteira?: boolean; gravou?: boolean; fkItem?: boolean } = {}) {
   const query = jest.fn(async (sql: string) => {
     if (sql.includes('from cliente_vendedor where cliente_id'))
       return { rowCount: opcoes.naCarteira === false ? 0 : 1, rows: [] };
     if (sql.includes('insert into orcamentos'))
       return { rowCount: opcoes.gravou === false ? 0 : 1, rows: [] };
+    if (opcoes.fkItem && sql.includes('insert into orcamento_itens'))
+      throw Object.assign(new Error('fk'), { code: '23503' });
     return { rows: [], rowCount: 0 };
   });
   const pool = {
@@ -65,5 +67,13 @@ describe('VendasOrcamentosService.salvar', () => {
     await expect(
       rodar(() => servico.salvar('v1', 'orc-1', dto as never)),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('responde 400 REFERENCIA_INVALIDA e faz rollback quando produto, tabela ou condição não existe mais', async () => {
+    const { servico, query, rodar } = montar({ fkItem: true });
+    const erro = await rodar(() => servico.salvar('v1', 'orc-1', dto as never)).catch((e) => e);
+    expect(erro).toBeInstanceOf(BadRequestException);
+    expect(erro.getResponse()).toMatchObject({ codigo: 'REFERENCIA_INVALIDA' });
+    expect(query.mock.calls.some(([sql]) => String(sql).trim() === 'rollback')).toBe(true);
   });
 });

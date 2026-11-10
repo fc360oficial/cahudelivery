@@ -338,7 +338,7 @@ export class AuthService {
     // a sessão. Fora da janela, reuso = token inválido.
     const { rows } = await pool.query(
       `update refresh_tokens set revogado_em = coalesce(revogado_em, now())
-        where token_hash = $1 and expira_em > now()
+        where token_hash = $1 and sujeito = 'cliente' and expira_em > now()
           and (revogado_em is null or revogado_em > now() - interval '30 seconds')
         returning sujeito_id`,
       [hash],

@@ -15,9 +15,10 @@ import { OrdersModule } from './orders/orders.module';
 import { PagamentosModule } from './pagamentos/pagamentos.module';
 import { ProfileModule } from './profile/profile.module';
 import { TenancyMiddleware } from './tenancy/tenant-context';
+import { VendasModule } from './vendas/vendas.module';
 
 @Module({
-  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule, NotasModule, PagamentosModule],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule, NotasModule, PagamentosModule, VendasModule],
   controllers: [AppController],
   providers: [AppService],
 })

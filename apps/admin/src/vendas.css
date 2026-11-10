@@ -106,3 +106,11 @@ a.solucao-cartao:hover { border-color: #ffc20e; }
 .solucoes-admin h2 { font-size: 15px; color: #5b6b85; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
 .solucoes-admin .solucao-cartao strong { font-size: 16px; }
 @media (max-width: 560px) { .solucoes-topo { padding: 10px 14px; } .solucoes-topo .quem span { display: none; } .solucoes-corpo h1 { font-size: 22px; } }
+
+/* Barra de rolagem do menu: fina e discreta, sem as setas do sistema. */
+.area-fluxo .av-menu { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transparent; }
+.area-fluxo .av-menu::-webkit-scrollbar { width: 6px; }
+.area-fluxo .av-menu::-webkit-scrollbar-track { background: transparent; }
+.area-fluxo .av-menu::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.22); border-radius: 999px; }
+.area-fluxo .av-menu::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.4); }
+.area-fluxo .av-menu::-webkit-scrollbar-button { display: none; }

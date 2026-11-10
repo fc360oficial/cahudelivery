@@ -2548,3 +2548,24 @@ git commit -m "Vendas: retaguarda define acesso do vendedor e condições aceita
 - **Tarefa 6**: o crédito disponível desconta também os pedidos a prazo aceitos e ainda não faturados (`RECEBIDO`, `ENVIADO_ERP`, `ABERTO`, `EM_FATURAMENTO`). `CargaVendedor.clientes[]` ganhou o campo `pedidosEmTransito: number`; o app calcula disponível = `limiteCredito - emAberto - pedidosEmTransito`.
 - **Tarefa 6**: reenvio com `idDispositivo` de outro vendedor responde 409 `ID_DISPOSITIVO_EM_USO`; cliente `bloqueado` ou `excluido` responde 400 `CLIENTE_BLOQUEADO`; `quantidade` e `precoUnit` têm teto.
 - **Tarefa 7**: a consulta do ERP também ignora pedido retido que o vendedor cancelou.
+- **Revisão geral do branch (10/11/2026)**:
+  - O app do cliente não lista nem abre pedido retido do vendedor, e não recebe as colunas internas do vendedor.
+  - O bloqueio feito na retaguarda fica em `vendedores.acesso_bloqueado`; o ERP só grava `ativo`. Login, renovação e guard exigem `ativo and not acesso_bloqueado`. `GET /admin/vendas/vendedores` devolve também `ativoNoErp` e `bloqueadoNaRetaguarda`.
+  - Carteira: `funcionario_codigo` enviado como `null` ou `""` tira o cliente de todas as carteiras; campo ausente é recusado. Todos os vendedores de um cliente vêm na mesma chamada.
+  - `confirmar` usa a mesma trava por cliente e refaz as conferências de carteira e bloqueio; `cancelar` reabre o orçamento que tinha virado o pedido.
+  - `CargaVendedor`: `titulos[].vencimento` é `AAAA-MM-DD`; `precos` só de tabelas vindas do ERP; `formas[]` ganhou `exigeCredito: boolean` (o app usa esse campo, não reimplementa a regra).
+  - Recusas definitivas têm código: `PRODUTO_INDISPONIVEL`, `PRODUTO_REPETIDO`, `TABELA_OU_CONDICAO_INEXISTENTE`, `SEM_ENDERECO`, `VALOR_FORA_DO_LIMITE`, `REFERENCIA_INVALIDA`, `CLIENTE_BLOQUEADO`, `CLIENTE_FORA_DA_CARTEIRA`, `CONDICAO_NAO_PERMITIDA`, `ID_DISPOSITIVO_EM_USO`.
+  - Forma de pagamento com BOLETO na descrição sempre confere crédito.
+  - O ERP não consegue mudar a situação de um pedido retido; painel e registro de entrega da retaguarda ignoram pedido retido.
+
+## Fica para o Plano 3 (retaguarda)
+
+A API de administração deste plano cobre só vendedores e o vínculo tabela × condição. Ainda faltam, na API, para as telas da retaguarda: carteira por vendedor, pedidos e orçamentos dos vendedores com filtros e a aba de retidos com o motivo, painel do dia, e o perfil de supervisor. Pedido retido hoje só é resolvido pelo próprio vendedor e não expira.
+
+## Antes de ir para produção
+
+- A migração 034 nunca rodou em PostgreSQL. Rodar duas vezes numa cópia do banco de produção e aplicar ANTES de subir a API nova (a consulta de pedidos do ERP e o login do vendedor leem colunas que ela cria).
+- Conferir em banco real: consulta de pedidos do ERP, recebimento de um pedido liberado e de um retido, confirmar e cancelar, crédito com títulos reais, renovação de sessão do vendedor, orçamento, resumo na virada do dia e do mês, e o tamanho da carga completa da maior carteira.
+- O app do vendedor precisa enviar o cabeçalho `X-Tenant`, como o app do cliente.
+- Avisar o ERP: para pedido de vendedor, `formaPagamentoCodigo` e `condicaoPagamentoCodigo` são os valores oficiais; `formaPagamento` é só um agrupamento.
+- Decisões pendentes do Tiago: crédito de indicação em pedido do vendedor, pedido mínimo e cliente com cadastro pendente.

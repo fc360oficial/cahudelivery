@@ -4,6 +4,7 @@ import { OrcamentoDto } from './orcamento.dto';
 import { PedidoVendedorDto } from './pedido-vendedor.dto';
 import { VendasOrcamentosService } from './vendas-orcamentos.service';
 import { VendasPedidosService } from './vendas-pedidos.service';
+import { VendasResumoService } from './vendas-resumo.service';
 import { VendasSyncService } from './vendas-sync.service';
 import { VendedorGuard, VendedorLogado } from './vendedor.guard';
 
@@ -16,6 +17,7 @@ export class VendasController {
     private readonly sync: VendasSyncService,
     private readonly pedidos: VendasPedidosService,
     private readonly orcamentos: VendasOrcamentosService,
+    private readonly resumoService: VendasResumoService,
   ) {}
 
   @Get('sync')
@@ -60,5 +62,10 @@ export class VendasController {
   @HttpCode(200)
   cancelarOrcamento(@Req() req: ReqVendedor, @Param('id', ParseUUIDPipe) id: string) {
     return this.orcamentos.cancelar(req.vendedor.vendedorId, id);
+  }
+
+  @Get('resumo')
+  resumo(@Req() req: ReqVendedor) {
+    return this.resumoService.resumo(req.vendedor.vendedorId);
   }
 }

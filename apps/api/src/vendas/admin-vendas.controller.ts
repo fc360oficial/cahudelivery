@@ -27,14 +27,14 @@ export class AdminVendasController {
   async vendedores() {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select v.id, v.erp_vendedor_id, v.nome, v.filial, v.login, (v.senha_hash is not null) as tem_senha, v.ativo,
+      `select v.id, v.erp_vendedor_id, v.nome, v.filial, v.login, (v.senha_hash is not null) as tem_senha, v.ativo, v.acesso_bloqueado,
               v.ultima_sync_em, v.app_versao,
               (select count(*)::int from cliente_vendedor cv where cv.vendedor_id = v.id) as clientes
          from vendedores v order by v.nome`,
     );
     return rows.map((v) => ({
       id: v.id, erpVendedorId: v.erp_vendedor_id, nome: v.nome, filial: v.filial, login: v.login, temSenha: v.tem_senha,
-      ativo: v.ativo, ultimaSyncEm: v.ultima_sync_em, appVersao: v.app_versao, clientes: v.clientes,
+      ativo: v.ativo && !v.acesso_bloqueado, ativoNoErp: v.ativo, bloqueadoNaRetaguarda: v.acesso_bloqueado, ultimaSyncEm: v.ultima_sync_em, appVersao: v.app_versao, clientes: v.clientes,
     }));
   }
 
@@ -50,7 +50,7 @@ export class AdminVendasController {
     let rowCount: number | null;
     try {
       ({ rowCount } = await pool.query(
-        `update vendedores set login = $2, senha_hash = coalesce($3, senha_hash), ativo = $4 where id = $1`,
+        `update vendedores set login = $2, senha_hash = coalesce($3, senha_hash), acesso_bloqueado = not $4 where id = $1`,
         [id, login, senhaHash, dto.ativo],
       ));
     } catch (e) {

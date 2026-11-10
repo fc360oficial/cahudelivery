@@ -15,10 +15,12 @@ create table if not exists vendedores (
   login           text unique,                 -- definido na retaguarda; nulo = ainda sem acesso
   senha_hash      text,                        -- argon2id
   ativo           boolean not null default true,
+  acesso_bloqueado boolean not null default false, -- bloqueio feito na retaguarda; o ERP não mexe nele
   ultima_sync_em  timestamptz,
   app_versao      text,
   criado_em       timestamptz not null default now()
 );
+alter table vendedores add column if not exists acesso_bloqueado boolean not null default false;
 
 create table if not exists cliente_vendedor (
   cliente_id  uuid not null references clientes(id),

@@ -25,9 +25,9 @@ export class VendasAuthService {
     const login = loginInformado.trim().toLowerCase();
     const chaves = [`vend:${login}`, `ip:${ip}`];
     await this.limite.conferir(chaves);
-    const { rows } = await pool.query(`select id, nome, senha_hash, ativo from vendedores where login = $1`, [login]);
+    const { rows } = await pool.query(`select id, nome, senha_hash, ativo, acesso_bloqueado from vendedores where login = $1`, [login]);
     const v = rows[0];
-    if (!v || !v.ativo || !v.senha_hash || !(await argon2.verify(v.senha_hash, senha))) {
+    if (!v || !v.ativo || v.acesso_bloqueado || !v.senha_hash || !(await argon2.verify(v.senha_hash, senha))) {
       await this.limite.registrarFalha(chaves);
       throw new UnauthorizedException('Usuário ou senha inválidos');
     }
@@ -45,7 +45,7 @@ export class VendasAuthService {
          from vendedores v
         where r.token_hash = $1 and r.sujeito = 'vendedor' and r.expira_em > now()
           and (r.revogado_em is null or r.revogado_em > now() - interval '30 seconds')
-          and v.id = r.sujeito_id and v.ativo
+          and v.id = r.sujeito_id and v.ativo and not v.acesso_bloqueado
         returning r.sujeito_id`,
       [hash],
     );

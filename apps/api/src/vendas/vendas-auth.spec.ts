@@ -45,8 +45,31 @@ describe('VendasAuthService.login', () => {
     await expect(rodar(() => servico.login('ana', 'segredo123', '1.1.1.1'))).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('recusa vendedor bloqueado na retaguarda mesmo com a senha certa', async () => {
+    const senha_hash = await argon2.hash('segredo123');
+    const { servico, rodar } = montar({ id: 'v1', nome: 'Ana', senha_hash, ativo: true, acesso_bloqueado: true });
+    await expect(rodar(() => servico.login('ana', 'segredo123', '1.1.1.1'))).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
   it('recusa vendedor que ainda não tem senha definida', async () => {
     const { servico, rodar } = montar({ id: 'v1', nome: 'Ana', senha_hash: null, ativo: true });
     await expect(rodar(() => servico.login('ana', 'qualquer', '1.1.1.1'))).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+});
+
+describe('VendasAuthService.refresh', () => {
+  it('só renova sessão de vendedor ativo e não bloqueado na retaguarda', async () => {
+    const { servico, query, rodar } = montar(null);
+    query.mockImplementationOnce(async () => ({ rows: [{ sujeito_id: 'v1' }], rowCount: 1 }));
+    await rodar(() => servico.refresh('token'));
+    const sql = String((query.mock.calls[0] as unknown[])[0]);
+    expect(sql).toContain("r.sujeito = 'vendedor'");
+    expect(sql).toContain('v.ativo');
+    expect(sql).toContain('not v.acesso_bloqueado');
+  });
+
+  it('recusa quando nenhuma sessão válida é encontrada', async () => {
+    const { servico, rodar } = montar(null);
+    await expect(rodar(() => servico.refresh('token'))).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });

@@ -27,7 +27,7 @@ export class VendedorGuard implements CanActivate {
     }
     const { pool, tenant } = tenantCtx();
     if (payload.tipo !== 'vendedor' || payload.slug !== tenant.slug) throw new UnauthorizedException();
-    const { rowCount } = await pool.query(`select 1 from vendedores where id = $1 and ativo`, [payload.sub]);
+    const { rowCount } = await pool.query(`select 1 from vendedores where id = $1 and ativo and not acesso_bloqueado`, [payload.sub]);
     if (!rowCount) throw new UnauthorizedException({ statusCode: 401, message: 'Acesso desativado', codigo: 'VENDEDOR_DESATIVADO' });
     req.vendedor = { vendedorId: payload.sub };
     return true;

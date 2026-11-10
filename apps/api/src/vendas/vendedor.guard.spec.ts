@@ -24,6 +24,14 @@ describe('VendedorGuard', () => {
     expect(req.vendedor).toEqual({ vendedorId: 'v1' });
   });
 
+  it('consulta exige vendedor ativo e não bloqueado na retaguarda', async () => {
+    const jwt = { verifyAsync: jest.fn(async () => ({ sub: 'v1', slug: 'cahu', tipo: 'vendedor' })) };
+    const query = jest.fn(async () => ({ rows: [{ ok: 1 }], rowCount: 1 }));
+    const { ctx } = contexto('Bearer abc');
+    await runComTenant({ tenant, pool: { query } } as never, () => new VendedorGuard(jwt as never).canActivate(ctx));
+    expect(String((query.mock.calls[0] as unknown[])[0])).toContain('not acesso_bloqueado');
+  });
+
   it('recusa token de cliente', async () => {
     await expect(rodar({ sub: 'c1', slug: 'cahu', tipo: 'cliente' }, true).promessa).rejects.toBeInstanceOf(UnauthorizedException);
   });

@@ -17,18 +17,19 @@ function montar(opcoes: { loginEmUso?: boolean; updateRowCount?: number; falhaEm
   const rodar = <T>(fn: () => Promise<T>) => runComTenant({ tenant: {}, pool } as never, fn);
   const params = (trecho: string) => query.mock.calls.find(([sql]) => String(sql).includes(trecho))?.[1] as unknown[];
   const chamou = (trecho: string) => query.mock.calls.some(([sql]) => String(sql).includes(trecho));
-  return { controller: new AdminVendasController(), rodar, params, chamou };
+  return { controller: new AdminVendasController(), rodar, params, chamou, query };
 }
 
 describe('AdminVendasController.definirAcesso', () => {
   it('grava o login em minúsculas, a senha com argon2 e encerra as sessões abertas', async () => {
-    const { controller, rodar, params, chamou } = montar();
+    const { controller, rodar, params, chamou, query } = montar();
     await rodar(() => controller.definirAcesso(ADMIN, 'vend-1', { login: ' Ana.Paula ', senha: 'segredo123', ativo: true } as never));
     const p = params('update vendedores set login');
     expect(p[0]).toBe('vend-1');
     expect(p[1]).toBe('ana.paula');
     expect(await argon2.verify(String(p[2]), 'segredo123')).toBe(true);
     expect(p[3]).toBe(true);
+    expect(String(query.mock.calls.find(([sql]) => String(sql).includes('update vendedores set login'))![0])).toContain('acesso_bloqueado = not $4');
     expect(chamou("delete from refresh_tokens where sujeito_id = $1 and sujeito = 'vendedor'")).toBe(true);
   });
 

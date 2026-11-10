@@ -100,3 +100,8 @@
 .area-vendas .recente > span:first-child .sub { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .area-vendas .lista-inicio li:has(.recente):nth-child(n+7) { display: none; }
 @media (max-width: 900px) { .area-vendas .grafico { height: 220px; } }
+
+/* Celular: no gráfico de 7 dias só o valor de hoje aparece em cima da barra; os outros se sobrepunham. */
+@media (max-width: 600px) {
+  .area-vendas .grafico.sete .coluna:not(.hoje) .vlr { visibility: hidden; }
+}

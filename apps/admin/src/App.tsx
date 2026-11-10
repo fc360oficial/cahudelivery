@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { HOME_DA_SOLUCAO, sessao, solucaoAtual, solucoesDaSessao, trocarSolucao, type Solucao } from './api';
+import { HOME_DA_SOLUCAO, destinoInicial, sessao, solucaoAtual, solucoesDaSessao, trocarSolucao, type Solucao } from './api';
 import { Layout } from './Layout';
 import { LayoutAdmin, LayoutVendas } from './LayoutAreas';
 import { Banners } from './paginas/Banners';
@@ -100,7 +100,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={sessao() ? <Navigate to={destinoInicial()} replace /> : <Login />} />
         <Route path="/indica/:codigo" element={<IndicaLanding />} />
         {/* Dossiê fora do Layout: página limpa pra imprimir / salvar PDF. */}
         <Route path="/pedidos/:id/dossie" element={<Protegido semLayout><Dossie /></Protegido>} />

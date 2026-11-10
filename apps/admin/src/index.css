@@ -358,3 +358,9 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
   .tabela-clientes .acoes { width: 200px; }
   .tabela-clientes .badge { font-size: 11.5px; padding: 3px 8px; }
 }
+
+/* Celular e tablet: a tabela de produtos do Delivery rola dentro da caixa em vez de espremer as colunas. */
+@media (max-width: 900px) {
+  .tabela-wrap-fixa { overflow-x: auto; }
+  .tabela-wrap-fixa .tabela-produtos { min-width: 920px; }
+}

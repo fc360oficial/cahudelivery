@@ -2569,3 +2569,17 @@ A API de administração deste plano cobre só vendedores e o vínculo tabela ×
 - O app do vendedor precisa enviar o cabeçalho `X-Tenant`, como o app do cliente.
 - Avisar o ERP: para pedido de vendedor, `formaPagamentoCodigo` e `condicaoPagamentoCodigo` são os valores oficiais; `formaPagamento` é só um agrupamento.
 - Decisões pendentes do Tiago: crédito de indicação em pedido do vendedor, pedido mínimo e cliente com cadastro pendente.
+
+## Separação Delivery × Vendas (10/11/2026)
+
+Regra: o banco é um por cliente, mas cada produto só enxerga os pedidos dele (`pedidos.origem`).
+
+- Delivery (app do cliente, painel, lista de pedidos, mapa, dossiê, "mais vendidos", relacionados, liberação de cartão e crédito de indicação) considera só `origem = 'app_cliente'`.
+- `GET /v1/admin/pedidos` aceita `origem=app_cliente|vendedor|todos` (padrão `app_cliente`) e devolve `origem` e `vendedor_nome`.
+- A consulta de pedidos do ERP devolve os dois produtos, cada pedido com o campo `origem`.
+- Continuam comuns, de propósito: limite de crédito do cliente (pedido a prazo conta venha de onde vier) e o histórico que o vendedor vê (com `origem` em cada item).
+- Pedido de vendedor não tem pagamento online, carteira, promoção do app nem pedido mínimo do Delivery.
+
+## Teste em PostgreSQL real (10/11/2026)
+
+Feito em cópia do banco de produção (bancos `*_teste034`, fora do ar): migração 034 aplicada duas vezes sem erro; roteiro ponta a ponta com 51 conferências e roteiro de separação com 15 conferências, todos passando. Achados nos dados: só uma condição de pagamento cadastrada, vínculo tabela × condição vazio, forma de pagamento duplicada ("Boleto"/"BOLETO").

@@ -26,6 +26,7 @@ export interface CargaVendedor {
   precos: Array<{ produtoId: string; tabelaId: string; preco: number }>;
   historico: Array<{
     pedidoId: string; numero: number; clienteId: string; criadoEm: string; total: number; status: string;
+    origem: 'app_cliente' | 'vendedor';
     itens: Array<{ produtoId: string; quantidade: number; precoUnit: number }>;
   }>;
 }
@@ -92,7 +93,7 @@ export class VendasSyncService {
     );
     const historico = await pool.query(
       `/* historico */
-       select p.id, p.numero, p.cliente_id, p.criado_em, p.total, p.status,
+       select p.id, p.numero, p.cliente_id, p.criado_em, p.total, p.status, p.origem,
               (select json_agg(json_build_object('produtoId', i.produto_id, 'quantidade', i.quantidade, 'precoUnit', i.preco_unit))
                  from pedido_itens i where i.pedido_id = p.id) as itens
          from pedidos p join cliente_vendedor cv on cv.cliente_id = p.cliente_id
@@ -130,7 +131,7 @@ export class VendasSyncService {
       })),
       precos: precos.rows.map((p) => ({ produtoId: p.produto_id, tabelaId: p.tabela_preco_id, preco: n(p.preco) })),
       historico: historico.rows.map((h) => ({
-        pedidoId: h.id, numero: n(h.numero), clienteId: h.cliente_id, criadoEm: h.criado_em, total: n(h.total), status: h.status,
+        pedidoId: h.id, numero: n(h.numero), clienteId: h.cliente_id, criadoEm: h.criado_em, total: n(h.total), status: h.status, origem: h.origem,
         itens: (h.itens ?? []).map((i: { produtoId: string; quantidade: unknown; precoUnit: unknown }) => ({
           produtoId: i.produtoId, quantidade: n(i.quantidade), precoUnit: n(i.precoUnit),
         })),

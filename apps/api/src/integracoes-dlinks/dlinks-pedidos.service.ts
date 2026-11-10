@@ -57,6 +57,8 @@ export interface PedidoDlinks {
   valorAbatidoSaldo: number;
   /** Presente só quando o pedido foi pago online no app antes de chegar aqui. Opcional; o Dlinks pode ignorar. */
   pagamentoOnline?: { status: 'pago' | 'autorizado'; pagoEm: string; txid: string; valor: number };
+  /** Produto de origem do pedido: app do cliente (Delivery) ou vendedor (Fluxo Vendas). */
+  origem: 'app_cliente' | 'vendedor';
   /** Presentes só em pedido tirado pelo vendedor no Fluxo Vendas. */
   vendedor?: { codigo: string; nome: string };
   tabelaPreco?: { codigo: string; nome: string };
@@ -77,7 +79,7 @@ export class DlinksPedidosService {
     const { pool } = tenantCtx();
     const inicio = Date.now();
     const { rows } = await pool.query(
-      `select p.id, p.numero, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
+      `select p.id, p.numero, p.origem, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
               p.endereco_snapshot_json, p.valor_saldo_usado,
               v.erp_vendedor_id as vendedor_codigo, v.nome as vendedor_nome,
               tp.erp_tabela_id as tabela_codigo, tp.nome as tabela_nome,
@@ -136,6 +138,7 @@ export class DlinksPedidosService {
         itens: r.itens ?? [],
         valorAbatidoSaldo: Number(r.valor_saldo_usado) || 0,
         pagamentoOnline: r.pagamento_online ?? undefined,
+        origem: r.origem,
         vendedor: r.vendedor_codigo ? { codigo: r.vendedor_codigo, nome: r.vendedor_nome } : undefined,
         tabelaPreco: r.tabela_codigo ? { codigo: r.tabela_codigo, nome: r.tabela_nome } : undefined,
         condicaoPagamentoCodigo: r.condicao_codigo ?? undefined,

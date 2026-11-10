@@ -58,4 +58,22 @@ describe('VendasSyncService.carga', () => {
     const out = await runComTenant({ tenant: {}, pool: { query } } as never, () => new VendasSyncService().carga('v1'));
     expect(out.clientes[0].limiteCredito).toBeNull();
   });
+
+  it('o histórico rotula o produto de origem de cada pedido', async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('from vendedores where id')) return { rows: [{ id: 'v1', nome: 'Ana', erp_vendedor_id: '6' }] };
+      if (sql.includes('/* historico */')) {
+        return { rows: [
+          { id: 'a', numero: 1, cliente_id: 'c1', criado_em: 'x', total: '10', status: 'ENTREGUE', origem: 'app_cliente', itens: null },
+          { id: 'b', numero: 2, cliente_id: 'c1', criado_em: 'y', total: '20', status: 'FATURADO', origem: 'vendedor', itens: null },
+        ] };
+      }
+      return { rows: [] };
+    });
+    const out = await runComTenant({ tenant: {}, pool: { query } } as never, () => new VendasSyncService().carga('v1'));
+    expect(out.historico.map((h) => h.origem)).toEqual(['app_cliente', 'vendedor']);
+    const sql = String(query.mock.calls.find(([q]) => String(q).includes('/* historico */'))![0]);
+    expect(sql).toContain('p.origem');
+    expect(sql).not.toContain('p.origem =');
+  });
 });

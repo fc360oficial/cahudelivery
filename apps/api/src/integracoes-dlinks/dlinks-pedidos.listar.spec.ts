@@ -74,3 +74,24 @@ describe('DlinksPedidosService.listar', () => {
     expect(out.pedidos[0].tabelaPreco).toBeUndefined();
   });
 });
+
+describe('DlinksPedidosService.listar — origem do pedido', () => {
+  const base = {
+    numero: 11, criado_em: new Date(), tipo_entrega: 'entrega', forma_pagamento: 'pix', condicao_pagamento: null,
+    endereco_snapshot_json: null, valor_saldo_usado: '0', documento: '123', erp_cliente_id: 'C1', tipo: 'PJ',
+    razao_social: 'X', nome_fantasia: 'X', email: null, telefone: null, itens: [], pagamento_online: null,
+  };
+  it('expõe origem e não filtra por ela (o ERP recebe os dois produtos)', async () => {
+    const query = jest.fn()
+      .mockResolvedValueOnce({ rows: [
+        { ...base, id: 'pv', origem: 'vendedor', vendedor_codigo: '6', vendedor_nome: 'Ana' },
+        { ...base, id: 'pa', origem: 'app_cliente' },
+      ] })
+      .mockResolvedValue({ rows: [] });
+    const out = await runComTenant({ tenant, pool: { query } as unknown as Pool }, () => new DlinksPedidosService().listar('2026-11-09', '2026-11-09'));
+    expect(String(query.mock.calls[0][0])).not.toContain('p.origem =');
+    expect(out.pedidos[0]).toEqual(expect.objectContaining({ origem: 'vendedor', vendedor: { codigo: '6', nome: 'Ana' } }));
+    expect(out.pedidos[1].origem).toBe('app_cliente');
+    expect(out.pedidos[1].vendedor).toBeUndefined();
+  });
+});

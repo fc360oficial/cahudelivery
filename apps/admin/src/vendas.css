@@ -1,0 +1,104 @@
+/* Áreas Vendas e Administração + escolha de solução. Tudo sob .area-vendas / .solucoes-tela:
+   nenhuma regra do Delivery é tocada. */
+.area-vendas {
+  --av-marinho: #0b1f4b;
+  --av-amarelo: #ffc20e;
+  --av-fundo: #eef2f8;
+  --av-azul: #1d5be0;
+  --av-borda: #dde4ef;
+  --av-texto: #14213d;
+  --av-texto-2: #5b6b85;
+  display: flex; min-height: 100vh; background: var(--av-fundo); color: var(--av-texto);
+}
+.area-vendas .av-lateral {
+  width: 248px; flex-shrink: 0; background: var(--av-marinho); color: #c9d4ea;
+  display: flex; flex-direction: column; position: sticky; top: 0; align-self: flex-start;
+  height: 100vh; height: 100dvh;
+}
+.area-vendas .av-marca { flex-shrink: 0; padding: 18px 16px 14px; }
+.area-vendas .av-marca-card {
+  background: #fff; border-radius: 14px; padding: 12px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.area-vendas .av-marca-card img { width: 60px; height: auto; display: block; }
+.area-vendas .av-nome-marca { font-size: 20px; font-weight: 800; font-style: italic; letter-spacing: -0.3px; line-height: 1; }
+.area-vendas .av-nome-marca .f { color: var(--av-marinho); }
+.area-vendas .av-nome-marca .v { color: #f5a800; }
+.area-vendas .av-marca-admin { padding: 4px 2px 0; }
+.area-vendas .av-marca-admin img { width: 100%; max-width: 170px; display: block; margin-bottom: 6px; }
+.area-vendas .av-marca-admin small { color: var(--av-amarelo); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }
+.area-vendas .av-menu { padding: 6px 12px; display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; overflow-y: auto; }
+.area-vendas .av-menu a, .area-vendas .av-menu .av-breve-item {
+  display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 10px; font-weight: 600; white-space: nowrap;
+}
+.area-vendas .av-menu a:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
+.area-vendas .av-menu a.ativo { background: var(--av-amarelo); color: var(--av-marinho); font-weight: 700; }
+.area-vendas .av-menu svg, .area-vendas .av-rodape svg { flex-shrink: 0; }
+.area-vendas .av-breve { margin-top: 14px; padding: 0 12px 4px; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: #8696b8; font-weight: 700; }
+.area-vendas .av-breve-item { color: #8696b8; cursor: default; font-weight: 500; }
+.area-vendas .av-breve-item em { margin-left: auto; font-style: normal; font-size: 10.5px; background: rgb(255 255 255 / 0.1); border-radius: 999px; padding: 2px 8px; }
+.area-vendas .av-rodape { flex-shrink: 0; padding: 14px 16px; border-top: 1px solid rgb(255 255 255 / 0.1); font-size: 12.5px; }
+.area-vendas .av-rodape strong { display: block; color: #fff; font-size: 13.5px; }
+.area-vendas .av-rodape span { display: block; color: #8696b8; margin-bottom: 8px; }
+.area-vendas .av-rodape button {
+  display: flex; align-items: center; gap: 8px; background: none; border: 0; color: #c9d4ea; padding: 6px 0; width: 100%; text-align: left;
+}
+.area-vendas .av-rodape button:hover { color: var(--av-amarelo); }
+.area-vendas .av-conteudo { flex: 1; min-width: 0; padding: 26px 30px; max-width: 1600px; }
+.area-vendas .av-topo-mobile { display: none; }
+
+/* Blocos reutilizáveis */
+.area-vendas .cartao { background: #fff; border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgb(11 31 75 / 0.08); }
+.area-vendas .cabecalho-pagina { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.area-vendas .cabecalho-pagina h1 { margin: 0; font-size: 22px; color: var(--av-marinho); }
+.area-vendas .cabecalho-pagina p { margin: 4px 0 0; color: var(--av-texto-2); }
+.area-vendas .cabecalho-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.area-vendas .selo { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.area-vendas .selo-azul { background: #dce8ff; color: #1d4ac0; }
+.area-vendas .selo-cinza { background: #e6eaf1; color: #4a5875; }
+.area-vendas .selo-verde { background: #d6f3df; color: #146b35; }
+.area-vendas .selo-amarelo { background: #fff0c2; color: #8a5a00; }
+.area-vendas .selo-vermelho { background: #fddcdc; color: #a61d1d; }
+.area-vendas .vazio { text-align: center; color: var(--av-texto-2); padding: 36px 16px; }
+.area-vendas .tabela-vendas-wrap { overflow-x: auto; background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgb(11 31 75 / 0.08); }
+.area-vendas .tabela-vendas { width: 100%; border-collapse: collapse; min-width: 560px; }
+.area-vendas .tabela-vendas th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--av-texto-2); padding: 12px 16px; border-bottom: 1px solid var(--av-borda); white-space: nowrap; }
+.area-vendas .tabela-vendas td { padding: 12px 16px; border-bottom: 1px solid var(--av-borda); }
+.area-vendas .tabela-vendas tbody tr:last-child td { border-bottom: 0; }
+.area-vendas .tabela-vendas .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 820px) {
+  .area-vendas { flex-direction: column; }
+  .area-vendas .av-topo-mobile {
+    display: flex; align-items: center; justify-content: space-between; background: var(--av-marinho); color: #fff; padding: 10px 14px; position: sticky; top: 0; z-index: 20;
+  }
+  .area-vendas .av-topo-mobile button { background: var(--av-amarelo); color: var(--av-marinho); border: 0; border-radius: 8px; font-weight: 700; padding: 7px 12px; }
+  .area-vendas .av-lateral { display: none; position: static; width: 100%; height: auto; max-height: 75vh; overflow-y: auto; }
+  .area-vendas .av-lateral.aberta { display: flex; }
+  .area-vendas .av-conteudo { padding: 18px 16px; }
+}
+
+/* Escolha de solução */
+.solucoes-tela { min-height: 100vh; background: #eef2f8; color: #14213d; }
+.solucoes-topo { background: #0b1b3a; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; }
+.solucoes-topo img { height: 34px; width: auto; }
+.solucoes-topo .quem { display: flex; align-items: center; gap: 14px; font-size: 14px; }
+.solucoes-topo button { background: none; border: 1px solid rgb(255 255 255 / 0.4); color: #fff; border-radius: 8px; padding: 6px 12px; }
+.solucoes-topo button:hover { border-color: #ffc20e; color: #ffc20e; }
+.solucoes-corpo { max-width: 920px; margin: 0 auto; padding: 36px 16px 48px; }
+.solucoes-corpo h1 { margin: 0 0 22px; font-size: 26px; color: #0b1f4b; }
+.solucoes-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.solucao-cartao {
+  display: flex; flex-direction: column; gap: 8px; background: #fff; border-radius: 16px; padding: 22px; text-align: left;
+  border: 2px solid transparent; box-shadow: 0 1px 3px rgb(11 31 75 / 0.08); color: inherit;
+}
+a.solucao-cartao:hover { border-color: #ffc20e; }
+.solucao-cartao svg { color: #1d5be0; }
+.solucao-cartao strong { font-size: 18px; color: #0b1f4b; }
+.solucao-cartao span { color: #5b6b85; font-size: 13.5px; }
+.solucao-cartao.desativado { opacity: 0.6; }
+.solucao-cartao em { font-style: normal; align-self: flex-start; background: #e6eaf1; color: #4a5875; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+.solucoes-admin { margin-top: 30px; }
+.solucoes-admin h2 { font-size: 15px; color: #5b6b85; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
+.solucoes-admin .solucao-cartao strong { font-size: 16px; }
+@media (max-width: 560px) { .solucoes-topo { padding: 10px 14px; } .solucoes-topo .quem span { display: none; } .solucoes-corpo h1 { font-size: 22px; } }

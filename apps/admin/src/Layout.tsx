@@ -1,5 +1,5 @@
-import { NavLink } from 'react-router-dom';
-import { sair, sessao } from './api';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { sair, sessao, solucoesDaSessao } from './api';
 
 const LINKS = [
   { para: '/', rotulo: '📊 Dashboard', exato: true },
@@ -17,13 +17,12 @@ const LINKS = [
   { para: '/patrocinadores', rotulo: '🏭 Patrocinadores' },
   { para: '/banners', rotulo: '🖼️ Banners' },
   { para: '/notificacoes', rotulo: '🔔 Notificações' },
-  { para: '/usuarios', rotulo: '🔑 Usuários' },
   { para: '/configuracoes', rotulo: '⚙️ Configurações' },
-  { para: '/logs', rotulo: '🔌 Integração ERP' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const s = sessao();
+  const nav = useNavigate();
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -33,7 +32,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <img src="/logo.png" alt="" onError={(e) => (e.currentTarget.style.display = 'none')} />
           </div>
           {s?.distribuidora ?? 'Retaguarda'}
-          <small>FLUXO COMMERCE</small>
+          <small>FLUXO COMMERCE · DELIVERY</small>
         </div>
         <nav>
           {LINKS.map((l) => (
@@ -44,6 +43,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="rodape">
           <div>{s?.nome}</div>
+          {solucoesDaSessao(s).length > 1 && (
+            <button onClick={() => nav('/solucoes')} style={{ display: 'block' }}>Trocar de solução</button>
+          )}
           <button onClick={sair}>Sair →</button>
         </div>
       </aside>

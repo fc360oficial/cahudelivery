@@ -7,6 +7,43 @@ export interface Sessao {
   nome: string;
   papel: string;
   distribuidora: string;
+  /** Soluções a que o usuário tem acesso. Sessões antigas não têm: ver solucoesDaSessao(). */
+  solucoes?: Solucao[];
+  /** Solução em que o usuário está agora (atualizada pela rota). */
+  solucaoAtual?: Solucao;
+}
+
+export type Solucao = 'delivery' | 'vendas';
+
+/** Lista efetiva de soluções: sessão antiga sem lista = só Delivery; admin = as duas. */
+export function solucoesDaSessao(s: Sessao | null = sessao()): Solucao[] {
+  if (!s) return [];
+  if (s.papel === 'admin') return ['delivery', 'vendas'];
+  const l = (s.solucoes ?? ['delivery']).filter((x): x is Solucao => x === 'delivery' || x === 'vendas');
+  return l.length ? l : ['delivery'];
+}
+
+/** Página inicial de cada solução. */
+export const HOME_DA_SOLUCAO: Record<Solucao, string> = { delivery: '/', vendas: '/vendas' };
+
+/** Solução atual (a salva na sessão, se o usuário ainda tiver acesso; senão a primeira dele). */
+export function solucaoAtual(s: Sessao | null = sessao()): Solucao | null {
+  const lista = solucoesDaSessao(s);
+  if (!s || !lista.length) return null;
+  return s.solucaoAtual && lista.includes(s.solucaoAtual) ? s.solucaoAtual : lista[0];
+}
+
+/** Troca a solução atual e persiste na sessão. */
+export function trocarSolucao(sol: Solucao) {
+  const s = sessao();
+  if (!s || s.solucaoAtual === sol) return;
+  salvarSessao({ ...s, solucaoAtual: sol });
+}
+
+/** Para onde mandar o usuário logo após o login: uma solução = direto; mais de uma = escolha. */
+export function destinoInicial(s: Sessao | null = sessao()): string {
+  const lista = solucoesDaSessao(s);
+  return lista.length === 1 ? HOME_DA_SOLUCAO[lista[0]] : '/solucoes';
 }
 
 export function sessao(): Sessao | null {

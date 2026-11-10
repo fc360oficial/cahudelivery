@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, salvarSessao, type Sessao } from '../api';
+import { api, destinoInicial, salvarSessao, type Sessao } from '../api';
 
 // As soluções que fazem parte do Fluxo Commerce.
 const SOLUCOES = [
@@ -55,7 +55,7 @@ export function Login() {
         body: JSON.stringify({ email, senha }),
       });
       salvarSessao(r);
-      nav('/');
+      nav(destinoInicial(r));
     } catch (err) {
       setErro((err as Error).message);
     } finally {

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fmtData } from '../api';
+import { api, fmtData, type Solucao } from '../api';
 
-interface Usuario { id: string; nome: string; email: string; papel: 'admin' | 'operador'; ativo: boolean; criado_em: string }
+interface Usuario { id: string; nome: string; email: string; papel: 'admin' | 'operador'; ativo: boolean; criado_em: string; solucoes?: Solucao[] }
 
-const VAZIO = { nome: '', email: '', senha: '', papel: 'operador' as 'admin' | 'operador' };
+const ROTULO_SOLUCAO: Record<Solucao, string> = { delivery: 'Delivery', vendas: 'Vendas' };
+const TODAS: Solucao[] = ['delivery', 'vendas'];
+
+const VAZIO = { nome: '', email: '', senha: '', papel: 'operador' as 'admin' | 'operador', solucoes: ['delivery'] as Solucao[] };
 
 export function Usuarios() {
   const [dados, setDados] = useState<Usuario[] | null>(null);
@@ -18,8 +21,9 @@ export function Usuarios() {
 
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
+    if (form.papel === 'operador' && form.solucoes.length === 0) { setErro('Marque ao menos uma solução para o operador.'); return; }
     try {
-      const body = JSON.stringify({ nome: form.nome, email: form.email, papel: form.papel, senha: form.senha || undefined });
+      const body = JSON.stringify({ nome: form.nome, email: form.email, papel: form.papel, solucoes: form.papel === 'admin' ? TODAS : form.solucoes, senha: form.senha || undefined });
       await (editando ? api(`/admin/usuarios/${editando}`, { method: 'PUT', body }) : api('/admin/usuarios', { method: 'POST', body }));
       setForm(VAZIO); setEditando(null); setErro(null);
       carregar();
@@ -31,7 +35,7 @@ export function Usuarios() {
   async function alternar(u: Usuario) {
     await api(`/admin/usuarios/${u.id}`, {
       method: 'PUT',
-      body: JSON.stringify({ nome: u.nome, email: u.email, papel: u.papel, ativo: !u.ativo }),
+      body: JSON.stringify({ nome: u.nome, email: u.email, papel: u.papel, solucoes: u.papel === 'admin' ? TODAS : u.solucoes ?? ['delivery'], ativo: !u.ativo }),
     });
     carregar();
   }
@@ -47,23 +51,38 @@ export function Usuarios() {
           <option value="operador">Operador</option>
           <option value="admin">Administrador</option>
         </select>
+        <fieldset style={{ border: 0, padding: 0, margin: 0, display: 'flex', gap: 10, alignItems: 'center' }}>
+          <legend style={{ float: 'left', marginRight: 8, fontSize: 12.5, color: 'var(--texto-2)' }}>Soluções</legend>
+          {TODAS.map((s) => (
+            <label key={s} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={form.papel === 'admin' || form.solucoes.includes(s)}
+                disabled={form.papel === 'admin'}
+                onChange={(e) => setForm({ ...form, solucoes: e.target.checked ? [...form.solucoes, s] : form.solucoes.filter((x) => x !== s) })}
+              />
+              {ROTULO_SOLUCAO[s]}
+            </label>
+          ))}
+        </fieldset>
         <button className="btn">{editando ? 'Salvar' : 'Adicionar'}</button>
         {editando && <button type="button" className="btn btn-claro" onClick={() => { setEditando(null); setForm(VAZIO); }}>Cancelar</button>}
       </form>
       {erro && <div className="erro-texto">{erro}</div>}
       <div className="tabela-wrap">
         <table>
-          <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Situação</th><th>Criado</th><th></th></tr></thead>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Soluções</th><th>Situação</th><th>Criado</th><th></th></tr></thead>
           <tbody>
             {dados?.map((u) => (
               <tr key={u.id}>
                 <td><strong>{u.nome}</strong></td>
                 <td>{u.email}</td>
                 <td><span className={`badge ${u.papel === 'admin' ? 'FATURADO' : 'RECEBIDO'}`}>{u.papel}</span></td>
+                <td>{(u.papel === 'admin' ? TODAS : u.solucoes ?? ['delivery']).map((s) => ROTULO_SOLUCAO[s]).join(', ')}</td>
                 <td><span className={`badge ${u.ativo ? 'aprovado' : 'bloqueado'}`}>{u.ativo ? 'ativo' : 'inativo'}</span></td>
                 <td>{fmtData(u.criado_em)}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  <button className="btn-mini btn-claro" onClick={() => { setEditando(u.id); setForm({ nome: u.nome, email: u.email, senha: '', papel: u.papel }); }}>Editar</button>{' '}
+                  <button className="btn-mini btn-claro" onClick={() => { setEditando(u.id); setForm({ nome: u.nome, email: u.email, senha: '', papel: u.papel, solucoes: u.solucoes?.length ? u.solucoes : ['delivery'] }); }}>Editar</button>{' '}
                   <button className={`btn-mini ${u.ativo ? 'btn-perigo' : 'btn-ok'}`} onClick={() => alternar(u)}>{u.ativo ? 'Desativar' : 'Ativar'}</button>
                 </td>
               </tr>

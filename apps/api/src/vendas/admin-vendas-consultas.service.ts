@@ -96,12 +96,12 @@ export class AdminVendasConsultasService {
     const { rows } = await pool.query(
       `/* pedidos-dados */
        select p.id, p.numero, p.criado_em, c.nome_fantasia as cliente, c.erp_cliente_id as cliente_codigo, vd.nome as vendedor,
-              t.nome as tabela, coalesce(cp.descricao, p.condicao_pagamento) as condicao, p.total, p.status, p.retencao_json
+              t.nome as tabela, fp.descricao as forma, p.total, p.status, p.retencao_json
          from pedidos p
          join clientes c on c.id = p.cliente_id
          left join vendedores vd on vd.id = p.vendedor_id
          left join tabelas_preco t on t.id = p.tabela_preco_id
-         left join condicoes_pagamento_erp cp on cp.id = p.condicao_pagamento_id
+         left join formas_pagamento_erp fp on fp.id = p.forma_pagamento_erp_id
          ${f.onde}
         order by p.criado_em desc, p.numero desc
         limit ${POR_PAGINA} offset ${(pagina - 1) * POR_PAGINA}`,
@@ -116,7 +116,7 @@ export class AdminVendasConsultasService {
         clienteCodigo: r.cliente_codigo ?? null,
         vendedor: r.vendedor ?? null,
         tabela: r.tabela ?? null,
-        condicao: r.condicao ?? null,
+        forma: r.forma ?? null,
         total: dinheiro(n(r.total)),
         status: r.status,
         divergencias: divergenciasDe(r.status, r.retencao_json),
@@ -131,15 +131,14 @@ export class AdminVendasConsultasService {
     const cab = await pool.query(
       `/* pedido-cab */
        select p.id, p.numero, p.criado_em, c.nome_fantasia as cliente, c.erp_cliente_id as cliente_codigo, c.documento as cliente_documento,
-              c.telefone as cliente_telefone, vd.nome as vendedor, t.nome as tabela, coalesce(cp.descricao, p.condicao_pagamento) as condicao,
+              c.telefone as cliente_telefone, vd.nome as vendedor, t.nome as tabela,
               fp.descricao as forma, p.tipo_entrega, p.observacoes, p.subtotal, p.desconto, p.total, p.status, p.retencao_json,
               p.endereco_snapshot_json as endereco
          from pedidos p
          join clientes c on c.id = p.cliente_id
          left join vendedores vd on vd.id = p.vendedor_id
          left join tabelas_preco t on t.id = p.tabela_preco_id
-         left join condicoes_pagamento_erp cp on cp.id = p.condicao_pagamento_id
-         left join formas_pagamento_erp fp on fp.id = cp.forma_pagamento_id
+         left join formas_pagamento_erp fp on fp.id = p.forma_pagamento_erp_id
         where p.id = $1 and p.origem = 'vendedor'`,
       [id],
     );
@@ -176,7 +175,6 @@ export class AdminVendasConsultasService {
       clienteTelefone: p.cliente_telefone ?? null,
       vendedor: p.vendedor ?? null,
       tabela: p.tabela ?? null,
-      condicao: p.condicao ?? null,
       forma: p.forma ?? null,
       tipoEntrega: p.tipo_entrega,
       observacoes: p.observacoes ?? null,
@@ -221,13 +219,14 @@ export class AdminVendasConsultasService {
     );
     const { rows } = await pool.query(
       `/* orcamentos-dados */
-       select o.id, c.nome_fantasia as cliente, vd.nome as vendedor, t.nome as tabela, o.total,
+       select o.id, c.nome_fantasia as cliente, vd.nome as vendedor, t.nome as tabela, fp.descricao as forma, o.total,
               (select count(*)::int from orcamento_itens oi where oi.orcamento_id = o.id) as itens,
               o.status, ped.numero as pedido_numero, o.atualizado_em
          from orcamentos o
          join clientes c on c.id = o.cliente_id
          join vendedores vd on vd.id = o.vendedor_id
          join tabelas_preco t on t.id = o.tabela_preco_id
+         left join formas_pagamento_erp fp on fp.id = o.forma_pagamento_erp_id
          left join pedidos ped on ped.id = o.pedido_id
          ${f.onde}
         order by o.atualizado_em desc, o.id
@@ -240,6 +239,7 @@ export class AdminVendasConsultasService {
         cliente: r.cliente,
         vendedor: r.vendedor,
         tabela: r.tabela,
+        forma: r.forma ?? null,
         total: dinheiro(n(r.total)),
         itens: n(r.itens),
         status: r.status,

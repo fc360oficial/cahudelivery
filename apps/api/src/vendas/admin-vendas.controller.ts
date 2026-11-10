@@ -4,6 +4,7 @@ import { ArrayUnique, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, IsUU
 import type { Request } from 'express';
 import { AdminGuard, type AdminLogado } from '../admin/admin.guard';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { formaInterna } from './vendas-pedidos.service';
 
 class AcessoVendedorDto {
   @IsString() @IsNotEmpty() @Matches(/^[a-zA-Z0-9._-]+$/, { message: 'Login aceita letras, números, ponto, hífen e sublinhado' })
@@ -15,9 +16,9 @@ class AcessoVendedorDto {
   @IsBoolean() ativo!: boolean;
 }
 
-class CondicoesDaTabelaDto {
+class FormasDaTabelaDto {
   @IsArray() @ArrayUnique() @IsUUID(undefined, { each: true })
-  condicaoIds!: string[];
+  formaIds!: string[];
 }
 
 @Controller('admin/vendas')
@@ -66,48 +67,48 @@ export class AdminVendasController {
     return { ok: true };
   }
 
-  @Get('tabelas-condicoes')
-  async tabelasCondicoes() {
+  @Get('tabelas-formas')
+  async tabelasFormas() {
     const { pool } = tenantCtx();
     const tabelas = await pool.query(
-      `select t.id, t.nome,
-              coalesce((select array_agg(x.condicao_pagamento_id) from tabela_preco_condicoes x where x.tabela_preco_id = t.id), '{}') as condicao_ids
+      `select t.id, t.nome, t.erp_tabela_id,
+              coalesce((select array_agg(x.forma_pagamento_id) from tabela_preco_formas x where x.tabela_preco_id = t.id), '{}') as forma_ids
          from tabelas_preco t where t.erp_tabela_id is not null order by t.nome`,
     );
-    const condicoes = await pool.query(
-      `select cp.id, cp.descricao, fp.descricao as forma
-         from condicoes_pagamento_erp cp join formas_pagamento_erp fp on fp.id = cp.forma_pagamento_id
-        order by fp.descricao, cp.descricao`,
+    const formas = await pool.query(
+      `select id, descricao, erp_forma_pagamento_id from formas_pagamento_erp order by descricao`,
     );
     return {
-      tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, condicaoIds: t.condicao_ids })),
-      condicoes: condicoes.rows.map((c) => ({ id: c.id, descricao: c.descricao, forma: c.forma })),
+      tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, codigo: t.erp_tabela_id, formaIds: t.forma_ids })),
+      formas: formas.rows.map((f) => ({
+        id: f.id, descricao: f.descricao, codigo: f.erp_forma_pagamento_id, exigeCredito: formaInterna(f.descricao) === 'boleto',
+      })),
     };
   }
 
-  @Put('tabelas-condicoes/:tabelaId')
-  async definirCondicoes(@Req() req: Request & { admin: AdminLogado }, @Param('tabelaId', ParseUUIDPipe) tabelaId: string, @Body() dto: CondicoesDaTabelaDto) {
+  @Put('tabelas-formas/:tabelaId')
+  async definirFormas(@Req() req: Request & { admin: AdminLogado }, @Param('tabelaId', ParseUUIDPipe) tabelaId: string, @Body() dto: FormasDaTabelaDto) {
     if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
     const { pool } = tenantCtx();
     const client = await pool.connect();
     try {
       await client.query('begin');
-      await client.query(`delete from tabela_preco_condicoes where tabela_preco_id = $1`, [tabelaId]);
-      if (dto.condicaoIds.length) {
+      await client.query(`delete from tabela_preco_formas where tabela_preco_id = $1`, [tabelaId]);
+      if (dto.formaIds.length) {
         await client.query(
-          `insert into tabela_preco_condicoes (tabela_preco_id, condicao_pagamento_id)
+          `insert into tabela_preco_formas (tabela_preco_id, forma_pagamento_id)
            select $1, unnest($2::uuid[])`,
-          [tabelaId, dto.condicaoIds],
+          [tabelaId, dto.formaIds],
         );
       }
       await client.query('commit');
     } catch (e) {
       await client.query('rollback');
-      // Tabela ou condição que não existe mais no cadastro.
+      // Tabela ou forma que não existe mais no cadastro.
       if ((e as { code?: string }).code === '23503') {
         throw new BadRequestException({
           statusCode: 400,
-          message: 'Tabela de preço ou condição de pagamento inexistente',
+          message: 'Tabela de preço ou forma de pagamento inexistente',
           codigo: 'REFERENCIA_INVALIDA',
         });
       }

@@ -16,8 +16,7 @@ export interface CargaVendedor {
   titulos: Array<{ clienteId: string; numero: string; valor: number; vencimento: string; status: string }>;
   tabelas: Array<{ id: string; nome: string; erpTabelaId: string }>;
   formas: Array<{ id: string; descricao: string; exigeCredito: boolean }>;
-  condicoes: Array<{ id: string; descricao: string; formaId: string }>;
-  tabelaCondicoes: Array<{ tabelaId: string; condicaoId: string }>;
+  tabelaFormas: Array<{ tabelaId: string; formaId: string }>;
   categorias: Array<{ id: string; nome: string }>;
   produtos: Array<{
     id: string; sku: string; ean: string | null; nome: string; unidade: string; qtdPorEmbalagem: number;
@@ -65,14 +64,18 @@ export class VendasSyncService {
       [vendedorId],
     );
     const tabelas = await pool.query(
-      `/* tabelas */ select id, nome, erp_tabela_id from tabelas_preco where erp_tabela_id is not null order by nome`,
+      `/* tabelas */
+       select t.id, t.nome, t.erp_tabela_id from tabelas_preco t
+        where t.erp_tabela_id is not null
+          and exists (select 1 from tabela_preco_formas x where x.tabela_preco_id = t.id)
+        order by t.nome`,
     );
     const formas = await pool.query(`/* formas */ select id, descricao from formas_pagamento_erp order by descricao`);
-    const condicoes = await pool.query(
-      `/* condicoes */ select id, descricao, forma_pagamento_id from condicoes_pagamento_erp order by descricao`,
-    );
-    const tabelaCondicoes = await pool.query(
-      `/* tabela_condicoes */ select tabela_preco_id, condicao_pagamento_id from tabela_preco_condicoes`,
+    const tabelaFormas = await pool.query(
+      `/* tabela_formas */
+       select x.tabela_preco_id, x.forma_pagamento_id
+         from tabela_preco_formas x join tabelas_preco t on t.id = x.tabela_preco_id
+        where t.erp_tabela_id is not null`,
     );
     const categorias = await pool.query(`/* categorias */ select id, nome from categorias where ativo order by ordem, nome`);
     const produtos = await pool.query(
@@ -122,8 +125,7 @@ export class VendasSyncService {
       })),
       tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, erpTabelaId: t.erp_tabela_id })),
       formas: formas.rows.map((f) => ({ id: f.id, descricao: f.descricao, exigeCredito: formaInterna(f.descricao) === 'boleto' })),
-      condicoes: condicoes.rows.map((c) => ({ id: c.id, descricao: c.descricao, formaId: c.forma_pagamento_id })),
-      tabelaCondicoes: tabelaCondicoes.rows.map((x) => ({ tabelaId: x.tabela_preco_id, condicaoId: x.condicao_pagamento_id })),
+      tabelaFormas: tabelaFormas.rows.map((x) => ({ tabelaId: x.tabela_preco_id, formaId: x.forma_pagamento_id })),
       categorias: categorias.rows.map((c) => ({ id: c.id, nome: c.nome })),
       produtos: produtos.rows.map((p) => ({
         id: p.id, sku: p.sku, ean: p.ean, nome: p.nome, unidade: p.unidade_venda, qtdPorEmbalagem: n(p.qtd_por_embalagem),

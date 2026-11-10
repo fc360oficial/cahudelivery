@@ -7,7 +7,7 @@ const dto = {
   idDispositivo: '11111111-1111-4111-8111-111111111111',
   clienteId: 'c1',
   tabelaPrecoId: 't1',
-  condicaoPagamentoId: 'cond1',
+  formaPagamentoId: 'f-boleto',
   tipoEntrega: 'retirada' as const,
   criadoNoAparelhoEm: '2026-11-09T14:00:00Z',
   itens: [{ produtoId: 'p1', quantidade: 4, precoUnit: 86.4 }],
@@ -26,6 +26,10 @@ interface Cenario {
   precoAtual?: number;
   estoque?: number;
   retido?: { precoItem: number };
+  forma?: string;
+  formaExiste?: boolean;
+  tabelaExiste?: boolean;
+  permitida?: boolean;
 }
 
 function montar(c: Cenario = {}) {
@@ -37,8 +41,9 @@ function montar(c: Cenario = {}) {
       return c.naCarteira === false ? { rowCount: 0, rows: [] } : { rowCount: 1, rows: [{ status: c.statusCliente ?? 'aprovado', erp_cliente_id: c.semCadastroErp ? null : '2725' }] };
     }
     if (sql.includes('with c as (')) return { rowCount: c.cancelRowCount ?? 1, rows: [] };
-    if (sql.includes('from condicoes_pagamento_erp cp')) {
-      return { rows: [{ condicao: 'BOLETO 14 DIAS', forma: 'BOLETO', tabela_existe: true, tabela_tem_vinculo: false, permitida: false }] };
+    if (sql.includes('/* tabela_forma */')) {
+      if (c.formaExiste === false) return { rows: [] };
+      return { rows: [{ forma: c.forma ?? 'BOLETO', tabela_existe: c.tabelaExiste ?? true, permitida: c.permitida ?? true }] };
     }
     if (sql.includes('/* dados_atuais */')) {
       return { rows: [{ id: 'p1', nome: 'Margarina', preco: String(c.precoAtual ?? 86.4), estoque: String(c.estoque ?? 100) }] };
@@ -48,7 +53,7 @@ function montar(c: Cenario = {}) {
     if (sql.includes('/* em_transito */')) return { rows: [{ total: c.emTransito ?? '0' }] };
     if (sql.includes('insert into pedidos')) return { rows: [{ id: 'ped-novo', numero: '8' }] };
     if (sql.includes('/* pedido_retido */')) {
-      return { rows: c.retido ? [{ id: 'ped-retido', numero: '9', cliente_id: 'c1', tabela_preco_id: 't1', forma_pagamento: 'boleto' }] : [] };
+      return { rows: c.retido ? [{ id: 'ped-retido', numero: '9', cliente_id: 'c1', tabela_preco_id: 't1', forma_pagamento: 'boleto', forma_pagamento_erp_id: 'f-boleto' }] : [] };
     }
     if (sql.includes('/* itens_retidos */')) {
       return { rows: [{ produto_id: 'p1', quantidade: '4.000', preco_unit: String(c.retido?.precoItem ?? 84) }] };
@@ -125,7 +130,7 @@ describe('VendasPedidosService.receber', () => {
     const out = await rodar(() => servico.receber('v1', dto as never));
     expect(out).toEqual({ id: 'ped-novo', numero: 8, status: 'RECEBIDO', total: 345.6, divergencias: [] });
     const p = params('insert into pedidos');
-    expect(p).toEqual(expect.arrayContaining(['c1', 'boleto', 'retirada', 345.6, 'BOLETO 14 DIAS', 'RECEBIDO', 'v1', 't1', 'cond1', dto.idDispositivo]));
+    expect(p).toEqual(expect.arrayContaining(['c1', 'boleto', 'retirada', 345.6, 'RECEBIDO', 'v1', 't1', 'f-boleto', dto.idDispositivo]));
     expect(chamou('insert into sync_outbox')).toBe(true);
   });
 
@@ -145,6 +150,57 @@ describe('VendasPedidosService.receber — regras de recusa', () => {
     const { servico, rodar, chamou } = montar();
     await rodar(() => servico.receber('v1', dto as never));
     expect(chamou('t.id = $2 and t.erp_tabela_id is not null')).toBe(true);
+  });
+
+  it('forma fora das aceitas pela tabela é recusada com FORMA_NAO_PERMITIDA', async () => {
+    const { servico, rodar, chamou } = montar({ permitida: false });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({
+      response: { statusCode: 400, message: 'Forma de pagamento não permitida para esta tabela', codigo: 'FORMA_NAO_PERMITIDA' },
+    });
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('forma desconhecida é recusada com TABELA_OU_FORMA_INEXISTENTE', async () => {
+    const { servico, rodar, chamou } = montar({ formaExiste: false });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({
+      response: { statusCode: 400, message: 'Tabela ou forma de pagamento inexistente', codigo: 'TABELA_OU_FORMA_INEXISTENTE' },
+    });
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('tabela que não veio do ERP é recusada com TABELA_OU_FORMA_INEXISTENTE', async () => {
+    const { servico, rodar, chamou } = montar({ tabelaExiste: false });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({
+      response: { codigo: 'TABELA_OU_FORMA_INEXISTENTE' },
+    });
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('a forma é conferida na tabela_preco_formas e o pedido grava a forma, sem condição', async () => {
+    const { servico, rodar, params } = montar();
+    await rodar(() => servico.receber('v1', dto as never));
+    expect(params('/* tabela_forma */')).toEqual(['f-boleto', 't1']);
+    const ins = params('insert into pedidos');
+    expect(ins).toContain('f-boleto');
+    expect(ins).not.toContain('cond1');
+  });
+
+  it('PIX numa tabela de retirada é aceito sem conferir crédito, mesmo com limite zero', async () => {
+    const { servico, rodar, chamou, params } = montar({ forma: 'PIX', limite: '0' });
+    const out = await rodar(() => servico.receber('v1', dto as never));
+    expect(out.status).toBe('RECEBIDO');
+    expect(out.divergencias).toEqual([]);
+    expect(chamou('select limite_credito')).toBe(false);
+    expect(chamou('/* em_transito */')).toBe(false);
+    expect(params('insert into pedidos')).toEqual(expect.arrayContaining(['pix']));
+  });
+
+  it('boleto com os mesmos dados e limite zero fica retido por crédito', async () => {
+    const { servico, rodar, chamou } = montar({ forma: 'BOLETO', limite: '0' });
+    const out = await rodar(() => servico.receber('v1', dto as never));
+    expect(out.status).toBe('AGUARDANDO_VENDEDOR');
+    expect(out.divergencias).toEqual([{ tipo: 'credito', enviado: 345.6, atual: 0 }]);
+    expect(chamou('select limite_credito')).toBe(true);
   });
 
   it('total acima do limite é recusado antes de abrir transação', async () => {
@@ -190,6 +246,18 @@ describe('VendasPedidosService.confirmar', () => {
   it('cliente removido da carteira não libera o pedido', async () => {
     const { servico, rodar, chamou } = montar({ retido: { precoItem: 84 }, naCarteira: false });
     await expect(rodar(() => servico.confirmar('v1', 'ped-retido'))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(chamou('insert into sync_outbox')).toBe(false);
+  });
+
+  it('revalida a tabela e a forma guardadas no pedido', async () => {
+    const { servico, rodar, params } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4 });
+    await rodar(() => servico.confirmar('v1', 'ped-retido'));
+    expect(params('/* tabela_forma */')).toEqual(['f-boleto', 't1']);
+  });
+
+  it('forma que a tabela deixou de aceitar não libera o pedido', async () => {
+    const { servico, rodar, chamou } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4, permitida: false });
+    await expect(rodar(() => servico.confirmar('v1', 'ped-retido'))).rejects.toMatchObject({ response: { codigo: 'FORMA_NAO_PERMITIDA' } });
     expect(chamou('insert into sync_outbox')).toBe(false);
   });
 

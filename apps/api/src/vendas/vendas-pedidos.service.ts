@@ -76,6 +76,31 @@ export class VendasPedidosService {
     }
   }
 
+  /**
+   * A tabela vem do ERP e a forma precisa estar entre as aceitas por ela (tabela_preco_formas).
+   * O prazo não entra aqui: ele está na própria tabela e o ERP monta o boleto a partir dela.
+   */
+  private async conferirTabelaForma(q: Consulta, tabelaId: string, formaId: string | null): Promise<'boleto' | 'pix' | 'cartao'> {
+    const { rows } = await q.query(
+      `/* tabela_forma */
+       select fp.descricao as forma,
+              exists (select 1 from tabelas_preco t where t.id = $2 and t.erp_tabela_id is not null) as tabela_existe,
+              exists (select 1 from tabela_preco_formas x
+                       where x.tabela_preco_id = $2 and x.forma_pagamento_id = fp.id) as permitida
+         from formas_pagamento_erp fp
+        where fp.id = $1`,
+      [formaId, tabelaId],
+    );
+    const f = rows[0];
+    if (!f || !f.tabela_existe) {
+      throw new BadRequestException({ statusCode: 400, message: 'Tabela ou forma de pagamento inexistente', codigo: 'TABELA_OU_FORMA_INEXISTENTE' });
+    }
+    if (!f.permitida) {
+      throw new BadRequestException({ statusCode: 400, message: 'Forma de pagamento não permitida para esta tabela', codigo: 'FORMA_NAO_PERMITIDA' });
+    }
+    return formaInterna(f.forma);
+  }
+
   private async dadosAtuais(q: Consulta, clienteId: string, tabelaId: string, produtoIds: string[], exigeCredito: boolean): Promise<DadosAtuais> {
     const { rows } = await q.query(
       `/* dados_atuais */
@@ -129,23 +154,7 @@ export class VendasPedidosService {
     const produtoIds = dto.itens.map((i) => i.produtoId);
     if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException({ statusCode: 400, message: 'Produto repetido no pedido', codigo: 'PRODUTO_REPETIDO' });
 
-    const cond = await pool.query(
-      `select cp.descricao as condicao, fp.descricao as forma,
-              exists (select 1 from tabelas_preco t where t.id = $2 and t.erp_tabela_id is not null) as tabela_existe,
-              exists (select 1 from tabela_preco_condicoes x where x.tabela_preco_id = $2) as tabela_tem_vinculo,
-              exists (select 1 from tabela_preco_condicoes x
-                       where x.tabela_preco_id = $2 and x.condicao_pagamento_id = cp.id) as permitida
-         from condicoes_pagamento_erp cp join formas_pagamento_erp fp on fp.id = cp.forma_pagamento_id
-        where cp.id = $1`,
-      [dto.condicaoPagamentoId, dto.tabelaPrecoId],
-    );
-    const c = cond.rows[0];
-    if (!c || !c.tabela_existe) throw new BadRequestException({ statusCode: 400, message: 'Tabela ou condição de pagamento inexistente', codigo: 'TABELA_OU_CONDICAO_INEXISTENTE' });
-    // Tabela sem nenhum vínculo cadastrado aceita qualquer condição (o vínculo ainda não chegou do ERP).
-    if (c.tabela_tem_vinculo && !c.permitida) {
-      throw new BadRequestException({ statusCode: 400, message: 'Condição de pagamento não permitida para esta tabela', codigo: 'CONDICAO_NAO_PERMITIDA' });
-    }
-    const forma = formaInterna(c.forma);
+    const forma = await this.conferirTabelaForma(pool, dto.tabelaPrecoId, dto.formaPagamentoId);
 
     let enderecoJson: string | null = null;
     if (dto.tipoEntrega === 'entrega') {
@@ -173,12 +182,12 @@ export class VendasPedidosService {
       const status = retido ? 'AGUARDANDO_VENDEDOR' : 'RECEBIDO';
       const ped = await client.query(
         `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes,
-                              condicao_pagamento, status, vendedor_id, origem, tabela_preco_id, condicao_pagamento_id,
+                              condicao_pagamento, status, vendedor_id, origem, tabela_preco_id, forma_pagamento_erp_id,
                               id_dispositivo, retencao_json, criado_no_aparelho_em)
-         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9,'vendedor',$10,$11,$12,$13,$14) returning id, numero`,
+         values ($1,$2,$3,$4,$5,$5,$6,null,$7,$8,'vendedor',$9,$10,$11,$12,$13) returning id, numero`,
         [
-          dto.clienteId, enderecoJson, forma, dto.tipoEntrega, total, dto.observacoes ?? null, c.condicao, status,
-          vendedorId, dto.tabelaPrecoId, dto.condicaoPagamentoId, dto.idDispositivo,
+          dto.clienteId, enderecoJson, forma, dto.tipoEntrega, total, dto.observacoes ?? null, status,
+          vendedorId, dto.tabelaPrecoId, dto.formaPagamentoId, dto.idDispositivo,
           retido ? JSON.stringify({ divergencias, retidoEm: new Date().toISOString() }) : null,
           dto.criadoNoAparelhoEm,
         ],
@@ -233,7 +242,7 @@ export class VendasPedidosService {
       await client.query('begin');
       const ped = await client.query(
         `/* pedido_retido */
-         select id, numero, cliente_id, tabela_preco_id, forma_pagamento
+         select id, numero, cliente_id, tabela_preco_id, forma_pagamento_erp_id
            from pedidos where id = $1 and vendedor_id = $2 and status = 'AGUARDANDO_VENDEDOR' for update`,
         [pedidoId, vendedorId],
       );
@@ -246,7 +255,8 @@ export class VendasPedidosService {
         [pedidoId],
       );
       const produtoIds = itens.rows.map((i) => i.produto_id);
-      const dados = await this.dadosAtuais(client, p.cliente_id, p.tabela_preco_id, produtoIds, p.forma_pagamento === 'boleto');
+      const forma = await this.conferirTabelaForma(client, p.tabela_preco_id, p.forma_pagamento_erp_id);
+      const dados = await this.dadosAtuais(client, p.cliente_id, p.tabela_preco_id, produtoIds, forma === 'boleto');
       const aceitos = itens.rows.map((i) => ({
         produtoId: i.produto_id as string,
         quantidade: Number(i.quantidade),

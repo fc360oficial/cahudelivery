@@ -34,6 +34,8 @@ describe('VendasSyncService.carga', () => {
     const query = jest.fn(async (sql: string) => {
       if (sql.includes('from vendedores where id')) return { rows: [{ id: 'v1', nome: 'Ana', erp_vendedor_id: '6' }] };
       if (sql.includes('/* formas */')) return { rows: [{ id: 'f1', descricao: 'BOLETO' }, { id: 'f2', descricao: 'PIX' }] };
+      if (sql.includes('/* tabelas */')) return { rows: [{ id: 't1', nome: 'RETIRADA 7 DIAS', erp_tabela_id: '14' }] };
+      if (sql.includes('/* tabela_formas */')) return { rows: [{ tabela_preco_id: 't1', forma_pagamento_id: 'f1' }, { tabela_preco_id: 't1', forma_pagamento_id: 'f2' }] };
       return { rows: [] };
     });
     const out = await runComTenant({ tenant: {}, pool: { query } } as never, () => new VendasSyncService().carga('v1'));
@@ -41,8 +43,14 @@ describe('VendasSyncService.carga', () => {
       { id: 'f1', descricao: 'BOLETO', exigeCredito: true },
       { id: 'f2', descricao: 'PIX', exigeCredito: false },
     ]);
+    expect(out.tabelas).toEqual([{ id: 't1', nome: 'RETIRADA 7 DIAS', erpTabelaId: '14' }]);
+    expect(out.tabelaFormas).toEqual([{ tabelaId: 't1', formaId: 'f1' }, { tabelaId: 't1', formaId: 'f2' }]);
+    expect(out).not.toHaveProperty('condicoes');
+    expect(out).not.toHaveProperty('tabelaCondicoes');
     const sqlDe = (marca: string) => String(query.mock.calls.find(([sql]) => String(sql).includes(marca))![0]);
     expect(sqlDe('/* titulos */')).toContain('to_char(t.vencimento');
+    expect(sqlDe('/* tabelas */')).toContain('erp_tabela_id is not null');
+    expect(sqlDe('/* tabelas */')).toContain('from tabela_preco_formas');
     expect(sqlDe('/* precos */')).toContain('t.erp_tabela_id is not null');
   });
 

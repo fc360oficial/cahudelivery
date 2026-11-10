@@ -31,6 +31,19 @@ export class VendasOrcamentosService {
     if (!carteira.rowCount) {
       throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
     }
+    const tab = await pool.query(`/* tabela_tipo */ select tipo_entrega from tabelas_preco where id = $1`, [dto.tabelaPrecoId]);
+    if (!tab.rows[0]) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Produto, tabela ou forma de pagamento não existe mais. Sincronize o aplicativo.',
+        codigo: 'REFERENCIA_INVALIDA',
+      });
+    }
+    // A tabela de preço define se é entrega ou retirada; o app não escolhe.
+    const tipoEntrega: 'entrega' | 'retirada' = tab.rows[0].tipo_entrega === 'retirada' ? 'retirada' : 'entrega';
+    if (dto.tipoEntrega && dto.tipoEntrega !== tipoEntrega) {
+      throw new BadRequestException({ statusCode: 400, message: `Esta tabela é de ${tipoEntrega}`, codigo: 'TIPO_ENTREGA_DIFERENTE_DA_TABELA' });
+    }
     const produtoIds = dto.itens.map((i) => i.produtoId);
     if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no orçamento');
     const total = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
@@ -49,7 +62,7 @@ export class VendasOrcamentosService {
            forma_pagamento_erp_id = excluded.forma_pagamento_erp_id, tipo_entrega = excluded.tipo_entrega,
            observacoes = excluded.observacoes, total = excluded.total, atualizado_em = now()
          where orcamentos.vendedor_id = excluded.vendedor_id and orcamentos.status = 'aberto'`,
-        [id, vendedorId, dto.clienteId, dto.tabelaPrecoId, dto.formaPagamentoId ?? null, dto.tipoEntrega, dto.observacoes ?? null, total],
+        [id, vendedorId, dto.clienteId, dto.tabelaPrecoId, dto.formaPagamentoId ?? null, tipoEntrega, dto.observacoes ?? null, total],
       );
       if (!gravado.rowCount) {
         throw new ConflictException({ statusCode: 409, message: 'Este orçamento não pode mais ser alterado', codigo: 'ORCAMENTO_FECHADO' });

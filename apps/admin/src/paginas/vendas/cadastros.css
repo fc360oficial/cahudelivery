@@ -37,6 +37,12 @@
 .area-vendas .cad-tabela-topo .cad-tabela-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .area-vendas .cad-grupo { margin: 0 0 12px; padding: 0; border: 0; min-width: 0; }
 .area-vendas .cad-grupo legend { padding: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--av-texto-2); margin-bottom: 6px; }
+.area-vendas .cad-tipo { display: inline-flex; gap: 0; margin: 0; padding: 0; border: 1px solid var(--av-borda, #c9d2de); border-radius: 8px; overflow: hidden; }
+.area-vendas .cad-tipo-legenda { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.area-vendas .cad-tipo label { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 14px; cursor: pointer; }
+.area-vendas .cad-tipo label.ativo { background: var(--av-marinho); color: #fff; font-weight: 600; }
+.area-vendas .cad-tipo input { accent-color: var(--av-marinho); }
+.area-vendas .cad-tipo label:focus-within { outline: 2px solid var(--av-marinho); outline-offset: -2px; }
 .area-vendas .cad-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 16px; }
 .area-vendas .cad-opcoes label { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 @media (max-width: 560px) {

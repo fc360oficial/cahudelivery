@@ -82,6 +82,25 @@ describe('AdminVendasController.definirFormas', () => {
     expect(params('insert into tabela_preco_formas')).toEqual(['tab-1', ['f1', 'f2']]);
   });
 
+  it('grava o tipo de entrega da tabela na mesma transação', async () => {
+    const { controller, rodar, params, chamou } = montar();
+    await rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'], tipoEntrega: 'retirada' } as never));
+    expect(params('update tabelas_preco set tipo_entrega')).toEqual(['retirada', 'tab-1']);
+    expect(chamou('commit')).toBe(true);
+  });
+
+  it('sem tipoEntrega no corpo não mexe no tipo da tabela', async () => {
+    const { controller, rodar, chamou } = montar();
+    await rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'] } as never));
+    expect(chamou('update tabelas_preco set tipo_entrega')).toBe(false);
+  });
+
+  it('operador não altera o tipo de entrega', async () => {
+    const { controller, rodar, chamou } = montar();
+    await expect(rodar(() => controller.definirFormas(OPERADOR, 'tab-1', { formaIds: [], tipoEntrega: 'entrega' } as never))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(chamou('')).toBe(false);
+  });
+
   it('recusa operador sem fazer nenhuma consulta', async () => {
     const { controller, rodar, chamou } = montar();
     await expect(rodar(() => controller.definirFormas(OPERADOR, 'tab-1', { formaIds: [] } as never))).rejects.toBeInstanceOf(ForbiddenException);
@@ -107,7 +126,7 @@ describe('AdminVendasController.tabelasFormas', () => {
   it('lista só tabelas do ERP com as formas aceitas e a marca de crédito', async () => {
     const { controller, rodar, query } = montar();
     query.mockImplementation((async (sql: string) => {
-      if (sql.includes('from tabelas_preco t')) return { rows: [{ id: 't1', nome: 'ENTREGA BOLETO 14', erp_tabela_id: '9', forma_ids: ['f1'] }] };
+      if (sql.includes('from tabelas_preco t')) return { rows: [{ id: 't1', nome: 'ENTREGA BOLETO 14', erp_tabela_id: '9', forma_ids: ['f1'], tipo_entrega: 'retirada' }] };
       if (sql.includes('from formas_pagamento_erp')) {
         return { rows: [{ id: 'f1', descricao: 'BOLETO', erp_forma_pagamento_id: '15' }, { id: 'f2', descricao: 'PIX', erp_forma_pagamento_id: '3' }] };
       }
@@ -115,7 +134,7 @@ describe('AdminVendasController.tabelasFormas', () => {
     }) as never);
     const out = await rodar(() => controller.tabelasFormas());
     expect(out).toEqual({
-      tabelas: [{ id: 't1', nome: 'ENTREGA BOLETO 14', codigo: '9', formaIds: ['f1'] }],
+      tabelas: [{ id: 't1', nome: 'ENTREGA BOLETO 14', codigo: '9', formaIds: ['f1'], tipoEntrega: 'retirada' }],
       formas: [
         { id: 'f1', descricao: 'BOLETO', codigo: '15', exigeCredito: true },
         { id: 'f2', descricao: 'PIX', codigo: '3', exigeCredito: false },

@@ -13,10 +13,12 @@ const dto = {
   ],
 };
 
-function montar(opcoes: { naCarteira?: boolean; gravou?: boolean; fkItem?: boolean } = {}) {
+function montar(opcoes: { naCarteira?: boolean; gravou?: boolean; fkItem?: boolean; tipoTabela?: 'entrega' | 'retirada'; semTabela?: boolean } = {}) {
   const query = jest.fn(async (sql: string) => {
     if (sql.includes('from cliente_vendedor where cliente_id'))
       return { rowCount: opcoes.naCarteira === false ? 0 : 1, rows: [] };
+    if (sql.includes('/* tabela_tipo */'))
+      return { rows: opcoes.semTabela ? [] : [{ tipo_entrega: opcoes.tipoTabela ?? 'retirada' }] };
     if (sql.includes('insert into orcamentos'))
       return { rowCount: opcoes.gravou === false ? 0 : 1, rows: [] };
     if (opcoes.fkItem && sql.includes('insert into orcamento_itens'))
@@ -53,6 +55,27 @@ describe('VendasOrcamentosService.salvar', () => {
         String(sql).includes('insert into orcamento_itens'),
       ),
     ).toHaveLength(2);
+  });
+
+  it('grava o tipo de entrega da tabela quando o app não manda tipoEntrega', async () => {
+    const { servico, query, rodar } = montar({ tipoTabela: 'entrega' });
+    const { tipoEntrega: _t, ...semTipo } = dto;
+    await rodar(() => servico.salvar('v1', 'orc-1', semTipo as never));
+    const insert = query.mock.calls.find(([sql]) => String(sql).includes('insert into orcamentos'));
+    expect(insert![1]).toContain('entrega');
+  });
+
+  it('tipoEntrega diferente do da tabela é recusado com TIPO_ENTREGA_DIFERENTE_DA_TABELA', async () => {
+    const { servico, query, rodar } = montar({ tipoTabela: 'entrega' });
+    const erro = await rodar(() => servico.salvar('v1', 'orc-1', dto as never)).catch((e) => e);
+    expect(erro).toBeInstanceOf(BadRequestException);
+    expect(erro.getResponse()).toEqual({ statusCode: 400, message: 'Esta tabela é de entrega', codigo: 'TIPO_ENTREGA_DIFERENTE_DA_TABELA' });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into orcamentos'))).toBe(false);
+  });
+
+  it('tabela inexistente dá REFERENCIA_INVALIDA', async () => {
+    const { servico, rodar } = montar({ semTabela: true });
+    await expect(rodar(() => servico.salvar('v1', 'orc-1', dto as never))).rejects.toMatchObject({ response: { codigo: 'REFERENCIA_INVALIDA' } });
   });
 
   it('total acima do limite é recusado', async () => {

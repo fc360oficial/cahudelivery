@@ -17,7 +17,8 @@ export class PedidoVendedorDto {
   @IsUUID() clienteId!: string;
   @IsUUID() tabelaPrecoId!: string;
   @IsUUID() formaPagamentoId!: string;
-  @IsIn(['entrega', 'retirada']) tipoEntrega!: 'entrega' | 'retirada';
+  /** Opcional: quem manda é a tabela de preço; se vier, tem de bater com ela. */
+  @IsOptional() @IsIn(['entrega', 'retirada']) tipoEntrega?: 'entrega' | 'retirada';
   @IsOptional() @IsString() @MaxLength(500) observacoes?: string;
   @IsOptional() @IsUUID() orcamentoId?: string;
   @IsDateString() criadoNoAparelhoEm!: string;

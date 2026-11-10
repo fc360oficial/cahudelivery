@@ -7,7 +7,7 @@ export class OrcamentoDto {
   @IsUUID() clienteId!: string;
   @IsUUID() tabelaPrecoId!: string;
   @IsOptional() @IsUUID() formaPagamentoId?: string;
-  @IsIn(['entrega', 'retirada']) tipoEntrega!: 'entrega' | 'retirada';
+  @IsOptional() @IsIn(['entrega', 'retirada']) tipoEntrega?: 'entrega' | 'retirada';
   @IsOptional() @IsString() @MaxLength(500) observacoes?: string;
 
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500)

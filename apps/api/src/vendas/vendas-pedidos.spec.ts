@@ -30,6 +30,8 @@ interface Cenario {
   formaExiste?: boolean;
   tabelaExiste?: boolean;
   permitida?: boolean;
+  tipoTabela?: 'entrega' | 'retirada';
+  semEndereco?: boolean;
 }
 
 function montar(c: Cenario = {}) {
@@ -43,8 +45,9 @@ function montar(c: Cenario = {}) {
     if (sql.includes('with c as (')) return { rowCount: c.cancelRowCount ?? 1, rows: [] };
     if (sql.includes('/* tabela_forma */')) {
       if (c.formaExiste === false) return { rows: [] };
-      return { rows: [{ forma: c.forma ?? 'BOLETO', tabela_existe: c.tabelaExiste ?? true, permitida: c.permitida ?? true }] };
+      return { rows: [{ forma: c.forma ?? 'BOLETO', tabela_existe: c.tabelaExiste ?? true, permitida: c.permitida ?? true, tipo_entrega: c.tipoTabela ?? 'retirada' }] };
     }
+    if (sql.includes('from cliente_enderecos')) return { rows: c.semEndereco ? [] : [{ id: 'e1', cidade: 'Recife' }] };
     if (sql.includes('/* dados_atuais */')) {
       return { rows: [{ id: 'p1', nome: 'Margarina', preco: String(c.precoAtual ?? 86.4), estoque: String(c.estoque ?? 100) }] };
     }
@@ -122,6 +125,35 @@ describe('VendasPedidosService.receber', () => {
   it('recusa cliente fora da carteira do vendedor', async () => {
     const { servico, rodar, chamou } = montar({ naCarteira: false });
     await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('tabela de retirada sem tipoEntrega grava retirada e não exige endereço', async () => {
+    const { servico, rodar, chamou, params } = montar({ tipoTabela: 'retirada', semEndereco: true });
+    const { tipoEntrega: _t, ...semTipo } = dto;
+    await rodar(() => servico.receber('v1', semTipo as never));
+    expect(params('insert into pedidos')).toEqual(expect.arrayContaining(['retirada']));
+    expect(chamou('from cliente_enderecos')).toBe(false);
+  });
+
+  it('tabela de entrega sem tipoEntrega grava entrega com o endereço do cliente', async () => {
+    const { servico, rodar, params } = montar({ tipoTabela: 'entrega' });
+    const { tipoEntrega: _t, ...semTipo } = dto;
+    await rodar(() => servico.receber('v1', semTipo as never));
+    expect(params('insert into pedidos')).toEqual(expect.arrayContaining(['entrega']));
+  });
+
+  it('tabela de entrega exige endereço do cliente', async () => {
+    const { servico, rodar, chamou } = montar({ tipoTabela: 'entrega', semEndereco: true });
+    await expect(rodar(() => servico.receber('v1', { ...dto, tipoEntrega: 'entrega' } as never))).rejects.toMatchObject({ response: { codigo: 'SEM_ENDERECO' } });
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('tipoEntrega diferente do da tabela é recusado com TIPO_ENTREGA_DIFERENTE_DA_TABELA', async () => {
+    const { servico, rodar, chamou } = montar({ tipoTabela: 'entrega' });
+    const erro = await rodar(() => servico.receber('v1', { ...dto, tipoEntrega: 'retirada' } as never)).catch((e) => e);
+    expect(erro).toBeInstanceOf(BadRequestException);
+    expect(erro.getResponse()).toEqual({ statusCode: 400, message: 'Esta tabela é de entrega', codigo: 'TIPO_ENTREGA_DIFERENTE_DA_TABELA' });
     expect(chamou('insert into pedidos')).toBe(false);
   });
 

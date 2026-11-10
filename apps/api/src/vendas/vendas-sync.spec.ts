@@ -34,7 +34,7 @@ describe('VendasSyncService.carga', () => {
     const query = jest.fn(async (sql: string) => {
       if (sql.includes('from vendedores where id')) return { rows: [{ id: 'v1', nome: 'Ana', erp_vendedor_id: '6' }] };
       if (sql.includes('/* formas */')) return { rows: [{ id: 'f1', descricao: 'BOLETO' }, { id: 'f2', descricao: 'PIX' }] };
-      if (sql.includes('/* tabelas */')) return { rows: [{ id: 't1', nome: 'RETIRADA 7 DIAS', erp_tabela_id: '14' }] };
+      if (sql.includes('/* tabelas */')) return { rows: [{ id: 't1', nome: 'RETIRADA 7 DIAS', erp_tabela_id: '14', tipo_entrega: 'retirada' }] };
       if (sql.includes('/* tabela_formas */')) return { rows: [{ tabela_preco_id: 't1', forma_pagamento_id: 'f1' }, { tabela_preco_id: 't1', forma_pagamento_id: 'f2' }] };
       return { rows: [] };
     });
@@ -43,7 +43,7 @@ describe('VendasSyncService.carga', () => {
       { id: 'f1', descricao: 'BOLETO', exigeCredito: true },
       { id: 'f2', descricao: 'PIX', exigeCredito: false },
     ]);
-    expect(out.tabelas).toEqual([{ id: 't1', nome: 'RETIRADA 7 DIAS', erpTabelaId: '14' }]);
+    expect(out.tabelas).toEqual([{ id: 't1', nome: 'RETIRADA 7 DIAS', erpTabelaId: '14', tipoEntrega: 'retirada' }]);
     expect(out.tabelaFormas).toEqual([{ tabelaId: 't1', formaId: 'f1' }, { tabelaId: 't1', formaId: 'f2' }]);
     expect(out).not.toHaveProperty('condicoes');
     expect(out).not.toHaveProperty('tabelaCondicoes');

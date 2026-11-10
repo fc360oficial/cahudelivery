@@ -14,7 +14,7 @@ export interface CargaVendedor {
     endereco: Record<string, unknown> | null;
   }>;
   titulos: Array<{ clienteId: string; numero: string; valor: number; vencimento: string; status: string }>;
-  tabelas: Array<{ id: string; nome: string; erpTabelaId: string }>;
+  tabelas: Array<{ id: string; nome: string; erpTabelaId: string; tipoEntrega: 'entrega' | 'retirada' }>;
   formas: Array<{ id: string; descricao: string; exigeCredito: boolean }>;
   tabelaFormas: Array<{ tabelaId: string; formaId: string }>;
   categorias: Array<{ id: string; nome: string }>;
@@ -65,7 +65,7 @@ export class VendasSyncService {
     );
     const tabelas = await pool.query(
       `/* tabelas */
-       select t.id, t.nome, t.erp_tabela_id from tabelas_preco t
+       select t.id, t.nome, t.erp_tabela_id, t.tipo_entrega from tabelas_preco t
         where t.erp_tabela_id is not null
           and exists (select 1 from tabela_preco_formas x where x.tabela_preco_id = t.id)
         order by t.nome`,
@@ -123,7 +123,7 @@ export class VendasSyncService {
       titulos: titulos.rows.map((t) => ({
         clienteId: t.cliente_id, numero: t.erp_titulo_id, valor: n(t.valor), vencimento: t.vencimento, status: t.status,
       })),
-      tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, erpTabelaId: t.erp_tabela_id })),
+      tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, erpTabelaId: t.erp_tabela_id, tipoEntrega: t.tipo_entrega })),
       formas: formas.rows.map((f) => ({ id: f.id, descricao: f.descricao, exigeCredito: formaInterna(f.descricao) === 'boleto' })),
       tabelaFormas: tabelaFormas.rows.map((x) => ({ tabelaId: x.tabela_preco_id, formaId: x.forma_pagamento_id })),
       categorias: categorias.rows.map((c) => ({ id: c.id, nome: c.nome })),

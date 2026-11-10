@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, ParseUUIDPipe, Put, Req, UseGuards } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { ArrayUnique, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MinLength } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MinLength } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, type AdminLogado } from '../admin/admin.guard';
 import { tenantCtx } from '../tenancy/tenant-context';
@@ -19,6 +19,8 @@ class AcessoVendedorDto {
 class FormasDaTabelaDto {
   @IsArray() @ArrayUnique() @IsUUID(undefined, { each: true })
   formaIds!: string[];
+
+  @IsOptional() @IsIn(['entrega', 'retirada']) tipoEntrega?: 'entrega' | 'retirada';
 }
 
 @Controller('admin/vendas')
@@ -71,7 +73,7 @@ export class AdminVendasController {
   async tabelasFormas() {
     const { pool } = tenantCtx();
     const tabelas = await pool.query(
-      `select t.id, t.nome, t.erp_tabela_id,
+      `select t.id, t.nome, t.erp_tabela_id, t.tipo_entrega,
               coalesce((select array_agg(x.forma_pagamento_id) from tabela_preco_formas x where x.tabela_preco_id = t.id), '{}') as forma_ids
          from tabelas_preco t where t.erp_tabela_id is not null order by t.nome`,
     );
@@ -79,7 +81,7 @@ export class AdminVendasController {
       `select id, descricao, erp_forma_pagamento_id from formas_pagamento_erp order by descricao`,
     );
     return {
-      tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, codigo: t.erp_tabela_id, formaIds: t.forma_ids })),
+      tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, codigo: t.erp_tabela_id, formaIds: t.forma_ids, tipoEntrega: t.tipo_entrega })),
       formas: formas.rows.map((f) => ({
         id: f.id, descricao: f.descricao, codigo: f.erp_forma_pagamento_id, exigeCredito: formaInterna(f.descricao) === 'boleto',
       })),
@@ -93,6 +95,9 @@ export class AdminVendasController {
     const client = await pool.connect();
     try {
       await client.query('begin');
+      if (dto.tipoEntrega) {
+        await client.query(`update tabelas_preco set tipo_entrega = $1 where id = $2`, [dto.tipoEntrega, tabelaId]);
+      }
       await client.query(`delete from tabela_preco_formas where tabela_preco_id = $1`, [tabelaId]);
       if (dto.formaIds.length) {
         await client.query(

@@ -1,0 +1,290 @@
+// apps/api/src/vendas/vendas-pedidos.service.ts
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { tenantCtx } from '../tenancy/tenant-context';
+import { arredondar, conferirPedido, DadosAtuais, Divergencia } from './conferir-pedido';
+import { PedidoVendedorDto } from './pedido-vendedor.dto';
+
+interface Consulta {
+  query: (sql: string, params?: unknown[]) => Promise<{ rows: any[]; rowCount?: number | null }>;
+}
+
+export interface PedidoResumo {
+  id: string;
+  numero: number;
+  status: string;
+  total: number;
+  divergencias: Divergencia[];
+}
+
+export interface PedidoListado {
+  id: string;
+  numero: number;
+  idDispositivo: string | null;
+  clienteId: string;
+  status: string;
+  total: number;
+  criadoEm: string;
+  divergencias: Divergencia[];
+}
+
+/**
+ * pedidos.forma_pagamento só aceita boleto/pix/cartao. A forma do ERP entra num
+ * desses três: à vista = 'pix' (não consome crédito), cartão de crédito = 'cartao',
+ * todo o resto a prazo = 'boleto' (confere limite de crédito).
+ */
+export function formaInterna(descricao: string): 'boleto' | 'pix' | 'cartao' {
+  const d = descricao.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  if (/PIX|DINHEIRO|VISTA|DEBITO/.test(d)) return 'pix';
+  if (/CART|CREDITO/.test(d)) return 'cartao';
+  return 'boleto';
+}
+
+@Injectable()
+export class VendasPedidosService {
+  private async porIdDispositivo(q: Consulta, idDispositivo: string): Promise<PedidoResumo | null> {
+    const { rows } = await q.query(
+      `select p.id, p.numero, p.status, p.total, p.retencao_json from pedidos p where p.id_dispositivo = $1`,
+      [idDispositivo],
+    );
+    const p = rows[0];
+    if (!p) return null;
+    return {
+      id: p.id, numero: Number(p.numero), status: p.status, total: Number(p.total),
+      divergencias: p.status === 'AGUARDANDO_VENDEDOR' ? (p.retencao_json?.divergencias ?? []) : [],
+    };
+  }
+
+  private async dadosAtuais(q: Consulta, clienteId: string, tabelaId: string, produtoIds: string[], exigeCredito: boolean): Promise<DadosAtuais> {
+    const { rows } = await q.query(
+      `/* dados_atuais */
+       select p.id, p.nome, pr.preco, coalesce(e.quantidade,0) as estoque
+         from produtos p
+         left join precos pr on pr.produto_id = p.id and pr.tabela_preco_id = $2
+         left join estoques e on e.produto_id = p.id
+        where p.id = any($1::uuid[]) and p.ativo`,
+      [produtoIds, tabelaId],
+    );
+    if (rows.length !== produtoIds.length) throw new BadRequestException('Produto inexistente ou inativo no pedido');
+    const precos = new Map<string, number>();
+    const estoques = new Map<string, number>();
+    const nomes = new Map<string, string>();
+    for (const r of rows) {
+      if (r.preco != null) precos.set(r.id, Number(r.preco));
+      estoques.set(r.id, Number(r.estoque));
+      nomes.set(r.id, r.nome);
+    }
+    let creditoDisponivel: number | null = null;
+    if (exigeCredito) {
+      const lim = await q.query(`select limite_credito from clientes where id = $1`, [clienteId]);
+      const limite = lim.rows[0]?.limite_credito;
+      if (limite != null) {
+        const aberto = await q.query(
+          `select coalesce(sum(valor),0) as total from titulos_cliente where cliente_id = $1 and status = 'ABERTO'`,
+          [clienteId],
+        );
+        creditoDisponivel = arredondar(Number(limite) - Number(aberto.rows[0].total));
+      }
+    }
+    return { precos, estoques, nomes, creditoDisponivel, exigeCredito };
+  }
+
+  async receber(vendedorId: string, dto: PedidoVendedorDto): Promise<PedidoResumo> {
+    const { pool } = tenantCtx();
+    const existente = await this.porIdDispositivo(pool, dto.idDispositivo);
+    if (existente) return existente;
+
+    const carteira = await pool.query(
+      `select 1 from cliente_vendedor where cliente_id = $1 and vendedor_id = $2`,
+      [dto.clienteId, vendedorId],
+    );
+    if (!carteira.rowCount) {
+      throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
+    }
+
+    const produtoIds = dto.itens.map((i) => i.produtoId);
+    if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no pedido');
+
+    const cond = await pool.query(
+      `select cp.descricao as condicao, fp.descricao as forma,
+              exists (select 1 from tabelas_preco t where t.id = $2) as tabela_existe,
+              exists (select 1 from tabela_preco_condicoes x where x.tabela_preco_id = $2) as tabela_tem_vinculo,
+              exists (select 1 from tabela_preco_condicoes x
+                       where x.tabela_preco_id = $2 and x.condicao_pagamento_id = cp.id) as permitida
+         from condicoes_pagamento_erp cp join formas_pagamento_erp fp on fp.id = cp.forma_pagamento_id
+        where cp.id = $1`,
+      [dto.condicaoPagamentoId, dto.tabelaPrecoId],
+    );
+    const c = cond.rows[0];
+    if (!c || !c.tabela_existe) throw new BadRequestException('Tabela ou condição de pagamento inexistente');
+    // Tabela sem nenhum vínculo cadastrado aceita qualquer condição (o vínculo ainda não chegou do ERP).
+    if (c.tabela_tem_vinculo && !c.permitida) {
+      throw new BadRequestException({ statusCode: 400, message: 'Condição de pagamento não permitida para esta tabela', codigo: 'CONDICAO_NAO_PERMITIDA' });
+    }
+    const forma = formaInterna(c.forma);
+
+    let enderecoJson: string | null = null;
+    if (dto.tipoEntrega === 'entrega') {
+      const end = await pool.query(
+        `select * from cliente_enderecos where cliente_id = $1 order by padrao desc limit 1`,
+        [dto.clienteId],
+      );
+      if (!end.rows[0]) throw new BadRequestException('Cliente sem endereço cadastrado para entrega');
+      enderecoJson = JSON.stringify(end.rows[0]);
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      await client.query('select pg_advisory_xact_lock(hashtext($1))', [dto.clienteId]);
+      const dados = await this.dadosAtuais(client, dto.clienteId, dto.tabelaPrecoId, produtoIds, forma === 'boleto');
+      const { divergencias, totalAtual } = conferirPedido(dto.itens, dados);
+      const retido = divergencias.length > 0;
+      const totalEnviado = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
+      const total = retido ? totalEnviado : totalAtual;
+      const status = retido ? 'AGUARDANDO_VENDEDOR' : 'RECEBIDO';
+      const ped = await client.query(
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes,
+                              condicao_pagamento, status, vendedor_id, origem, tabela_preco_id, condicao_pagamento_id,
+                              id_dispositivo, retencao_json, criado_no_aparelho_em)
+         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9,'vendedor',$10,$11,$12,$13,$14) returning id, numero`,
+        [
+          dto.clienteId, enderecoJson, forma, dto.tipoEntrega, total, dto.observacoes ?? null, c.condicao, status,
+          vendedorId, dto.tabelaPrecoId, dto.condicaoPagamentoId, dto.idDispositivo,
+          retido ? JSON.stringify({ divergencias, retidoEm: new Date().toISOString() }) : null,
+          dto.criadoNoAparelhoEm,
+        ],
+      );
+      const pedidoId = ped.rows[0].id;
+      for (const i of dto.itens) {
+        // Retido guarda o preço que o vendedor viu; liberado guarda o preço atual (iguais quando não há divergência).
+        const preco = retido ? i.precoUnit : (dados.precos.get(i.produtoId) as number);
+        await client.query(
+          `insert into pedido_itens (pedido_id, produto_id, descricao_snapshot, quantidade, preco_unit, total)
+           values ($1,$2,$3,$4,$5,$6)`,
+          [pedidoId, i.produtoId, dados.nomes.get(i.produtoId), i.quantidade, preco, arredondar(preco * i.quantidade)],
+        );
+      }
+      await client.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,$2,$3,'app')`,
+        [pedidoId, status, retido ? 'Pedido do vendedor retido: aguardando confirmação' : 'Pedido recebido do vendedor'],
+      );
+      if (!retido) {
+        await client.query(
+          `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
+          [pedidoId],
+        );
+      }
+      if (dto.orcamentoId) {
+        await client.query(
+          `update orcamentos set status = 'convertido', pedido_id = $1, atualizado_em = now()
+            where id = $2 and vendedor_id = $3 and status = 'aberto'`,
+          [pedidoId, dto.orcamentoId, vendedorId],
+        );
+      }
+      await client.query('commit');
+      return { id: pedidoId, numero: Number(ped.rows[0].numero), status, total, divergencias };
+    } catch (e) {
+      await client.query('rollback');
+      // Dois envios simultâneos do mesmo pedido: o segundo bate no índice único e devolve o primeiro.
+      if ((e as { code?: string }).code === '23505') {
+        const ja = await this.porIdDispositivo(pool, dto.idDispositivo);
+        if (ja) return ja;
+      }
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  /** Vendedor aceita os preços atuais. Estoque, crédito e falta de preço continuam barrando. */
+  async confirmar(vendedorId: string, pedidoId: string): Promise<PedidoResumo> {
+    const { pool } = tenantCtx();
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      const ped = await client.query(
+        `/* pedido_retido */
+         select id, numero, cliente_id, tabela_preco_id, forma_pagamento
+           from pedidos where id = $1 and vendedor_id = $2 and status = 'AGUARDANDO_VENDEDOR' for update`,
+        [pedidoId, vendedorId],
+      );
+      const p = ped.rows[0];
+      if (!p) throw new NotFoundException('Pedido não encontrado ou já resolvido');
+      const itens = await client.query(
+        `/* itens_retidos */ select produto_id, quantidade, preco_unit from pedido_itens where pedido_id = $1`,
+        [pedidoId],
+      );
+      const produtoIds = itens.rows.map((i) => i.produto_id);
+      const dados = await this.dadosAtuais(client, p.cliente_id, p.tabela_preco_id, produtoIds, p.forma_pagamento === 'boleto');
+      const aceitos = itens.rows.map((i) => ({
+        produtoId: i.produto_id as string,
+        quantidade: Number(i.quantidade),
+        precoUnit: dados.precos.get(i.produto_id) ?? Number(i.preco_unit),
+      }));
+      const { divergencias, totalAtual } = conferirPedido(aceitos, dados);
+      if (divergencias.length) {
+        throw new ConflictException({
+          statusCode: 409, message: 'O pedido ainda tem pendência de estoque ou crédito', codigo: 'AINDA_DIVERGENTE', divergencias,
+        });
+      }
+      for (const i of aceitos) {
+        await client.query(
+          `update pedido_itens set preco_unit = $3, total = $4 where pedido_id = $1 and produto_id = $2`,
+          [pedidoId, i.produtoId, i.precoUnit, arredondar(i.precoUnit * i.quantidade)],
+        );
+      }
+      // criado_em = now(): o ERP busca pedidos por data de criação; sem isso perderia um pedido retido ontem.
+      await client.query(
+        `update pedidos set status = 'RECEBIDO', subtotal = $2, total = $2, criado_em = now(),
+                retencao_json = coalesce(retencao_json, '{}'::jsonb) || jsonb_build_object('confirmadoEm', now())
+          where id = $1`,
+        [pedidoId, totalAtual],
+      );
+      await client.query(
+        `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'RECEBIDO','Vendedor confirmou os valores atuais','app')`,
+        [pedidoId],
+      );
+      await client.query(
+        `insert into sync_outbox (agregado, agregado_id, evento, payload_json) values ('pedido',$1,'pedido_criado','{}')`,
+        [pedidoId],
+      );
+      await client.query('commit');
+      return { id: pedidoId, numero: Number(p.numero), status: 'RECEBIDO', total: totalAtual, divergencias: [] };
+    } catch (e) {
+      await client.query('rollback');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  async cancelar(vendedorId: string, pedidoId: string): Promise<{ ok: true }> {
+    const { pool } = tenantCtx();
+    const { rowCount } = await pool.query(
+      `update pedidos set status = 'CANCELADO' where id = $1 and vendedor_id = $2 and status = 'AGUARDANDO_VENDEDOR'`,
+      [pedidoId, vendedorId],
+    );
+    if (!rowCount) throw new NotFoundException('Pedido não encontrado ou já resolvido');
+    await pool.query(
+      `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO','Vendedor cancelou o pedido retido','app')`,
+      [pedidoId],
+    );
+    return { ok: true };
+  }
+
+  async listar(vendedorId: string): Promise<PedidoListado[]> {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select id, numero, id_dispositivo, cliente_id, status, total, criado_em, retencao_json
+         from pedidos
+        where vendedor_id = $1 and criado_em > now() - interval '60 days'
+        order by criado_em desc`,
+      [vendedorId],
+    );
+    return rows.map((r) => ({
+      id: r.id, numero: Number(r.numero), idDispositivo: r.id_dispositivo, clienteId: r.cliente_id, status: r.status,
+      total: Number(r.total), criadoEm: r.criado_em,
+      divergencias: r.status === 'AGUARDANDO_VENDEDOR' ? (r.retencao_json?.divergencias ?? []) : [],
+    }));
+  }
+}

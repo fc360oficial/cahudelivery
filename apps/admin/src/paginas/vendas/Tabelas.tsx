@@ -8,7 +8,7 @@ interface Tabela { id: string; nome: string; codigo: string; formaIds: string[];
 interface Forma { id: string; descricao: string; codigo: string; exigeCredito: boolean }
 interface Resposta { tabelas: Tabela[]; formas: Forma[] }
 
-function CartaoTabela({ tabela, formas, admin, aoSalvar }: { tabela: Tabela; formas: Forma[]; admin: boolean; aoSalvar: () => void }) {
+function CartaoTabela({ tabela, formas, admin, aoSalvar }: { tabela: Tabela; formas: Forma[]; admin: boolean; aoSalvar: (id: string, formaIds: string[], tipoEntrega: TipoEntrega) => void }) {
   const [marcadas, setMarcadas] = useState<string[]>(tabela.formaIds);
   const [tipo, setTipo] = useState<TipoEntrega>(tabela.tipoEntrega);
   const [salvando, setSalvando] = useState(false);
@@ -33,7 +33,7 @@ function CartaoTabela({ tabela, formas, admin, aoSalvar }: { tabela: Tabela; for
     try {
       await api(`/admin/vendas/tabelas-formas/${tabela.id}`, { method: 'PUT', body: JSON.stringify({ formaIds: marcadas, tipoEntrega: tipo }) });
       setMsg({ tipo: 'ok', texto: 'Tabela salva.' });
-      aoSalvar();
+      aoSalvar(tabela.id, marcadas, tipo);
     } catch (e) {
       setMsg({ tipo: 'erro', texto: (e as Error).message });
     } finally {
@@ -87,6 +87,12 @@ export function VendasTabelas() {
   }, []);
   useEffect(carregar, [carregar]);
 
+  // Depois de salvar um cartão, só o estado salvo DAQUELA tabela muda: os demais cartões
+  // mantêm a mesma referência e não perdem marcações ainda não salvas.
+  const salvou = useCallback((id: string, formaIds: string[], tipoEntrega: TipoEntrega) => {
+    setRes((r) => (r ? { ...r, tabelas: r.tabelas.map((t) => (t.id === id ? { ...t, formaIds, tipoEntrega } : t)) } : r));
+  }, []);
+
   return (
     <>
       <CabecalhoPagina titulo="Tabelas de preço" subtitulo="Cada tabela é de entrega ou de retirada. Aqui ficam também as formas de pagamento aceitas em cada tabela. O prazo vem da própria tabela: o ERP gera o boleto a partir dela." />
@@ -94,7 +100,7 @@ export function VendasTabelas() {
       {erro && <div className="cad-erro">{erro}</div>}
       {!res && !erro ? <Cartao><Vazio mensagem="Carregando…" /></Cartao>
         : res && res.tabelas.length === 0 ? <Cartao><Vazio mensagem="Nenhuma tabela de preço recebida do ERP ainda. As tabelas chegam pela integração." /></Cartao>
-        : res && res.tabelas.map((t) => <CartaoTabela key={t.id} tabela={t} formas={res.formas} admin={admin} aoSalvar={carregar} />)}
+        : res && res.tabelas.map((t) => <CartaoTabela key={t.id} tabela={t} formas={res.formas} admin={admin} aoSalvar={salvou} />)}
     </>
   );
 }

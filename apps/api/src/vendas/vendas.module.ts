@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { AdminGuard } from '../admin/admin.guard';
+import { AdminVendasController } from './admin-vendas.controller';
 import { VendasAuthController } from './vendas-auth.controller';
 import { VendasAuthService } from './vendas-auth.service';
 import { VendasOrcamentosService } from './vendas-orcamentos.service';
@@ -9,7 +11,7 @@ import { VendasController } from './vendas.controller';
 import { VendedorGuard } from './vendedor.guard';
 
 @Module({
-  controllers: [VendasAuthController, VendasController],
-  providers: [VendasAuthService, VendedorGuard, VendasSyncService, VendasPedidosService, VendasOrcamentosService, VendasResumoService],
+  controllers: [VendasAuthController, VendasController, AdminVendasController],
+  providers: [VendasAuthService, VendedorGuard, VendasSyncService, VendasPedidosService, VendasOrcamentosService, VendasResumoService, AdminGuard],
 })
 export class VendasModule {}

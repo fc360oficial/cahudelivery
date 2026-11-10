@@ -95,6 +95,9 @@ export class AdminVendasController {
     const client = await pool.connect();
     try {
       await client.query('begin');
+      // Só tabela do ERP aparece na lista; qualquer outra (ou inexistente) é 404.
+      const existe = await client.query(`select 1 from tabelas_preco where id = $1 and erp_tabela_id is not null`, [tabelaId]);
+      if (!existe.rowCount) throw new NotFoundException('Tabela de preço não encontrada');
       if (dto.tipoEntrega) {
         await client.query(`update tabelas_preco set tipo_entrega = $1 where id = $2`, [dto.tipoEntrega, tabelaId]);
       }

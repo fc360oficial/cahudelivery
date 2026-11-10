@@ -3,6 +3,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { tenantCtx } from '../tenancy/tenant-context';
 import { arredondar } from './conferir-pedido';
 import { OrcamentoDto } from './orcamento.dto';
+import { conferirTabelaForma } from './vendas-pedidos.service';
 
 export interface OrcamentoListado {
   id: string;
@@ -44,6 +45,8 @@ export class VendasOrcamentosService {
     if (dto.tipoEntrega && dto.tipoEntrega !== tipoEntrega) {
       throw new BadRequestException({ statusCode: 400, message: `Esta tabela é de ${tipoEntrega}`, codigo: 'TIPO_ENTREGA_DIFERENTE_DA_TABELA' });
     }
+    // Orçamento sem forma é permitido; com forma, vale a mesma regra do pedido (a tabela precisa aceitá-la).
+    if (dto.formaPagamentoId) await conferirTabelaForma(pool, dto.tabelaPrecoId, dto.formaPagamentoId);
     const produtoIds = dto.itens.map((i) => i.produtoId);
     if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no orçamento');
     const total = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));

@@ -32,6 +32,8 @@ interface Cenario {
   permitida?: boolean;
   tipoTabela?: 'entrega' | 'retirada';
   semEndereco?: boolean;
+  orcamento?: { clienteId: string } | null;
+  formaGravada?: string;
 }
 
 function montar(c: Cenario = {}) {
@@ -47,6 +49,7 @@ function montar(c: Cenario = {}) {
       if (c.formaExiste === false) return { rows: [] };
       return { rows: [{ forma: c.forma ?? 'BOLETO', tabela_existe: c.tabelaExiste ?? true, permitida: c.permitida ?? true, tipo_entrega: c.tipoTabela ?? 'retirada' }] };
     }
+    if (sql.includes('/* orcamento_dono */')) return { rows: c.orcamento ? [{ cliente_id: c.orcamento.clienteId }] : [] };
     if (sql.includes('from cliente_enderecos')) return { rows: c.semEndereco ? [] : [{ id: 'e1', cidade: 'Recife' }] };
     if (sql.includes('/* dados_atuais */')) {
       return { rows: [{ id: 'p1', nome: 'Margarina', preco: String(c.precoAtual ?? 86.4), estoque: String(c.estoque ?? 100) }] };
@@ -56,7 +59,7 @@ function montar(c: Cenario = {}) {
     if (sql.includes('/* em_transito */')) return { rows: [{ total: c.emTransito ?? '0' }] };
     if (sql.includes('insert into pedidos')) return { rows: [{ id: 'ped-novo', numero: '8' }] };
     if (sql.includes('/* pedido_retido */')) {
-      return { rows: c.retido ? [{ id: 'ped-retido', numero: '9', cliente_id: 'c1', tabela_preco_id: 't1', forma_pagamento: 'boleto', forma_pagamento_erp_id: 'f-boleto' }] : [] };
+      return { rows: c.retido ? [{ id: 'ped-retido', numero: '9', cliente_id: 'c1', tabela_preco_id: 't1', forma_pagamento: c.formaGravada ?? 'boleto', forma_pagamento_erp_id: 'f-boleto' }] : [] };
     }
     if (sql.includes('/* itens_retidos */')) {
       return { rows: [{ produto_id: 'p1', quantidade: '4.000', preco_unit: String(c.retido?.precoItem ?? 84) }] };
@@ -75,10 +78,15 @@ describe('formaInterna', () => {
     expect(formaInterna('PIX')).toBe('pix');
     expect(formaInterna('Dinheiro')).toBe('pix');
     expect(formaInterna('Cartão de Débito')).toBe('pix');
-    expect(formaInterna('Crédito')).toBe('cartao');
     expect(formaInterna('BOLETO')).toBe('boleto');
     expect(formaInterna('Cheque')).toBe('boleto');
     expect(formaInterna('BOLETO À VISTA')).toBe('boleto');
+  });
+
+  it('é conservadora: o que não é claramente à vista ou cartão confere crédito', () => {
+    for (const d of ['CARTEIRA', 'CREDITO LOJA', 'CREDIÁRIO', 'XYZ', 'Boleto']) expect(formaInterna(d)).toBe('boleto');
+    for (const d of ['CARTÃO', 'CARTAO DE CREDITO']) expect(formaInterna(d)).toBe('cartao');
+    for (const d of ['DINHEIRO', 'PIX', 'À VISTA', 'DÉBITO']) expect(formaInterna(d)).toBe('pix');
   });
 });
 
@@ -253,7 +261,62 @@ describe('VendasPedidosService.receber — regras de recusa', () => {
   });
 });
 
+describe('VendasPedidosService.receber — validação dentro da transação e orçamento', () => {
+  it('a conferência de tabela e forma roda no cliente da transação, depois do bloqueio do cliente', async () => {
+    const { servico, rodar, query } = montar();
+    await rodar(() => servico.receber('v1', dto as never));
+    const ordem = query.mock.calls.map(([sql]) => String(sql));
+    const iBegin = ordem.findIndex((s) => s.trim() === 'begin');
+    const iLock = ordem.findIndex((s) => s.includes('pg_advisory_xact_lock'));
+    const iForma = ordem.findIndex((s) => s.includes('/* tabela_forma */'));
+    expect(iBegin).toBeGreaterThanOrEqual(0);
+    expect(iLock).toBeGreaterThan(iBegin);
+    expect(iForma).toBeGreaterThan(iLock);
+  });
+
+  it('forma recusada dentro da transação faz rollback e não grava', async () => {
+    const { servico, rodar, chamou } = montar({ permitida: false });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({ response: { codigo: 'FORMA_NAO_PERMITIDA' } });
+    expect(chamou('rollback')).toBe(true);
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('orçamento do mesmo cliente converte (mesmo com tabela diferente)', async () => {
+    const { servico, rodar, chamou } = montar({ orcamento: { clienteId: 'c1' } });
+    await rodar(() => servico.receber('v1', { ...dto, orcamentoId: '22222222-2222-4222-8222-222222222222' } as never));
+    expect(chamou("update orcamentos set status = 'convertido'")).toBe(true);
+  });
+
+  it('orçamento de outro cliente é recusado e nada é criado', async () => {
+    const { servico, rodar, chamou } = montar({ orcamento: { clienteId: 'outro' } });
+    const erro = await rodar(() => servico.receber('v1', { ...dto, orcamentoId: '22222222-2222-4222-8222-222222222222' } as never)).catch((e) => e);
+    expect(erro).toBeInstanceOf(BadRequestException);
+    expect(erro.getResponse()).toEqual({ statusCode: 400, message: 'Orçamento não pertence a este cliente', codigo: 'ORCAMENTO_DE_OUTRO_CLIENTE' });
+    expect(chamou('insert into pedidos')).toBe(false);
+    expect(chamou('commit')).toBe(false);
+  });
+
+  it('orçamento que não é deste vendedor (ou não existe) também é recusado', async () => {
+    const { servico, rodar, chamou, params } = montar({ orcamento: null });
+    await expect(rodar(() => servico.receber('v1', { ...dto, orcamentoId: '22222222-2222-4222-8222-222222222222' } as never))).rejects.toMatchObject({ response: { codigo: 'ORCAMENTO_DE_OUTRO_CLIENTE' } });
+    expect(params('/* orcamento_dono */')).toEqual(['22222222-2222-4222-8222-222222222222', 'v1']);
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+});
+
 describe('VendasPedidosService.confirmar', () => {
+  it('regrava forma_pagamento quando o mapeamento da forma mudou', async () => {
+    const { servico, rodar, params } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4, forma: 'PIX', formaGravada: 'boleto' });
+    await rodar(() => servico.confirmar('v1', 'ped-retido'));
+    expect(params('update pedidos set forma_pagamento = $2')).toEqual(['ped-retido', 'pix']);
+  });
+
+  it('não regrava forma_pagamento quando continua igual', async () => {
+    const { servico, rodar, chamou } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4 });
+    await rodar(() => servico.confirmar('v1', 'ped-retido'));
+    expect(chamou('update pedidos set forma_pagamento = $2')).toBe(false);
+  });
+
   it('aceita o preço atual, libera o pedido e manda para a fila do ERP', async () => {
     const { servico, rodar, chamou, params } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4 });
     const out = await rodar(() => servico.confirmar('v1', 'ped-retido'));

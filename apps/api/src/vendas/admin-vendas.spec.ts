@@ -6,9 +6,10 @@ import { AdminVendasController } from './admin-vendas.controller';
 const ADMIN = { admin: { usuarioId: 'u1', papel: 'admin' } } as never;
 const OPERADOR = { admin: { usuarioId: 'u2', papel: 'operador' } } as never;
 
-function montar(opcoes: { loginEmUso?: boolean; updateRowCount?: number; falhaEm?: { trecho: string; code: string } } = {}) {
+function montar(opcoes: { semTabela?: boolean; loginEmUso?: boolean; updateRowCount?: number; falhaEm?: { trecho: string; code: string } } = {}) {
   const query = jest.fn(async (sql: string) => {
     if (opcoes.falhaEm && sql.includes(opcoes.falhaEm.trecho)) throw Object.assign(new Error('falha'), { code: opcoes.falhaEm.code });
+    if (sql.includes('from tabelas_preco where id = $1 and erp_tabela_id is not null')) return { rowCount: opcoes.semTabela ? 0 : 1, rows: [] };
     if (sql.includes('from vendedores where login = $1 and id <> $2')) return { rowCount: opcoes.loginEmUso ? 1 : 0, rows: [] };
     if (sql.includes('update vendedores set login')) return { rowCount: opcoes.updateRowCount ?? 1, rows: [] };
     return { rows: [], rowCount: 0 };
@@ -110,6 +111,15 @@ describe('AdminVendasController.definirFormas', () => {
   it('tabela ou forma inexistente (23503) vira 400 e faz rollback', async () => {
     const { controller, rodar, chamou } = montar({ falhaEm: { trecho: 'insert into tabela_preco_formas', code: '23503' } });
     await expect(rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'] } as never))).rejects.toBeInstanceOf(BadRequestException);
+    expect(chamou('rollback')).toBe(true);
+  });
+
+  it('tabela inexistente ou que não veio do ERP dá 404 e não altera nada', async () => {
+    const { controller, rodar, chamou, query } = montar({ semTabela: true });
+    await expect(rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'], tipoEntrega: 'entrega' } as never))).rejects.toMatchObject({ message: 'Tabela de preço não encontrada', status: 404 });
+    expect(String(query.mock.calls.find(([sql]) => String(sql).includes('from tabelas_preco where id'))![0])).toContain('erp_tabela_id is not null');
+    expect(chamou('delete from tabela_preco_formas')).toBe(false);
+    expect(chamou('update tabelas_preco set tipo_entrega')).toBe(false);
     expect(chamou('rollback')).toBe(true);
   });
 

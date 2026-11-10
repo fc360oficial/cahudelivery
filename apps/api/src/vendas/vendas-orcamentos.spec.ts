@@ -13,12 +13,14 @@ const dto = {
   ],
 };
 
-function montar(opcoes: { naCarteira?: boolean; gravou?: boolean; fkItem?: boolean; tipoTabela?: 'entrega' | 'retirada'; semTabela?: boolean } = {}) {
+function montar(opcoes: { naCarteira?: boolean; gravou?: boolean; fkItem?: boolean; tipoTabela?: 'entrega' | 'retirada'; semTabela?: boolean; permitida?: boolean } = {}) {
   const query = jest.fn(async (sql: string) => {
     if (sql.includes('from cliente_vendedor where cliente_id'))
       return { rowCount: opcoes.naCarteira === false ? 0 : 1, rows: [] };
     if (sql.includes('/* tabela_tipo */'))
       return { rows: opcoes.semTabela ? [] : [{ tipo_entrega: opcoes.tipoTabela ?? 'retirada' }] };
+    if (sql.includes('/* tabela_forma */'))
+      return { rows: [{ forma: 'BOLETO', tabela_existe: true, permitida: opcoes.permitida ?? true, tipo_entrega: 'retirada' }] };
     if (sql.includes('insert into orcamentos'))
       return { rowCount: opcoes.gravou === false ? 0 : 1, rows: [] };
     if (opcoes.fkItem && sql.includes('insert into orcamento_itens'))
@@ -71,6 +73,25 @@ describe('VendasOrcamentosService.salvar', () => {
     expect(erro).toBeInstanceOf(BadRequestException);
     expect(erro.getResponse()).toEqual({ statusCode: 400, message: 'Esta tabela é de entrega', codigo: 'TIPO_ENTREGA_DIFERENTE_DA_TABELA' });
     expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into orcamentos'))).toBe(false);
+  });
+
+  it('forma informada é conferida na tabela e grava normalmente', async () => {
+    const { servico, query, rodar } = montar();
+    await rodar(() => servico.salvar('v1', 'orc-1', { ...dto, formaPagamentoId: 'f1' } as never));
+    expect(query.mock.calls.find(([sql]) => String(sql).includes('/* tabela_forma */'))![1]).toEqual(['f1', 't1']);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into orcamentos'))).toBe(true);
+  });
+
+  it('forma que a tabela não aceita é recusada com FORMA_NAO_PERMITIDA e nada é gravado', async () => {
+    const { servico, query, rodar } = montar({ permitida: false });
+    await expect(rodar(() => servico.salvar('v1', 'orc-1', { ...dto, formaPagamentoId: 'f1' } as never))).rejects.toMatchObject({ response: { codigo: 'FORMA_NAO_PERMITIDA' } });
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into orcamentos'))).toBe(false);
+  });
+
+  it('orçamento sem forma continua permitido e não confere forma', async () => {
+    const { servico, query, rodar } = montar();
+    await rodar(() => servico.salvar('v1', 'orc-1', dto as never));
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('/* tabela_forma */'))).toBe(false);
   });
 
   it('tabela inexistente dá REFERENCIA_INVALIDA', async () => {

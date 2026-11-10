@@ -98,8 +98,8 @@ export class AdminEntregasController {
     const { pool, tenant } = tenantCtx();
     const ped = await pool.query(`select status from pedidos where id = $1`, [id]);
     if (!ped.rows[0]) throw new NotFoundException('Pedido não encontrado');
-    if (ped.rows[0].status === 'CANCELADO' || ped.rows[0].status === 'AGUARDANDO_PAGAMENTO') {
-      throw new BadRequestException('Pedido cancelado ou sem pagamento não pode ser marcado como entregue');
+    if (ped.rows[0].status === 'CANCELADO' || ped.rows[0].status === 'AGUARDANDO_PAGAMENTO' || ped.rows[0].status === 'AGUARDANDO_VENDEDOR') {
+      throw new BadRequestException('Pedido cancelado, sem pagamento ou retido não pode ser marcado como entregue');
     }
     const anterior = await pool.query(`select foto_canhoto, foto_entrega from pedido_entregas where pedido_id = $1`, [id]);
     const canhoto = arquivos?.canhoto?.[0];

@@ -355,7 +355,8 @@ export class DlinksPedidosService {
           processados.push(codigo);
           continue;
         }
-        if (!opts.statusPermitido(atual.rows[0].status)) {
+        // Pedido retido do vendedor ainda não existe para o ERP: nenhuma transição vinda dele vale.
+        if (atual.rows[0].status === 'AGUARDANDO_VENDEDOR' || !opts.statusPermitido(atual.rows[0].status)) {
           await client.query('rollback');
           ignorados.push({ codigo, motivo: 'status_invalido' });
           continue;

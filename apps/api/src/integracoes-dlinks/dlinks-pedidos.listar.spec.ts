@@ -5,6 +5,23 @@ import { DlinksPedidosService } from './dlinks-pedidos.service';
 
 const tenant: TenantInfo = { id: 'uuid', slug: 'cahu', nomeFantasia: 'CAHU', appNome: 'CAHU Delivery', adaptadorErp: 'dlinks' };
 
+describe('DlinksPedidosService — pedido retido do vendedor', () => {
+  it.each([
+    ['marcarRecebido', (s: DlinksPedidosService) => s.marcarRecebido(['p1'])],
+    ['marcarCancelado', (s: DlinksPedidosService) => s.marcarCancelado(['p1'])],
+    ['marcarFaturado ABERTO', (s: DlinksPedidosService) => s.marcarFaturado({ pedido_codigo: 'p1', status: 'ABERTO' } as never)],
+  ])('%s não mexe em AGUARDANDO_VENDEDOR', async (_nome, chamar) => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('for update')) return { rowCount: 1, rows: [{ status: 'AGUARDANDO_VENDEDOR', cliente_id: 'c', valor_saldo_usado: '0' }] };
+      return { rows: [], rowCount: 0 };
+    });
+    const pool = { query, connect: async () => ({ query, release: () => undefined }) } as unknown as Pool;
+    const out = await runComTenant({ tenant, pool }, () => chamar(new DlinksPedidosService()));
+    expect(out.ignorados).toEqual([{ codigo: 'p1', motivo: 'status_invalido' }]);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('update pedidos set status'))).toBe(false);
+  });
+});
+
 describe('DlinksPedidosService.listar', () => {
   it('não lista pedidos aguardando pagamento e expõe pagamentoOnline', async () => {
     const query = jest.fn()

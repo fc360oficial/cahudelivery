@@ -20,18 +20,18 @@ export class AdminService {
     const [hoje, porStatus, mes, topProdutos, clientes, falhas] = await Promise.all([
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento
-           from pedidos where criado_em::date = current_date and status <> 'CANCELADO'`,
+           from pedidos where criado_em::date = current_date and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
       ),
       pool.query(`select status, count(*)::int as qtd from pedidos group by status`),
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento,
                 coalesce(avg(total),0) as ticket_medio
-           from pedidos where criado_em > now() - interval '30 days' and status <> 'CANCELADO'`,
+           from pedidos where criado_em > now() - interval '30 days' and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
       ),
       pool.query(
         `select i.descricao_snapshot as produto, sum(i.quantidade)::numeric as qtd, sum(i.total) as valor
            from pedido_itens i join pedidos p on p.id = i.pedido_id
-          where p.criado_em > now() - interval '30 days' and p.status <> 'CANCELADO'
+          where p.criado_em > now() - interval '30 days' and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
           group by 1 order by valor desc limit 5`,
       ),
       pool.query(

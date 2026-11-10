@@ -1143,7 +1143,8 @@ export interface Divergencia {
 }
 
 export function arredondar(valor: number): number {
-  return Math.round((valor + Number.EPSILON) * 100) / 100;
+  // toPrecision(15) desfaz o erro binário de valor*100 (10.075*100 = 1007.4999999999999) antes de arredondar.
+  return Math.round(Number((valor * 100).toPrecision(15))) / 100;
 }
 
 /**
@@ -1159,7 +1160,8 @@ export function conferirPedido(itens: ItemRecebido[], dados: DadosAtuais): { div
     if (atual === undefined) {
       divergencias.push({ tipo: 'sem_preco', produtoId: item.produtoId, nome, enviado: item.precoUnit });
     } else {
-      totalAtual += atual * item.quantidade;
+      // Arredonda linha a linha, como o pedido grava em pedido_itens e como o ERP fatura.
+      totalAtual += arredondar(atual * item.quantidade);
       if (Math.abs(atual - item.precoUnit) >= 0.005) {
         divergencias.push({ tipo: 'preco', produtoId: item.produtoId, nome, enviado: item.precoUnit, atual });
       }
@@ -1512,7 +1514,7 @@ export class VendasPedidosService {
       const dados = await this.dadosAtuais(client, dto.clienteId, dto.tabelaPrecoId, produtoIds, forma === 'boleto');
       const { divergencias, totalAtual } = conferirPedido(dto.itens, dados);
       const retido = divergencias.length > 0;
-      const totalEnviado = arredondar(dto.itens.reduce((t, i) => t + i.precoUnit * i.quantidade, 0));
+      const totalEnviado = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
       const total = retido ? totalEnviado : totalAtual;
       const status = retido ? 'AGUARDANDO_VENDEDOR' : 'RECEBIDO';
       const ped = await client.query(
@@ -1999,7 +2001,7 @@ export class VendasOrcamentosService {
     }
     const produtoIds = dto.itens.map((i) => i.produtoId);
     if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no orçamento');
-    const total = arredondar(dto.itens.reduce((t, i) => t + i.precoUnit * i.quantidade, 0));
+    const total = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
 
     const client = await pool.connect();
     try {

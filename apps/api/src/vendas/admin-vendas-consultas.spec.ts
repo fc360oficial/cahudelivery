@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, ParseUUIDPipe } from '@nestjs/common';
 import { runComTenant } from '../tenancy/tenant-context';
 import { AdminVendasConsultasService } from './admin-vendas-consultas.service';
 
@@ -545,5 +545,109 @@ describe('produtos', () => {
     expect(c.sql('/* produtos-dados */')).not.toContain('es.quantidade, 0) >');
     expect(c.sql('/* produtos-dados */')).not.toContain('es.quantidade, 0) <=');
     expect(c.sql('/* produtos-dados */')).not.toContain('produto_imagens i');
+  });
+});
+
+describe('orcamento (detalhe)', () => {
+  const cab = {
+    id: T1,
+    status: 'aberto',
+    criado_em: new Date('2026-11-10T14:00:00Z'),
+    atualizado_em: new Date('2026-11-10T15:00:00Z'),
+    cliente: 'Mercado X',
+    cliente_codigo: '123',
+    cliente_documento: '12345678000100',
+    vendedor: 'Ana',
+    tabela: 'Atacado',
+    forma: 'Boleto',
+    tipo_entrega: 'retirada',
+    observacoes: 'ligar antes',
+    total: '20.51',
+    pedido_id: null,
+    pedido_numero: null,
+  };
+  const itens = [
+    {
+      produto: 'Arroz 5kg',
+      codigo: 'A1',
+      quantidade: '2.500',
+      preco_unit: '8.20',
+    },
+  ];
+
+  it('monta cabeçalho e itens (total do item = quantidade × preço)', async () => {
+    const { svc, rodar, params } = montar({
+      '/* orcamento-cab */': [cab],
+      '/* orcamento-itens */': itens,
+    });
+    const out = await rodar(() => svc.orcamento(T1));
+    expect(out).toEqual({
+      id: T1,
+      status: 'aberto',
+      criadoEm: '2026-11-10T14:00:00.000Z',
+      atualizadoEm: '2026-11-10T15:00:00.000Z',
+      cliente: 'Mercado X',
+      clienteCodigo: '123',
+      clienteDocumento: '12345678000100',
+      vendedor: 'Ana',
+      tabela: 'Atacado',
+      forma: 'Boleto',
+      tipoEntrega: 'retirada',
+      observacoes: 'ligar antes',
+      total: 20.51,
+      pedidoId: null,
+      pedidoNumero: null,
+      itens: [
+        {
+          produto: 'Arroz 5kg',
+          codigo: 'A1',
+          quantidade: 2.5,
+          precoUnit: 8.2,
+          total: 20.5,
+        },
+      ],
+    });
+    expect(params('/* orcamento-cab */')).toEqual([T1]);
+  });
+
+  it('tipo de entrega: usa o do orçamento, senão o da tabela; sem forma = null', async () => {
+    const { svc, rodar, sql } = montar({
+      '/* orcamento-cab */': [
+        { ...cab, forma: null, tipo_entrega: null, observacoes: null },
+      ],
+    });
+    const out = await rodar(() => svc.orcamento(T1));
+    expect(out).toMatchObject({ forma: null, observacoes: null, itens: [] });
+    expect(sql('/* orcamento-cab */')).toContain('coalesce(o.tipo_entrega, t.tipo_entrega)');
+  });
+
+  it('orçamento convertido expõe o vínculo com o pedido', async () => {
+    const { svc, rodar } = montar({
+      '/* orcamento-cab */': [
+        { ...cab, status: 'convertido', pedido_id: T2, pedido_numero: '501' },
+      ],
+      '/* orcamento-itens */': itens,
+    });
+    const out = await rodar(() => svc.orcamento(T1));
+    expect(out).toMatchObject({
+      status: 'convertido',
+      pedidoId: T2,
+      pedidoNumero: 501,
+    });
+  });
+
+  it('inexistente = 404', async () => {
+    const { svc, rodar } = montar({ '/* orcamento-cab */': [] });
+    await expect(rodar(() => svc.orcamento(T1))).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('id inválido = 400 (mesma ParseUUIDPipe do pedido)', async () => {
+    const pipe = new ParseUUIDPipe();
+    await expect(
+      pipe.transform('nao-e-uuid', { type: 'param' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(pipe.transform(T1, { type: 'param' })).resolves.toBe(T1);
   });
 });

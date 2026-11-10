@@ -29,6 +29,11 @@ export class AdminVendasLeiturasController {
     return this.consultas.orcamentos({ status, vendedorId, pagina });
   }
 
+  @Get('orcamentos/:id')
+  orcamento(@Param('id', ParseUUIDPipe) id: string) {
+    return this.consultas.orcamento(id);
+  }
+
   @Get('clientes')
   clientes(@Query('vendedorId') vendedorId?: string, @Query('busca') busca?: string, @Query('pagina') pagina?: string) {
     return this.consultas.clientes({ vendedorId, busca, pagina });

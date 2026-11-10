@@ -201,6 +201,64 @@ export class AdminVendasConsultasService {
     };
   }
 
+  async orcamento(id: string) {
+    const { pool } = tenantCtx();
+    const cab = await pool.query(
+      `/* orcamento-cab */
+       select o.id, o.status, o.criado_em, o.atualizado_em, c.nome_fantasia as cliente, c.erp_cliente_id as cliente_codigo,
+              c.documento as cliente_documento, vd.nome as vendedor, t.nome as tabela, fp.descricao as forma,
+              coalesce(o.tipo_entrega, t.tipo_entrega) as tipo_entrega, o.observacoes, o.total,
+              o.pedido_id, ped.numero as pedido_numero
+         from orcamentos o
+         join clientes c on c.id = o.cliente_id
+         join vendedores vd on vd.id = o.vendedor_id
+         join tabelas_preco t on t.id = o.tabela_preco_id
+         left join formas_pagamento_erp fp on fp.id = o.forma_pagamento_erp_id
+         left join pedidos ped on ped.id = o.pedido_id
+        where o.id = $1`,
+      [id],
+    );
+    const o = cab.rows[0];
+    if (!o)
+      throw new NotFoundException({
+        statusCode: 404,
+        message: 'Orçamento não encontrado',
+        codigo: 'ORCAMENTO_NAO_ENCONTRADO',
+      });
+    const itens = await pool.query(
+      `/* orcamento-itens */
+       select pr.nome as produto, coalesce(pr.erp_produto_id, pr.sku) as codigo, oi.quantidade, oi.preco_unit
+         from orcamento_itens oi join produtos pr on pr.id = oi.produto_id
+        where oi.orcamento_id = $1
+        order by pr.nome, pr.id`,
+      [id],
+    );
+    return {
+      id: o.id,
+      status: o.status,
+      criadoEm: iso(o.criado_em),
+      atualizadoEm: iso(o.atualizado_em),
+      cliente: o.cliente,
+      clienteCodigo: o.cliente_codigo ?? null,
+      clienteDocumento: o.cliente_documento ?? null,
+      vendedor: o.vendedor ?? null,
+      tabela: o.tabela ?? null,
+      forma: o.forma ?? null,
+      tipoEntrega: o.tipo_entrega,
+      observacoes: o.observacoes ?? null,
+      total: dinheiro(n(o.total)),
+      pedidoId: o.pedido_id ?? null,
+      pedidoNumero: nOuNulo(o.pedido_numero),
+      itens: itens.rows.map((i) => ({
+        produto: i.produto,
+        codigo: i.codigo ?? null,
+        quantidade: n(i.quantidade),
+        precoUnit: dinheiro(n(i.preco_unit)),
+        total: dinheiro(n(i.quantidade) * n(i.preco_unit)),
+      })),
+    };
+  }
+
   async orcamentos(q: ListaParametros) {
     const { pool } = tenantCtx();
     const status =

@@ -42,7 +42,7 @@ export class AdminService {
                 count(*) filter (where status <> 'excluido' and criado_em > now() - interval '30 days')::int as novos_30d,
                 count(*) filter (where status <> 'excluido'
                                    and exists (select 1 from pedidos p where p.cliente_id = clientes.id
-                                                  and p.status <> 'CANCELADO'
+                                                  and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
                                                   and p.criado_em > now() - interval '30 days'))::int as compraram_30d
            from clientes`,
       ),

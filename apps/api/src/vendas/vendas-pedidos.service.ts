@@ -162,7 +162,7 @@ export class VendasPedidosService {
     const client = await pool.connect();
     try {
       await client.query('begin');
-      await client.query('select pg_advisory_xact_lock(hashtext($1))', [dto.clienteId]);
+      await client.query('select pg_advisory_xact_lock(hashtext($1::uuid::text))', [dto.clienteId]);
       const dados = await this.dadosAtuais(client, dto.clienteId, dto.tabelaPrecoId, produtoIds, forma === 'boleto');
       const { divergencias, totalAtual } = conferirPedido(dto.itens, dados);
       const retido = divergencias.length > 0;
@@ -236,7 +236,7 @@ export class VendasPedidosService {
       );
       const p = ped.rows[0];
       if (!p) throw new NotFoundException('Pedido não encontrado ou já resolvido');
-      await client.query('select pg_advisory_xact_lock(hashtext($1))', [p.cliente_id]);
+      await client.query('select pg_advisory_xact_lock(hashtext($1::uuid::text))', [p.cliente_id]);
       await this.conferirCliente(client, p.cliente_id, vendedorId);
       const itens = await client.query(
         `/* itens_retidos */ select produto_id, quantidade, preco_unit from pedido_itens where pedido_id = $1`,

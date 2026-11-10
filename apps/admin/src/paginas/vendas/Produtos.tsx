@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, uploadCompleto } from '../../api';
-import { CabecalhoPagina, Cartao, Selo, Vazio, formatarReais } from '../../vendas-ui';
+import { CabecalhoPagina, Cartao, Selo, Vazio } from '../../vendas-ui';
 import { Paginador, useAtraso } from './Clientes';
 import './cadastros.css';
 
@@ -22,26 +22,23 @@ type FiltroEstoque = '' | 'com' | 'sem';
 type FiltroImagem = '' | 'com' | 'sem';
 
 export function VendasProdutos() {
-  const [tabelaId, setTabelaId] = useState('');
   const [busca, setBusca] = useState('');
   const buscaAtraso = useAtraso(busca.trim());
   const [estoque, setEstoque] = useState<FiltroEstoque>('');
   const [imagem, setImagem] = useState<FiltroImagem>('');
   const [pagina, setPagina] = useState(1);
   const [res, setRes] = useState<Resposta | null>(null);
-  const [tabelas, setTabelas] = useState<{ id: string; nome: string }[]>([]);
   const [contagens, setContagens] = useState<Contagens | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [erroFoto, setErroFoto] = useState<string | null>(null);
   const [subindoId, setSubindoId] = useState<string | null>(null);
   const [recarga, setRecarga] = useState(0);
 
-  useEffect(() => { setPagina(1); }, [tabelaId, buscaAtraso, estoque, imagem]);
+  useEffect(() => { setPagina(1); }, [buscaAtraso, estoque, imagem]);
 
   useEffect(() => {
     let vivo = true;
     const q = new URLSearchParams({ pagina: String(pagina) });
-    if (tabelaId) q.set('tabelaId', tabelaId);
     if (buscaAtraso) q.set('busca', buscaAtraso);
     if (estoque) q.set('estoque', estoque);
     if (imagem) q.set('imagem', imagem);
@@ -50,13 +47,11 @@ export function VendasProdutos() {
       .then((r) => {
         if (!vivo) return;
         setRes(r);
-        setTabelas(r.tabelas);
         setContagens(r.contagens);
-        if (!tabelaId && r.tabelaId) setTabelaId(r.tabelaId);
       })
       .catch((e: Error) => { if (vivo) setErro(e.message); });
     return () => { vivo = false; };
-  }, [tabelaId, buscaAtraso, estoque, imagem, pagina, recarga]);
+  }, [buscaAtraso, estoque, imagem, pagina, recarga]);
 
   const recarregar = useCallback(() => setRecarga((x) => x + 1), []);
 
@@ -94,14 +89,10 @@ export function VendasProdutos() {
 
   return (
     <>
-      <CabecalhoPagina titulo="Produtos" subtitulo="Fotos, preço por tabela e estoque." />
+      <CabecalhoPagina titulo="Produtos" subtitulo="Fotos e estoque do catálogo." />
       <p className="cad-nota">As fotos são do produto: valem para o aplicativo de vendas e para o Delivery.</p>
-      <p className="cad-nota">Preços e estoque vêm do ERP e não são editados aqui.</p>
+      <p className="cad-nota">O estoque vem do ERP e não é editado aqui. Os preços ficam em cada tabela de preço.</p>
       <div className="cad-filtros">
-        <select aria-label="Tabela de preço" value={tabelaId} onChange={(e) => setTabelaId(e.target.value)} disabled={tabelas.length === 0}>
-          {tabelas.length === 0 && <option value="">Tabela de preço</option>}
-          {tabelas.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
-        </select>
         <input type="search" aria-label="Buscar produto" placeholder="Buscar por nome ou código" value={busca} onChange={(e) => setBusca(e.target.value)} />
       </div>
       <div className="cad-chips" role="group" aria-label="Filtrar por estoque">
@@ -135,7 +126,7 @@ export function VendasProdutos() {
             <div className="tabela-vendas-wrap">
               <table className="tabela-vendas" style={{ minWidth: 820 }}>
                 <thead>
-                  <tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Un.</th><th className="num">Estoque</th><th className="num">Preço na tabela</th><th>Situação</th></tr>
+                  <tr><th>Foto</th><th>Produto</th><th>Categoria</th><th>Un.</th><th className="num">Estoque</th><th>Situação</th></tr>
                 </thead>
                 <tbody>
                   {res.dados.map((p) => {
@@ -163,7 +154,6 @@ export function VendasProdutos() {
                         <td>{p.categoria ?? <span className="cad-fraco">-</span>}</td>
                         <td>{p.unidade ?? <span className="cad-fraco">-</span>}</td>
                         <td className="num">{p.estoque <= 0 ? <Selo variante="vermelho">Sem estoque</Selo> : p.estoque.toLocaleString('pt-BR')}</td>
-                        <td className="num">{p.preco === null ? <span className="cad-fraco">sem preço</span> : formatarReais(p.preco)}</td>
                         <td><Selo variante={p.ativo ? 'verde' : 'cinza'}>{p.ativo ? 'Ativo' : 'Inativo'}</Selo></td>
                       </tr>
                     );

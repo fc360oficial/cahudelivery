@@ -89,11 +89,11 @@ export async function upload(arquivo: File): Promise<string> {
 }
 
 /** tipo='produto' → a API padroniza a foto (quadrado 1000x1000 fundo branco) e devolve também a miniatura. */
-export async function uploadCompleto(arquivo: File, tipo?: 'produto' | 'categoria'): Promise<{ url: string; urlMiniatura?: string }> {
+export async function uploadCompleto(arquivo: File, tipo?: 'produto' | 'categoria', prefixo = '/admin'): Promise<{ url: string; urlMiniatura?: string }> {
   const s = sessao();
   const fd = new FormData();
   fd.append('arquivo', arquivo);
-  const res = await fetch(`${API_URL}/admin/upload${tipo ? `?tipo=${tipo}` : ''}`, {
+  const res = await fetch(`${API_URL}${prefixo}/upload${tipo ? `?tipo=${tipo}` : ''}`, {
     method: 'POST',
     headers: { 'X-Tenant': TENANT, ...(s ? { Authorization: `Bearer ${s.accessToken}` } : {}) },
     body: fd,

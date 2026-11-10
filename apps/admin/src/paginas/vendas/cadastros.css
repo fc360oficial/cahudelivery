@@ -43,3 +43,32 @@
   .area-vendas .cad-filtros input[type='search'] { max-width: none; min-width: 100%; }
   .area-vendas .cad-filtros select { width: 100%; }
 }
+
+/* Produtos: chips de filtro e foto do produto */
+.area-vendas .cad-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; font-size: 13.5px; }
+.area-vendas .cad-chip {
+  border: 1px solid var(--av-borda); background: #fff; color: var(--av-texto-2); border-radius: 999px; padding: 7px 14px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 34px;
+}
+.area-vendas .cad-chip:hover { background: #f3f6fb; }
+.area-vendas .cad-chip.ativo { background: var(--av-azul); border-color: var(--av-azul); color: #fff; }
+.area-vendas .cad-foto { position: relative; width: 56px; }
+.area-vendas .cad-foto-alvo { display: block; position: relative; width: 56px; height: 56px; cursor: pointer; }
+.area-vendas .cad-foto-alvo.ocupado { cursor: progress; }
+.area-vendas .cad-foto-alvo input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.area-vendas .cad-foto-alvo:focus-within { outline: 2px solid var(--av-azul); outline-offset: 2px; border-radius: 8px; }
+.area-vendas .cad-foto img { display: block; width: 56px; height: 56px; object-fit: contain; background: #fff; border: 1px solid var(--av-borda); border-radius: 8px; }
+.area-vendas .cad-foto-vazia {
+  display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; box-sizing: border-box; text-align: center;
+  border: 1px dashed var(--av-borda); border-radius: 8px; background: #f3f6fb; color: var(--av-texto-2); font-size: 11px;
+}
+.area-vendas .cad-foto-enviando {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85); color: var(--av-marinho); font-size: 10.5px; font-weight: 700;
+}
+.area-vendas .cad-foto-remover {
+  position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--av-borda);
+  background: #fff; color: #a61d1d; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.area-vendas .cad-foto-remover:hover { background: #fddcdc; }

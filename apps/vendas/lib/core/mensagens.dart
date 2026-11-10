@@ -16,6 +16,8 @@ const mensagensPorCodigo = <String, String>{
   'VALOR_FORA_DO_LIMITE': 'O valor do pedido está fora do limite permitido.',
   'ID_DISPOSITIVO_EM_USO': 'Este pedido já foi enviado por outro aparelho.',
   'AINDA_DIVERGENTE': 'Os valores mudaram de novo. Confira e confirme outra vez.',
+  'REFERENCIA_INVALIDA': 'Produto, tabela ou forma de pagamento não existe mais. Sincronize e refaça.',
+  'ORCAMENTO_FECHADO': 'Este orçamento já foi fechado e não pode mais ser alterado.',
   'VENDEDOR_DESATIVADO': mensagemAcessoBloqueado,
 };
 

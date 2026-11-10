@@ -9,7 +9,7 @@ class BancoLocal {
   BancoLocal._(this.db);
   final Database db;
 
-  static const versao = 1;
+  static const versao = 2;
 
   static Future<BancoLocal> abrir(DatabaseFactory factory, String caminho) async {
     final db = await factory.openDatabase(
@@ -20,6 +20,10 @@ class BancoLocal {
           for (final sql in esquema) {
             await db.execute(sql);
           }
+        },
+        // v1 -> v2: rascunho do pedido em andamento (tarefa 6).
+        onUpgrade: (db, de, para) async {
+          if (de < 2) await db.execute(sqlRascunho);
         },
       ),
     );
@@ -32,6 +36,10 @@ class BancoLocal {
   ];
 
   Future<void> fechar() => db.close();
+
+  /// Rascunho do pedido em andamento (um por vendedor): `json` = ver `Rascunho` em `data/rascunho.dart`.
+  static const sqlRascunho = '''CREATE TABLE IF NOT EXISTS rascunho_pedido (
+        vendedor_id TEXT PRIMARY KEY, json TEXT NOT NULL, atualizado_em TEXT NOT NULL)''';
 
   static const esquema = <String>[
     // Chave/valor: vendedor_id, vendedor_nome, erp_vendedor_id, distribuidora, ultima_sincronizacao,
@@ -69,7 +77,7 @@ class BancoLocal {
 
     // ---- Tabelas LOCAIS: a carga NUNCA toca nelas. ----
     // id = UUID v4 gerado no aparelho (idempotência: reenviar o mesmo id nunca duplica).
-    // estado: 'na_fila' | 'enviando' | 'enviado' | 'retido' | 'recusado' | 'cancelado'
+    // estado: 'aguardando_envio' | 'enviando' | 'enviado' | 'retido' | 'recusado' | 'cancelado'
     // corpo_json: o corpo exato do POST /vendas/pedidos (itens com precoUnit etc.)
     // resposta_json: última resposta do servidor (status, divergências do retido, total atual)
     // motivo / codigo_erro: mensagem e código da recusa definitiva ou do retido
@@ -81,12 +89,13 @@ class BancoLocal {
         tentativas INTEGER NOT NULL DEFAULT 0,
         criado_em TEXT NOT NULL, atualizado_em TEXT NOT NULL, enviado_em TEXT)''',
     'CREATE INDEX idx_pedidos_locais_estado ON pedidos_locais(vendedor_id, estado, criado_em)',
-    // estado: 'local' (ainda não está no servidor) | 'sincronizado' | 'cancelado' | 'convertido'
+    // estado: 'local' (ainda não está no servidor) | 'sincronizado' | 'recusado' | 'cancelado' | 'convertido'
     '''CREATE TABLE orcamentos_locais (
         id TEXT PRIMARY KEY, vendedor_id TEXT NOT NULL, cliente_id TEXT NOT NULL, tabela_id TEXT,
         forma_id TEXT, total REAL NOT NULL DEFAULT 0, estado TEXT NOT NULL, corpo_json TEXT NOT NULL,
         resposta_json TEXT, motivo TEXT, tentativas INTEGER NOT NULL DEFAULT 0,
         criado_em TEXT NOT NULL, atualizado_em TEXT NOT NULL, sincronizado_em TEXT)''',
     'CREATE INDEX idx_orcamentos_locais_estado ON orcamentos_locais(vendedor_id, estado, criado_em)',
+    sqlRascunho,
   ];
 }

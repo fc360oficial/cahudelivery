@@ -6,8 +6,12 @@ import 'core/token_store.dart';
 import 'data/banco_local.dart';
 import 'data/carga_repository.dart';
 import 'data/meta_repository.dart';
+import 'data/locais_repository.dart';
+import 'data/rascunho.dart';
 import 'data/repositorios.dart';
+import 'services/carrinho_service.dart';
 import 'services/conectividade.dart';
+import 'services/fila_envio_service.dart';
 import 'services/sessao_service.dart';
 import 'services/sincronizacao_service.dart';
 
@@ -25,6 +29,10 @@ class AppServicos {
     required this.titulos,
     required this.historico,
     required this.meta,
+    required this.pedidosLocais,
+    required this.orcamentosLocais,
+    required this.carrinho,
+    required this.fila,
     required this.agora,
   });
 
@@ -38,6 +46,10 @@ class AppServicos {
   final TitulosRepository titulos;
   final HistoricoRepository historico;
   final MetaRepository meta;
+  final PedidosLocaisRepository pedidosLocais;
+  final OrcamentosLocaisRepository orcamentosLocais;
+  final CarrinhoService carrinho;
+  final FilaEnvioService fila;
   final DateTime Function() agora;
 
   /// Monta tudo e liga a sincronização ao login/logout.
@@ -64,19 +76,40 @@ class AppServicos {
       intervalo: intervaloSync,
     );
     final sessao = SessaoService(api: api, carga: carga, meta: meta);
-    sessao.aoLogar = () => sync.iniciar();
-    sessao.aoDeslogar = () => sync.parar();
+    final clientes = ClientesRepository(banco);
+    final produtos = ProdutosRepository(banco);
+    final tabelas = TabelasRepository(banco);
+    final pedidosLocais = PedidosLocaisRepository(banco, meta);
+    final orcamentosLocais = OrcamentosLocaisRepository(banco, meta);
+    final fila = FilaEnvioService(api: api, pedidos: pedidosLocais, orcamentos: orcamentosLocais, agora: relogio);
+    final carrinho = CarrinhoService(
+        produtos: produtos, tabelas: tabelas, clientes: clientes, rascunhos: RascunhoRepository(banco, meta), agora: relogio);
+    // Sincronizar = enviar a fila primeiro e só depois baixar a carga.
+    sync.enviarFila = fila.enviarFila;
+    sessao.aoLogar = () async {
+      await fila.recuperarInterrompidos();
+      await carrinho.restaurar();
+      await sync.iniciar();
+    };
+    sessao.aoDeslogar = () async {
+      carrinho.soltarMemoria();
+      await sync.parar();
+    };
     return AppServicos(
       banco: banco,
       api: api,
       sessao: sessao,
       sincronizacao: sync,
-      clientes: ClientesRepository(banco),
-      produtos: ProdutosRepository(banco),
-      tabelas: TabelasRepository(banco),
+      clientes: clientes,
+      produtos: produtos,
+      tabelas: tabelas,
       titulos: TitulosRepository(banco),
       historico: HistoricoRepository(banco),
       meta: meta,
+      pedidosLocais: pedidosLocais,
+      orcamentosLocais: orcamentosLocais,
+      carrinho: carrinho,
+      fila: fila,
       agora: relogio,
     );
   }

@@ -1,6 +1,6 @@
-/* Áreas Vendas e Administração + escolha de solução. Tudo sob .area-vendas / .solucoes-tela:
-   nenhuma regra do Delivery é tocada. */
-.area-vendas {
+/* Casca comum das áreas Delivery, Vendas e Administração (.area-fluxo) + escolha de solução.
+   Regras das telas de Vendas ficam sob .area-vendas; o Delivery usa o index.css global. */
+.area-fluxo {
   --av-marinho: #0b1f4b;
   --av-amarelo: #ffc20e;
   --av-fundo: #eef2f8;
@@ -10,42 +10,48 @@
   --av-texto-2: #5b6b85;
   display: flex; min-height: 100vh; background: var(--av-fundo); color: var(--av-texto);
 }
-.area-vendas .av-lateral {
-  width: 248px; flex-shrink: 0; background: var(--av-marinho); color: #c9d4ea;
+.area-fluxo .av-lateral {
+  width: 248px; flex-shrink: 0; background: var(--av-marinho); color: #d6dff2;
   display: flex; flex-direction: column; position: sticky; top: 0; align-self: flex-start;
   height: 100vh; height: 100dvh;
 }
-.area-vendas .av-marca { flex-shrink: 0; padding: 18px 16px 14px; }
-.area-vendas .av-marca-card {
+.area-fluxo .av-marca { flex-shrink: 0; padding: 18px 16px 14px; }
+.area-fluxo .av-marca-card {
   background: #fff; border-radius: 14px; padding: 12px 10px;
   display: flex; flex-direction: column; align-items: center; gap: 6px;
 }
-.area-vendas .av-marca-card img { width: 60px; height: auto; display: block; }
-.area-vendas .av-nome-marca { font-size: 20px; font-weight: 800; font-style: italic; letter-spacing: -0.3px; line-height: 1; }
-.area-vendas .av-nome-marca .f { color: var(--av-marinho); }
-.area-vendas .av-nome-marca .v { color: #f5a800; }
-.area-vendas .av-marca-admin { padding: 4px 2px 0; }
-.area-vendas .av-marca-admin img { width: 100%; max-width: 170px; display: block; margin-bottom: 6px; }
-.area-vendas .av-marca-admin small { color: var(--av-amarelo); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }
-.area-vendas .av-menu { padding: 6px 12px; display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; overflow-y: auto; }
-.area-vendas .av-menu a, .area-vendas .av-menu .av-breve-item {
+.area-fluxo .av-marca-card img { width: 60px; height: auto; display: block; }
+.area-fluxo .av-nome-marca { font-size: 20px; font-weight: 800; font-style: italic; letter-spacing: -0.3px; line-height: 1; }
+.area-fluxo .av-nome-marca .f { color: var(--av-marinho); }
+.area-fluxo .av-nome-marca .v { color: #f5a800; }
+.area-fluxo .av-marca-admin { padding: 4px 2px 0; }
+.area-fluxo .av-marca-admin img { width: 100%; max-width: 170px; display: block; margin-bottom: 6px; }
+.area-fluxo .av-marca-admin small { color: var(--av-amarelo); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }
+.area-fluxo .av-menu { padding: 6px 12px; display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; overflow-y: auto; }
+.area-fluxo .av-menu a, .area-fluxo .av-menu .av-breve-item {
   display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-radius: 10px; font-weight: 600; white-space: nowrap;
 }
-.area-vendas .av-menu a:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
-.area-vendas .av-menu a.ativo { background: var(--av-amarelo); color: var(--av-marinho); font-weight: 700; }
-.area-vendas .av-menu svg, .area-vendas .av-rodape svg { flex-shrink: 0; }
-.area-vendas .av-breve { margin-top: 14px; padding: 0 12px 4px; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: #8696b8; font-weight: 700; }
-.area-vendas .av-breve-item { color: #8696b8; cursor: default; font-weight: 500; }
-.area-vendas .av-breve-item em { margin-left: auto; font-style: normal; font-size: 10.5px; background: rgb(255 255 255 / 0.1); border-radius: 999px; padding: 2px 8px; }
-.area-vendas .av-rodape { flex-shrink: 0; padding: 14px 16px; border-top: 1px solid rgb(255 255 255 / 0.1); font-size: 12.5px; }
-.area-vendas .av-rodape strong { display: block; color: #fff; font-size: 13.5px; }
-.area-vendas .av-rodape span { display: block; color: #8696b8; margin-bottom: 8px; }
-.area-vendas .av-rodape button {
+.area-fluxo .av-menu a:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
+.area-fluxo .av-menu a.ativo { background: var(--av-amarelo); color: var(--av-marinho); font-weight: 700; }
+.area-fluxo .av-menu svg, .area-fluxo .av-rodape svg { flex-shrink: 0; }
+.area-fluxo .av-breve { margin-top: 14px; padding: 0 12px 4px; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; color: #8696b8; font-weight: 700; }
+.area-fluxo .av-breve-item { color: #8696b8; cursor: default; font-weight: 500; }
+.area-fluxo .av-breve-item em { margin-left: auto; font-style: normal; font-size: 10.5px; background: rgb(255 255 255 / 0.1); border-radius: 999px; padding: 2px 8px; }
+.area-fluxo .av-rodape { flex-shrink: 0; padding: 14px 16px; border-top: 1px solid rgb(255 255 255 / 0.1); font-size: 12.5px; }
+.area-fluxo .av-cliente { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.area-fluxo .av-logo-cliente { flex-shrink: 0; background: #fff; border-radius: 8px; padding: 3px 6px; display: grid; place-items: center; }
+.area-fluxo .av-logo-cliente img { height: 28px; width: auto; max-width: 64px; object-fit: contain; display: block; }
+.area-fluxo .av-cliente-nome { min-width: 0; }
+.area-fluxo .av-cliente-nome strong, .area-fluxo .av-cliente-nome span { overflow-wrap: anywhere; }
+.area-fluxo .av-rodape strong { display: block; color: #fff; font-size: 13.5px; }
+.area-fluxo .av-rodape span { display: block; color: #8696b8; }
+.area-fluxo .av-rodape button {
   display: flex; align-items: center; gap: 8px; background: none; border: 0; color: #c9d4ea; padding: 6px 0; width: 100%; text-align: left;
 }
-.area-vendas .av-rodape button:hover { color: var(--av-amarelo); }
-.area-vendas .av-conteudo { flex: 1; min-width: 0; padding: 26px 30px; max-width: 1600px; }
-.area-vendas .av-topo-mobile { display: none; }
+.area-fluxo .av-rodape button:hover { color: var(--av-amarelo); }
+.area-fluxo .av-lateral :focus-visible { outline: 2px solid var(--av-amarelo); outline-offset: 2px; }
+.area-fluxo .av-conteudo { flex: 1; min-width: 0; padding: 26px 30px; max-width: 1600px; }
+.area-fluxo .av-topo-mobile { display: none; }
 
 /* Blocos reutilizáveis */
 .area-vendas .cartao { background: #fff; border-radius: 16px; padding: 18px 20px; box-shadow: 0 1px 3px rgb(11 31 75 / 0.08); }
@@ -68,14 +74,14 @@
 .area-vendas .tabela-vendas .num { text-align: right; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 820px) {
-  .area-vendas { flex-direction: column; }
-  .area-vendas .av-topo-mobile {
+  .area-fluxo { flex-direction: column; }
+  .area-fluxo .av-topo-mobile {
     display: flex; align-items: center; justify-content: space-between; background: var(--av-marinho); color: #fff; padding: 10px 14px; position: sticky; top: 0; z-index: 20;
   }
-  .area-vendas .av-topo-mobile button { background: var(--av-amarelo); color: var(--av-marinho); border: 0; border-radius: 8px; font-weight: 700; padding: 7px 12px; }
-  .area-vendas .av-lateral { display: none; position: static; width: 100%; height: auto; max-height: 75vh; overflow-y: auto; }
-  .area-vendas .av-lateral.aberta { display: flex; }
-  .area-vendas .av-conteudo { padding: 18px 16px; }
+  .area-fluxo .av-topo-mobile button { background: var(--av-amarelo); color: var(--av-marinho); border: 0; border-radius: 8px; font-weight: 700; padding: 7px 12px; }
+  .area-fluxo .av-lateral { display: none; position: static; width: 100%; height: auto; max-height: 75vh; overflow-y: auto; }
+  .area-fluxo .av-lateral.aberta { display: flex; }
+  .area-fluxo .av-conteudo { padding: 18px 16px; }
 }
 
 /* Escolha de solução */

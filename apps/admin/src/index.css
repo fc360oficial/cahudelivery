@@ -1,18 +1,21 @@
 /* Retaguarda Fluxo Commerce — design tokens e base */
 :root {
-  --acento: #ffd500;
-  --acento-escuro: #1a1a1a;
-  --fundo: #f4f5f7;
+  /* Mesma identidade das áreas Vendas/Administração (ver vendas.css): marinho + amarelo. */
+  --acento: #ffc20e;
+  --acento-escuro: #0b1f4b;
+  --marinho: #0b1b3a;
+  --fundo: #eef2f8;
   --card: #ffffff;
-  --texto: #1c1e21;
-  --texto-2: #65707e;
-  --borda: #e4e7eb;
-  --verde: #14803c;
-  --vermelho: #c02626;
-  --laranja: #b45309;
-  --azul: #1d4ed8;
-  --raio: 12px;
-  --sombra: 0 1px 3px rgb(16 24 40 / 0.07);
+  --texto: #14213d;
+  --texto-2: #4a566e;
+  --borda: #dde4ef;
+  --verde: #146b35;
+  --vermelho: #b42020;
+  --laranja: #9a4a07;
+  --azul: #1d5be0;
+  --foco: #1d5be0;
+  --raio: 16px;
+  --sombra: 0 1px 3px rgb(11 31 75 / 0.08);
 }
 
 * { box-sizing: border-box; }
@@ -26,57 +29,24 @@ body {
 a { color: inherit; text-decoration: none; }
 button { font: inherit; cursor: pointer; }
 
-/* Layout */
-.layout { display: flex; min-height: 100vh; }
-.sidebar {
-  width: 232px; flex-shrink: 0; background: var(--acento-escuro); color: #d5d8dd;
-  display: flex; flex-direction: column; position: sticky; top: 0; align-self: flex-start;
-  /* altura fixa da tela (não min-height): assim a sidebar fica parada e só o conteúdo rola */
-  height: 100vh; height: 100dvh;
-}
-.sidebar .marca {
-  flex-shrink: 0;
-  padding: 20px 18px 14px; color: #fff; font-weight: 700; font-size: 16px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.08);
-}
-.sidebar .marca small { display: block; color: var(--acento); font-weight: 600; font-size: 11px; letter-spacing: 0.4px; }
-.marca-logo {
-  background: var(--acento); border-radius: 10px; padding: 10px;
-  display: grid; place-items: center; margin-bottom: 10px;
-}
-.marca-logo img { height: 44px; max-width: 100%; object-fit: contain; }
+/* A casca (menu lateral) vive em LayoutAreas.tsx + vendas.css (.area-fluxo). */
 .login-logo {
   background: var(--acento); border-radius: 12px; padding: 16px;
   display: grid; place-items: center; margin-bottom: 20px;
 }
 .login-logo img { height: 62px; max-width: 100%; object-fit: contain; }
-.sidebar nav {
-  padding: 10px; display: flex; flex-direction: column; gap: 2px;
-  flex: 1; min-height: 0; overflow-y: auto;
-}
-.sidebar nav a {
-  padding: 9px 12px; border-radius: 8px; font-weight: 500;
-  display: flex; gap: 10px; align-items: center; white-space: nowrap;
-}
-.sidebar nav a:hover { background: rgb(255 255 255 / 0.07); color: #fff; }
-.sidebar nav a.ativo { background: var(--acento); color: #1a1a1a; font-weight: 700; }
-.sidebar .rodape {
-  flex-shrink: 0;
-  padding: 14px 18px; border-top: 1px solid rgb(255 255 255 / 0.08); font-size: 12.5px;
-}
-.sidebar .rodape button { background: none; border: 0; color: #d5d8dd; padding: 4px 0; }
-.sidebar .rodape button:hover { color: var(--acento); }
 
 /* 1600px aproveita a tela cheia num monitor comum sem deixar a linha longa
    demais pro olho acompanhar do nome até o último botão num ultrawide. */
 .conteudo { flex: 1; padding: 26px 30px; max-width: 1600px; }
-.conteudo h1 { margin: 0 0 18px; font-size: 21px; }
+.conteudo h1 { margin: 0 0 18px; font-size: 22px; color: var(--marinho); }
+.conteudo h2, .conteudo h3 { color: var(--marinho); }
 
 /* Cards e grid de KPIs */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 22px; }
 .card { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); padding: 16px 18px; }
 .card .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
-.card .valor { font-size: 24px; font-weight: 700; margin-top: 6px; }
+.card .valor { font-size: 24px; font-weight: 700; margin-top: 6px; color: var(--marinho); }
 .card .valor.alerta { color: var(--laranja); }
 .card .valor.erro { color: var(--vermelho); }
 .card .sub { color: var(--texto-2); font-size: 12px; margin-top: 4px; }
@@ -84,7 +54,7 @@ button { font: inherit; cursor: pointer; }
 /* Tabela */
 .tabela-wrap { background: var(--card); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra); overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
-th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto-2); padding: 12px 16px; border-bottom: 1px solid var(--borda); }
+th { text-align: left; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--texto-2); padding: 12px 16px; border-bottom: 1px solid var(--borda); }
 td { padding: 12px 16px; border-bottom: 1px solid var(--borda); }
 tbody tr:last-child td { border-bottom: 0; }
 /* Lista de produtos: linhas compactas, nome sem quebrar em 4 linhas, SKU embaixo do nome */
@@ -115,12 +85,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .tabela-produtos .col-produto .nome { font-weight: 600; line-height: 1.25; }
 .tabela-produtos .col-produto .sub { color: var(--texto-2); font-size: 12px; margin-top: 2px; }
 .tabela-produtos .nowrap { white-space: nowrap; }
-tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
+tbody tr.clicavel:hover { background: #f5f8fd; cursor: pointer; }
 
 /* Badges de status */
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
 .badge.AGUARDANDO_PAGAMENTO { background: #fff3cd; color: #7a5b00; }
-.badge.RECEBIDO { background: #eef2ff; color: var(--azul); }
+.badge.RECEBIDO { background: #e3ecff; color: #1d4ac0; }
 .badge.ENVIADO_ERP { background: #f0f9ff; color: #0369a1; }
 .badge.ABERTO { background: #ecfeff; color: #0e7490; }
 .badge.EM_FATURAMENTO { background: #f5f3ff; color: #6d28d9; }
@@ -142,18 +112,20 @@ tbody tr.clicavel:hover { background: #fafbfc; cursor: pointer; }
 /* Controles */
 .filtros { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
 input, select {
-  padding: 9px 12px; border: 1px solid var(--borda); border-radius: 8px; background: #fff;
+  padding: 9px 12px; border: 1px solid #c9d2e3; border-radius: 10px; background: #fff; color: var(--texto);
   font: inherit; min-width: 0;
 }
-input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: 0; border-color: transparent; }
+textarea { border: 1px solid #c9d2e3; border-radius: 10px; font: inherit; color: var(--texto); }
+input:focus, select:focus, textarea:focus { outline: 2px solid var(--foco); outline-offset: 0; border-color: var(--foco); }
+.conteudo button:focus-visible, .conteudo a:focus-visible, .modal button:focus-visible { outline: 2px solid var(--foco); outline-offset: 2px; }
 .btn {
-  background: var(--acento); color: #1a1a1a; border: 0; border-radius: 8px;
+  background: var(--acento); color: var(--acento-escuro); border: 0; border-radius: 10px;
   padding: 9px 16px; font-weight: 700;
 }
 .btn:hover { filter: brightness(0.95); }
 .btn:disabled { opacity: 0.55; cursor: default; }
-.btn-claro { background: #fff; border: 1px solid var(--borda); color: var(--texto); font-weight: 600; }
-.btn-mini { padding: 5px 11px; font-size: 12.5px; border-radius: 7px; }
+.btn-claro { background: #fff; border: 1px solid #c9d2e3; color: var(--acento-escuro); font-weight: 600; }
+.btn-mini { padding: 5px 11px; font-size: 12.5px; border-radius: 8px; }
 .btn-perigo { background: #fef2f2; border: 1px solid #fecaca; color: var(--vermelho); }
 .btn-ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: var(--verde); }
 
@@ -286,8 +258,8 @@ input:focus, select:focus { outline: 2px solid var(--acento); outline-offset: 0;
 .mono { font-family: Consolas, monospace; font-size: 12.5px; }
 .erro-texto { color: var(--vermelho); white-space: pre-line; }
 .vazio { text-align: center; color: var(--texto-2); padding: 38px 0; }
-.pill-filtro { border: 1px solid var(--borda); background: #fff; border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 13px; }
-.pill-filtro.ativo { background: var(--acento); border-color: var(--acento); }
+.pill-filtro { border: 1px solid #c9d2e3; background: #fff; color: var(--texto-2); border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 13px; }
+.pill-filtro.ativo { background: var(--acento); border-color: var(--acento); color: var(--acento-escuro); font-weight: 700; }
 
 /* Mapa */
 .mapa-area { display: flex; gap: 12px; align-items: stretch; }
@@ -303,7 +275,7 @@ a.mapa-painel-item { text-decoration: none; color: inherit; }
 .mapa-ponto.bolha { background: rgba(37,99,235,.55); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
 .popup-mapa { font: 13px/1.45 inherit; min-width: 200px; }
 .popup-mapa small { color: var(--texto-2); }
-.popup-mapa a { display: inline-block; margin-top: 6px; font-weight: 700; color: #1a1a1a; }
+.popup-mapa a { display: inline-block; margin-top: 6px; font-weight: 700; color: var(--acento-escuro); }
 .leaflet-container { font-family: inherit; }
 .mapa-pino { background: none; border: 0; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
 .mapa-bolha-wrap { background: none; border: 0; }
@@ -319,7 +291,7 @@ a.mapa-painel-item { text-decoration: none; color: inherit; }
 .mapa-painel-cab .sub { font-size: 12px; color: var(--texto-2); }
 .mapa-painel-lista { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .mapa-painel-item { text-align: left; background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; font: inherit; }
-.mapa-painel-item:hover { background: #FFF6D9; border-color: var(--acento); }
+.mapa-painel-item:hover { background: #fff6d9; border-color: var(--acento); }
 .mapa-painel-item .sub { font-size: 12px; color: var(--texto-2); }
 
 /* Modal (Ficha do cliente) */
@@ -333,7 +305,7 @@ a.mapa-painel-item { text-decoration: none; color: inherit; }
 .ficha-valor { flex: 1; font-family: ui-monospace, Consolas, monospace; word-break: break-word; }
 
 /* Ofertas da Semana: seleção de produtos por clique (30/09/2026). Foto no padrão da página Produtos (56x56). */
-.promo-selecionados { margin-top: 12px; border: 1px solid var(--borda); border-radius: var(--raio); padding: 10px 12px; background: #fffbe6; }
+.promo-selecionados { margin-top: 12px; border: 1px solid #f0dfa0; border-radius: var(--raio); padding: 10px 12px; background: #fff8e1; }
 form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
 .promo-sel-linha { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--borda); }
 .promo-sel-linha:first-of-type { border-top: 0; }
@@ -341,10 +313,10 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
 .promo-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; margin-top: 10px; max-height: 60vh; overflow-y: auto; padding: 2px; }
 .promo-item { position: relative; background: #fff; border: 2px solid var(--borda); border-radius: 10px; padding: 8px 10px 8px 38px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .promo-item:hover { border-color: #c9ced6; }
-.promo-item.sel { border-color: var(--acento); background: #fffbe6; }
+.promo-item.sel { border-color: var(--acento); background: #fff8e1; }
 .promo-item .texto { flex: 1; min-width: 0; }
-.promo-check { position: absolute; top: 50%; left: 10px; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 5px; border: 2px solid var(--borda); background: #fff; display: grid; place-items: center; font-weight: 800; font-size: 12px; }
-.promo-item.sel .promo-check { background: var(--acento); border-color: var(--acento); color: #1a1a1a; }
+.promo-check { position: absolute; top: 50%; left: 10px; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 5px; border: 2px solid #c9d2e3; background: #fff; display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+.promo-item.sel .promo-check { background: var(--acento); border-color: var(--acento); color: var(--acento-escuro); }
 .promo-nome { font-size: 12.5px; font-weight: 600; line-height: 1.25; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .promo-sub { color: var(--texto-2); font-size: 11.5px; }
 .promo-preco { font-weight: 700; font-size: 13px; white-space: nowrap; }

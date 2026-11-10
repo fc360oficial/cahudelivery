@@ -75,7 +75,7 @@ export function Banners() {
         <div className="filtros">
           <input placeholder="Título" value={form.titulo} onChange={(e) => setForm({ ...form, titulo: e.target.value })} style={{ width: 180 }} />
           <label className="btn btn-claro" style={{ alignSelf: 'center' }}>
-            {subindo ? 'Enviando…' : '📁 Enviar imagem'}
+            {subindo ? 'Enviando…' : 'Enviar imagem'}
             <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={escolherArquivo} style={{ display: 'none' }} />
           </label>
           {form.imagemUrl && <img src={form.imagemUrl} alt="" style={{ height: 38, borderRadius: 6, alignSelf: 'center' }} />}

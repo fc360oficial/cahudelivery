@@ -26,10 +26,11 @@ export function caminhoDaRequisicao(url: string): string | null {
 const dentro = (caminho: string, prefixo: string) =>
   caminho === prefixo || caminho.startsWith(`${prefixo}/`);
 
-/** Rotas que não exigem solução: autenticação, usuários e logs de integração do ERP. */
+/** Rotas que não exigem solução: autenticação, usuários, identidade (logo) e logs de integração do ERP. */
 const ISENTAS = [
   '/v1/admin/auth',
   '/v1/admin/usuarios',
+  '/v1/admin/identidade',
   '/v1/admin/logs/integracao',
 ];
 

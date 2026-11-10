@@ -2,13 +2,13 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize, ArrayMinSize, IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsPositive, IsString, IsUUID,
-  MaxLength, Min, ValidateNested,
+  Max, MaxLength, Min, ValidateNested,
 } from 'class-validator';
 
 export class ItemPedidoVendedorDto {
   @IsUUID() produtoId!: string;
-  @IsNumber() @IsPositive() quantidade!: number;
-  @IsNumber() @Min(0) precoUnit!: number;
+  @IsNumber() @IsPositive() @Max(9999999) quantidade!: number;
+  @IsNumber() @Min(0) @Max(99999999) precoUnit!: number;
 }
 
 export class PedidoVendedorDto {

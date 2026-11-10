@@ -1,5 +1,5 @@
 // apps/api/src/vendas/vendas-pedidos.spec.ts
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { runComTenant } from '../tenancy/tenant-context';
 import { formaInterna, VendasPedidosService } from './vendas-pedidos.service';
 
@@ -16,6 +16,12 @@ const dto = {
 interface Cenario {
   existente?: boolean;
   naCarteira?: boolean;
+  vendedorDoExistente?: string;
+  statusCliente?: string;
+  limite?: string;
+  titulosAbertos?: string;
+  emTransito?: string;
+  cancelRowCount?: number;
   precoAtual?: number;
   estoque?: number;
   retido?: { precoItem: number };
@@ -24,17 +30,21 @@ interface Cenario {
 function montar(c: Cenario = {}) {
   const query = jest.fn(async (sql: string) => {
     if (sql.includes('where p.id_dispositivo = $1')) {
-      return { rows: c.existente ? [{ id: 'ped-antigo', numero: '7', status: 'RECEBIDO', total: '345.60', retencao_json: null }] : [] };
+      return { rows: c.existente ? [{ id: 'ped-antigo', numero: '7', status: 'RECEBIDO', total: '345.60', retencao_json: null, vendedor_id: c.vendedorDoExistente ?? 'v1' }] : [] };
     }
-    if (sql.includes('from cliente_vendedor where cliente_id')) return { rowCount: c.naCarteira === false ? 0 : 1, rows: [] };
+    if (sql.includes('from cliente_vendedor cv join clientes c')) {
+      return c.naCarteira === false ? { rowCount: 0, rows: [] } : { rowCount: 1, rows: [{ status: c.statusCliente ?? 'aprovado' }] };
+    }
+    if (sql.includes('with c as (')) return { rowCount: c.cancelRowCount ?? 1, rows: [] };
     if (sql.includes('from condicoes_pagamento_erp cp')) {
       return { rows: [{ condicao: 'BOLETO 14 DIAS', forma: 'BOLETO', tabela_existe: true, tabela_tem_vinculo: false, permitida: false }] };
     }
     if (sql.includes('/* dados_atuais */')) {
       return { rows: [{ id: 'p1', nome: 'Margarina', preco: String(c.precoAtual ?? 86.4), estoque: String(c.estoque ?? 100) }] };
     }
-    if (sql.includes('select limite_credito from clientes')) return { rows: [{ limite_credito: '20000.00' }] };
-    if (sql.includes('from titulos_cliente')) return { rows: [{ total: '0' }] };
+    if (sql.includes('select limite_credito from clientes')) return { rows: [{ limite_credito: c.limite ?? '20000.00' }] };
+    if (sql.includes('from titulos_cliente')) return { rows: [{ total: c.titulosAbertos ?? '0' }] };
+    if (sql.includes('/* em_transito */')) return { rows: [{ total: c.emTransito ?? '0' }] };
     if (sql.includes('insert into pedidos')) return { rows: [{ id: 'ped-novo', numero: '8' }] };
     if (sql.includes('/* pedido_retido */')) {
       return { rows: c.retido ? [{ id: 'ped-retido', numero: '9', cliente_id: 'c1', tabela_preco_id: 't1', forma_pagamento: 'boleto' }] : [] };
@@ -68,6 +78,32 @@ describe('VendasPedidosService.receber', () => {
     const out = await rodar(() => servico.receber('v1', dto as never));
     expect(out).toEqual({ id: 'ped-antigo', numero: 7, status: 'RECEBIDO', total: 345.6, divergencias: [] });
     expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('reenvio de idDispositivo que pertence a outro vendedor é recusado', async () => {
+    const { servico, rodar, chamou } = montar({ existente: true, vendedorDoExistente: 'outro' });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toBeInstanceOf(ConflictException);
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('recusa cliente bloqueado para novos pedidos', async () => {
+    const { servico, rodar, chamou } = montar({ statusCliente: 'bloqueado' });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toBeInstanceOf(BadRequestException);
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('crédito desconta pedidos a prazo já aceitos e ainda não faturados', async () => {
+    const { servico, rodar, chamou } = montar({ limite: '1000', titulosAbertos: '0', emTransito: '800' });
+    const out = await rodar(() => servico.receber('v1', dto as never));
+    expect(out.status).toBe('AGUARDANDO_VENDEDOR');
+    expect(out.divergencias).toEqual([{ tipo: 'credito', enviado: 345.6, atual: 200 }]);
+    expect(chamou('insert into sync_outbox')).toBe(false);
+  });
+
+  it('sem pedidos em trânsito o mesmo pedido cabe no limite', async () => {
+    const { servico, rodar } = montar({ limite: '1000', titulosAbertos: '0', emTransito: '0' });
+    const out = await rodar(() => servico.receber('v1', dto as never));
+    expect(out.status).toBe('RECEBIDO');
   });
 
   it('recusa cliente fora da carteira do vendedor', async () => {
@@ -110,5 +146,17 @@ describe('VendasPedidosService.confirmar', () => {
     const { servico, rodar, chamou } = montar({ retido: { precoItem: 86.4 }, estoque: 1 });
     await expect(rodar(() => servico.confirmar('v1', 'ped-retido'))).rejects.toBeInstanceOf(ConflictException);
     expect(chamou('insert into sync_outbox')).toBe(false);
+  });
+});
+
+describe('VendasPedidosService.cancelar', () => {
+  it('cancela o pedido retido do vendedor', async () => {
+    const { servico, rodar } = montar({ cancelRowCount: 1 });
+    expect(await rodar(() => servico.cancelar('v1', 'ped-retido'))).toEqual({ ok: true });
+  });
+
+  it('pedido inexistente ou já resolvido dá 404', async () => {
+    const { servico, rodar } = montar({ cancelRowCount: 0 });
+    await expect(rodar(() => servico.cancelar('v1', 'ped-retido'))).rejects.toBeInstanceOf(NotFoundException);
   });
 });

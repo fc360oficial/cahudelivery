@@ -9,7 +9,7 @@ export interface CargaVendedor {
   vendedor: { id: string; nome: string; erpVendedorId: string };
   clientes: Array<{
     id: string; erpClienteId: string | null; documento: string; razaoSocial: string | null; nomeFantasia: string;
-    telefone: string | null; status: string; limiteCredito: number | null; emAberto: number;
+    telefone: string | null; status: string; limiteCredito: number | null; emAberto: number; pedidosEmTransito: number;
     endereco: Record<string, unknown> | null;
   }>;
   titulos: Array<{ clienteId: string; numero: string; valor: number; vencimento: string; status: string }>;
@@ -43,6 +43,9 @@ export class VendasSyncService {
       `/* clientes */
        select c.id, c.erp_cliente_id, c.documento, c.razao_social, c.nome_fantasia, c.telefone, c.status, c.limite_credito,
               (select coalesce(sum(t.valor),0) from titulos_cliente t where t.cliente_id = c.id and t.status = 'ABERTO') as em_aberto,
+              (select coalesce(sum(p.total),0) from pedidos p
+                where p.cliente_id = c.id and p.forma_pagamento = 'boleto'
+                  and p.status in ('RECEBIDO','ENVIADO_ERP','ABERTO','EM_FATURAMENTO')) as em_transito,
               (select row_to_json(e) from (
                  select e2.logradouro, e2.numero, e2.complemento, e2.bairro, e2.cidade, e2.uf, e2.cep
                    from cliente_enderecos e2 where e2.cliente_id = c.id order by e2.padrao desc limit 1) e) as endereco
@@ -109,7 +112,7 @@ export class VendasSyncService {
       clientes: clientes.rows.map((c) => ({
         id: c.id, erpClienteId: c.erp_cliente_id, documento: c.documento, razaoSocial: c.razao_social,
         nomeFantasia: c.nome_fantasia, telefone: c.telefone, status: c.status,
-        limiteCredito: nOuNulo(c.limite_credito), emAberto: n(c.em_aberto), endereco: c.endereco ?? null,
+        limiteCredito: nOuNulo(c.limite_credito), emAberto: n(c.em_aberto), pedidosEmTransito: n(c.em_transito), endereco: c.endereco ?? null,
       })),
       titulos: titulos.rows.map((t) => ({
         clienteId: t.cliente_id, numero: t.erp_titulo_id, valor: n(t.valor), vencimento: t.vencimento, status: t.status,

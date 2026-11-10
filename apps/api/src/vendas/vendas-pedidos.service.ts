@@ -41,13 +41,16 @@ export function formaInterna(descricao: string): 'boleto' | 'pix' | 'cartao' {
 
 @Injectable()
 export class VendasPedidosService {
-  private async porIdDispositivo(q: Consulta, idDispositivo: string): Promise<PedidoResumo | null> {
+  private async porIdDispositivo(q: Consulta, idDispositivo: string, vendedorId: string): Promise<PedidoResumo | null> {
     const { rows } = await q.query(
-      `select p.id, p.numero, p.status, p.total, p.retencao_json from pedidos p where p.id_dispositivo = $1`,
+      `select p.id, p.numero, p.status, p.total, p.retencao_json, p.vendedor_id from pedidos p where p.id_dispositivo = $1`,
       [idDispositivo],
     );
     const p = rows[0];
     if (!p) return null;
+    if (p.vendedor_id !== vendedorId) {
+      throw new ConflictException({ statusCode: 409, message: 'Identificador de pedido já usado', codigo: 'ID_DISPOSITIVO_EM_USO' });
+    }
     return {
       id: p.id, numero: Number(p.numero), status: p.status, total: Number(p.total),
       divergencias: p.status === 'AGUARDANDO_VENDEDOR' ? (p.retencao_json?.divergencias ?? []) : [],
@@ -82,7 +85,16 @@ export class VendasPedidosService {
           `select coalesce(sum(valor),0) as total from titulos_cliente where cliente_id = $1 and status = 'ABERTO'`,
           [clienteId],
         );
-        creditoDisponivel = arredondar(Number(limite) - Number(aberto.rows[0].total));
+        // Pedido a prazo já aceito mas ainda sem título (RECEBIDO até EM_FATURAMENTO) também consome o limite;
+        // de FATURADO em diante o título já cobre. O pedido retido é AGUARDANDO_VENDEDOR, então não conta contra si mesmo.
+        const emTransito = await q.query(
+          `/* em_transito */
+           select coalesce(sum(total),0) as total from pedidos
+            where cliente_id = $1 and forma_pagamento = 'boleto'
+              and status in ('RECEBIDO','ENVIADO_ERP','ABERTO','EM_FATURAMENTO')`,
+          [clienteId],
+        );
+        creditoDisponivel = arredondar(Number(limite) - Number(aberto.rows[0].total) - Number(emTransito.rows[0]?.total ?? 0));
       }
     }
     return { precos, estoques, nomes, creditoDisponivel, exigeCredito };
@@ -90,15 +102,19 @@ export class VendasPedidosService {
 
   async receber(vendedorId: string, dto: PedidoVendedorDto): Promise<PedidoResumo> {
     const { pool } = tenantCtx();
-    const existente = await this.porIdDispositivo(pool, dto.idDispositivo);
+    const existente = await this.porIdDispositivo(pool, dto.idDispositivo, vendedorId);
     if (existente) return existente;
 
     const carteira = await pool.query(
-      `select 1 from cliente_vendedor where cliente_id = $1 and vendedor_id = $2`,
+      `select c.status from cliente_vendedor cv join clientes c on c.id = cv.cliente_id
+        where cv.cliente_id = $1 and cv.vendedor_id = $2`,
       [dto.clienteId, vendedorId],
     );
     if (!carteira.rowCount) {
       throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
+    }
+    if (carteira.rows[0].status === 'bloqueado' || carteira.rows[0].status === 'excluido') {
+      throw new BadRequestException({ statusCode: 400, message: 'Cliente bloqueado para novos pedidos', codigo: 'CLIENTE_BLOQUEADO' });
     }
 
     const produtoIds = dto.itens.map((i) => i.produtoId);
@@ -187,7 +203,7 @@ export class VendasPedidosService {
       await client.query('rollback');
       // Dois envios simultâneos do mesmo pedido: o segundo bate no índice único e devolve o primeiro.
       if ((e as { code?: string }).code === '23505') {
-        const ja = await this.porIdDispositivo(pool, dto.idDispositivo);
+        const ja = await this.porIdDispositivo(pool, dto.idDispositivo, vendedorId);
         if (ja) return ja;
       }
       throw e;
@@ -261,14 +277,14 @@ export class VendasPedidosService {
   async cancelar(vendedorId: string, pedidoId: string): Promise<{ ok: true }> {
     const { pool } = tenantCtx();
     const { rowCount } = await pool.query(
-      `update pedidos set status = 'CANCELADO' where id = $1 and vendedor_id = $2 and status = 'AGUARDANDO_VENDEDOR'`,
+      `with c as (
+         update pedidos set status = 'CANCELADO'
+          where id = $1 and vendedor_id = $2 and status = 'AGUARDANDO_VENDEDOR' returning id)
+       insert into pedido_eventos (pedido_id, status, detalhe, origem)
+       select id, 'CANCELADO', 'Vendedor cancelou o pedido retido', 'app' from c`,
       [pedidoId, vendedorId],
     );
     if (!rowCount) throw new NotFoundException('Pedido não encontrado ou já resolvido');
-    await pool.query(
-      `insert into pedido_eventos (pedido_id, status, detalhe, origem) values ($1,'CANCELADO','Vendedor cancelou o pedido retido','app')`,
-      [pedidoId],
-    );
     return { ok: true };
   }
 

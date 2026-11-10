@@ -57,6 +57,11 @@ export interface PedidoDlinks {
   valorAbatidoSaldo: number;
   /** Presente só quando o pedido foi pago online no app antes de chegar aqui. Opcional; o Dlinks pode ignorar. */
   pagamentoOnline?: { status: 'pago' | 'autorizado'; pagoEm: string; txid: string; valor: number };
+  /** Presentes só em pedido tirado pelo vendedor no Fluxo Vendas. */
+  vendedor?: { codigo: string; nome: string };
+  tabelaPreco?: { codigo: string; nome: string };
+  condicaoPagamentoCodigo?: string;
+  formaPagamentoCodigo?: string;
 }
 
 export interface ResultadoLote {
@@ -74,6 +79,9 @@ export class DlinksPedidosService {
     const { rows } = await pool.query(
       `select p.id, p.numero, p.criado_em, p.tipo_entrega, p.forma_pagamento, p.condicao_pagamento,
               p.endereco_snapshot_json, p.valor_saldo_usado,
+              v.erp_vendedor_id as vendedor_codigo, v.nome as vendedor_nome,
+              tp.erp_tabela_id as tabela_codigo, tp.nome as tabela_nome,
+              cpe.erp_condicao_id as condicao_codigo, fpe.erp_forma_pagamento_id as forma_codigo,
               c.documento, c.erp_cliente_id, c.tipo, c.razao_social, c.nome_fantasia, c.email, c.telefone,
               (select json_agg(json_build_object(
                   'erpProdutoId', coalesce(pr.erp_produto_id, pr.sku),
@@ -87,9 +95,16 @@ export class DlinksPedidosService {
                  from pagamentos g where g.pedido_id = p.id and g.status in ('pago','autorizado')
                 order by coalesce(g.pago_em, g.autorizado_em) desc limit 1) as pagamento_online
          from pedidos p join clientes c on c.id = p.cliente_id
+         left join vendedores v on v.id = p.vendedor_id
+         left join tabelas_preco tp on tp.id = p.tabela_preco_id
+         left join condicoes_pagamento_erp cpe on cpe.id = p.condicao_pagamento_id
+         left join formas_pagamento_erp fpe on fpe.id = cpe.forma_pagamento_id
         where p.criado_em >= ($1::date)::timestamp at time zone 'America/Recife'
           and p.criado_em < ($2::date + 1)::timestamp at time zone 'America/Recife'
           and p.status <> 'AGUARDANDO_PAGAMENTO'
+          and p.status <> 'AGUARDANDO_VENDEDOR'
+          -- Pedido retido que o vendedor cancelou nunca foi liberado: o ERP não deve vê-lo.
+          and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)
         order by p.criado_em`,
       [dataInicial, dataFinal],
     );
@@ -121,6 +136,10 @@ export class DlinksPedidosService {
         itens: r.itens ?? [],
         valorAbatidoSaldo: Number(r.valor_saldo_usado) || 0,
         pagamentoOnline: r.pagamento_online ?? undefined,
+        vendedor: r.vendedor_codigo ? { codigo: r.vendedor_codigo, nome: r.vendedor_nome } : undefined,
+        tabelaPreco: r.tabela_codigo ? { codigo: r.tabela_codigo, nome: r.tabela_nome } : undefined,
+        condicaoPagamentoCodigo: r.condicao_codigo ?? undefined,
+        formaPagamentoCodigo: r.forma_codigo ?? undefined,
       })),
     };
   }

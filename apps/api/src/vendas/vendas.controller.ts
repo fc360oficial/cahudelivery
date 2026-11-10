@@ -1,6 +1,8 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Put, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import { OrcamentoDto } from './orcamento.dto';
 import { PedidoVendedorDto } from './pedido-vendedor.dto';
+import { VendasOrcamentosService } from './vendas-orcamentos.service';
 import { VendasPedidosService } from './vendas-pedidos.service';
 import { VendasSyncService } from './vendas-sync.service';
 import { VendedorGuard, VendedorLogado } from './vendedor.guard';
@@ -13,6 +15,7 @@ export class VendasController {
   constructor(
     private readonly sync: VendasSyncService,
     private readonly pedidos: VendasPedidosService,
+    private readonly orcamentos: VendasOrcamentosService,
   ) {}
 
   @Get('sync')
@@ -41,5 +44,21 @@ export class VendasController {
   @HttpCode(200)
   cancelar(@Req() req: ReqVendedor, @Param('id', ParseUUIDPipe) id: string) {
     return this.pedidos.cancelar(req.vendedor.vendedorId, id);
+  }
+
+  @Put('orcamentos/:id')
+  salvarOrcamento(@Req() req: ReqVendedor, @Param('id', ParseUUIDPipe) id: string, @Body() dto: OrcamentoDto) {
+    return this.orcamentos.salvar(req.vendedor.vendedorId, id, dto);
+  }
+
+  @Get('orcamentos')
+  listarOrcamentos(@Req() req: ReqVendedor) {
+    return this.orcamentos.listar(req.vendedor.vendedorId);
+  }
+
+  @Post('orcamentos/:id/cancelar')
+  @HttpCode(200)
+  cancelarOrcamento(@Req() req: ReqVendedor, @Param('id', ParseUUIDPipe) id: string) {
+    return this.orcamentos.cancelar(req.vendedor.vendedorId, id);
   }
 }

@@ -1,0 +1,102 @@
+// apps/api/src/vendas/vendas-orcamentos.service.ts
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { tenantCtx } from '../tenancy/tenant-context';
+import { arredondar } from './conferir-pedido';
+import { OrcamentoDto } from './orcamento.dto';
+
+export interface OrcamentoListado {
+  id: string;
+  clienteId: string;
+  tabelaPrecoId: string;
+  condicaoPagamentoId: string | null;
+  tipoEntrega: string;
+  observacoes: string | null;
+  total: number;
+  status: string;
+  pedidoId: string | null;
+  criadoEm: string;
+  atualizadoEm: string;
+  itens: Array<{ produtoId: string; quantidade: number; precoUnit: number }>;
+}
+
+/** Orçamento vive fora de `pedidos`: o ERP nunca o vê. Vira pedido quando o app envia o pedido com `orcamentoId`. */
+@Injectable()
+export class VendasOrcamentosService {
+  async salvar(vendedorId: string, id: string, dto: OrcamentoDto) {
+    const { pool } = tenantCtx();
+    const carteira = await pool.query(
+      `select 1 from cliente_vendedor where cliente_id = $1 and vendedor_id = $2`,
+      [dto.clienteId, vendedorId],
+    );
+    if (!carteira.rowCount) {
+      throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
+    }
+    const produtoIds = dto.itens.map((i) => i.produtoId);
+    if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no orçamento');
+    const total = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
+
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      const gravado = await client.query(
+        `insert into orcamentos (id, vendedor_id, cliente_id, tabela_preco_id, condicao_pagamento_id, tipo_entrega, observacoes, total)
+         values ($1,$2,$3,$4,$5,$6,$7,$8)
+         on conflict (id) do update set
+           cliente_id = excluded.cliente_id, tabela_preco_id = excluded.tabela_preco_id,
+           condicao_pagamento_id = excluded.condicao_pagamento_id, tipo_entrega = excluded.tipo_entrega,
+           observacoes = excluded.observacoes, total = excluded.total, atualizado_em = now()
+         where orcamentos.vendedor_id = excluded.vendedor_id and orcamentos.status = 'aberto'`,
+        [id, vendedorId, dto.clienteId, dto.tabelaPrecoId, dto.condicaoPagamentoId ?? null, dto.tipoEntrega, dto.observacoes ?? null, total],
+      );
+      if (!gravado.rowCount) {
+        throw new ConflictException({ statusCode: 409, message: 'Este orçamento não pode mais ser alterado', codigo: 'ORCAMENTO_FECHADO' });
+      }
+      await client.query(`delete from orcamento_itens where orcamento_id = $1`, [id]);
+      for (const i of dto.itens) {
+        await client.query(
+          `insert into orcamento_itens (orcamento_id, produto_id, quantidade, preco_unit) values ($1,$2,$3,$4)`,
+          [id, i.produtoId, i.quantidade, i.precoUnit],
+        );
+      }
+      await client.query('commit');
+      return { id, status: 'aberto' as const, total };
+    } catch (e) {
+      await client.query('rollback');
+      throw e;
+    } finally {
+      client.release();
+    }
+  }
+
+  async listar(vendedorId: string): Promise<OrcamentoListado[]> {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select o.id, o.cliente_id, o.tabela_preco_id, o.condicao_pagamento_id, o.tipo_entrega, o.observacoes, o.total,
+              o.status, o.pedido_id, o.criado_em, o.atualizado_em,
+              (select json_agg(json_build_object('produtoId', i.produto_id, 'quantidade', i.quantidade, 'precoUnit', i.preco_unit))
+                 from orcamento_itens i where i.orcamento_id = o.id) as itens
+         from orcamentos o
+        where o.vendedor_id = $1 and (o.status = 'aberto' or o.atualizado_em > now() - interval '60 days')
+        order by o.atualizado_em desc`,
+      [vendedorId],
+    );
+    return rows.map((o) => ({
+      id: o.id, clienteId: o.cliente_id, tabelaPrecoId: o.tabela_preco_id, condicaoPagamentoId: o.condicao_pagamento_id,
+      tipoEntrega: o.tipo_entrega, observacoes: o.observacoes, total: Number(o.total), status: o.status, pedidoId: o.pedido_id,
+      criadoEm: o.criado_em, atualizadoEm: o.atualizado_em,
+      itens: (o.itens ?? []).map((i: { produtoId: string; quantidade: unknown; precoUnit: unknown }) => ({
+        produtoId: i.produtoId, quantidade: Number(i.quantidade), precoUnit: Number(i.precoUnit),
+      })),
+    }));
+  }
+
+  async cancelar(vendedorId: string, id: string): Promise<{ ok: true }> {
+    const { pool } = tenantCtx();
+    const { rowCount } = await pool.query(
+      `update orcamentos set status = 'cancelado', atualizado_em = now() where id = $1 and vendedor_id = $2 and status = 'aberto'`,
+      [id, vendedorId],
+    );
+    if (!rowCount) throw new NotFoundException('Orçamento não encontrado ou já fechado');
+    return { ok: true };
+  }
+}

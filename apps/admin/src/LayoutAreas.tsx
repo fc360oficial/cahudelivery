@@ -19,7 +19,7 @@ const ITENS_VENDAS: Item[] = [
   { para: '/vendas/pedidos', rotulo: 'Pedidos', icone: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6" /></> },
   { para: '/vendas/orcamentos', rotulo: 'Orçamentos', icone: <><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" /></> },
   { para: '/vendas/clientes', rotulo: 'Clientes', icone: <><rect x="4" y="3" width="16" height="18" rx="2" /><circle cx="12" cy="10" r="2.500" /><path d="M7.500 17c.600-2 2.200-3 4.500-3s3.900 1 4.500 3" /></> },
-  { para: '/vendas/tabelas', rotulo: 'Tabelas e condições', icone: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 4v16" /></> },
+  { para: '/vendas/tabelas', rotulo: 'Tabelas de preço', icone: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 4v16" /></> },
   { para: '/vendas/produtos', rotulo: 'Produtos', icone: <><path d="M12 3l8 4.500v9L12 21l-8-4.500v-9z" /><path d="M4 7.500l8 4.500 8-4.500M12 12v9" /></> },
 ];
 

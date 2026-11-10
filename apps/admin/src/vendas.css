@@ -16,14 +16,12 @@
   height: 100vh; height: 100dvh;
 }
 .area-fluxo .av-marca { flex-shrink: 0; padding: 18px 16px 14px; }
-.area-fluxo .av-marca-card {
-  background: #fff; border-radius: 14px; padding: 12px 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-}
-.area-fluxo .av-marca-card img { width: 60px; height: auto; display: block; }
-.area-fluxo .av-nome-marca { font-size: 20px; font-weight: 800; font-style: italic; letter-spacing: -0.3px; line-height: 1; }
-.area-fluxo .av-nome-marca .f { color: var(--av-marinho); }
-.area-fluxo .av-nome-marca .v { color: #f5a800; }
+/* Marca direto no azul-marinho, na horizontal: símbolo + "Fluxo" branco + solução em amarelo. */
+.area-fluxo .av-marca-card { display: flex; align-items: center; gap: 10px; padding: 6px 2px 4px; }
+.area-fluxo .av-marca-card img { width: 46px; height: auto; display: block; flex-shrink: 0; }
+.area-fluxo .av-nome-marca { font-size: 21px; font-weight: 800; font-style: italic; letter-spacing: -0.3px; line-height: 1; white-space: nowrap; }
+.area-fluxo .av-nome-marca .f { color: #fff; }
+.area-fluxo .av-nome-marca .v { color: var(--av-amarelo, #ffc20e); }
 .area-fluxo .av-marca-admin { padding: 4px 2px 0; }
 .area-fluxo .av-marca-admin img { width: 100%; max-width: 170px; display: block; margin-bottom: 6px; }
 .area-fluxo .av-marca-admin small { color: var(--av-amarelo); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }

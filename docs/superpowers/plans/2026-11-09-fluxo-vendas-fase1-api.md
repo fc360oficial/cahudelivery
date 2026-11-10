@@ -1773,6 +1773,7 @@ Dentro do `describe('DlinksPedidosService.listar', ...)` existente em `apps/api/
     const svc = new DlinksPedidosService();
     const out = await runComTenant({ tenant, pool: { query } as unknown as Pool }, () => svc.listar('2026-11-09', '2026-11-09'));
     expect(query.mock.calls[0][0]).toContain("p.status <> 'AGUARDANDO_VENDEDOR'");
+    expect(query.mock.calls[0][0]).toContain("p.retencao_json->>'confirmadoEm' is null");
     expect(out.pedidos[0]).toEqual(expect.objectContaining({
       vendedor: { codigo: '6', nome: 'Ana' },
       tabelaPreco: { codigo: '14', nome: 'Retirada boleto 14' },
@@ -1838,6 +1839,8 @@ por:
           and p.criado_em < ($2::date + 1)::timestamp at time zone 'America/Recife'
           and p.status <> 'AGUARDANDO_PAGAMENTO'
           and p.status <> 'AGUARDANDO_VENDEDOR'
+          -- Pedido retido que o vendedor cancelou nunca foi liberado: o ERP não deve vê-lo.
+          and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)
         order by p.criado_em`,
 ```
 
@@ -2538,3 +2541,10 @@ git commit -m "Vendas: retaguarda define acesso do vendedor e condições aceita
 - **Documento para o ERP**: acrescentar ao handoff de integração os dois envios novos (`funcionarios`, `clientes-funcionarios`) e os quatro campos novos da consulta de pedidos. Não citar o nome do aplicativo de terceiros.
 - **Plano 2**: app Flutter `apps/vendas`, consumindo exatamente os contratos `CargaVendedor`, `PedidoVendedorDto`, `PedidoResumo`, `PedidoListado`, `OrcamentoDto`, `OrcamentoListado` e `ResumoVendedor` definidos aqui.
 - **Plano 3**: seção Vendas na retaguarda, consumindo `/v1/admin/vendas/*`, mais o papel de supervisor e as telas de painel, pedidos e orçamentos.
+
+## Ajustes feitos durante a execução (revisões das tarefas)
+
+- **Tarefa 5**: o total é arredondado linha a linha e `arredondar` usa `toPrecision(15)`.
+- **Tarefa 6**: o crédito disponível desconta também os pedidos a prazo aceitos e ainda não faturados (`RECEBIDO`, `ENVIADO_ERP`, `ABERTO`, `EM_FATURAMENTO`). `CargaVendedor.clientes[]` ganhou o campo `pedidosEmTransito: number`; o app calcula disponível = `limiteCredito - emAberto - pedidosEmTransito`.
+- **Tarefa 6**: reenvio com `idDispositivo` de outro vendedor responde 409 `ID_DISPOSITIVO_EM_USO`; cliente `bloqueado` ou `excluido` responde 400 `CLIENTE_BLOQUEADO`; `quantidade` e `precoUnit` têm teto.
+- **Tarefa 7**: a consulta do ERP também ignora pedido retido que o vendedor cancelou.

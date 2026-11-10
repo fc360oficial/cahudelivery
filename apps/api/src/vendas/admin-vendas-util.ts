@@ -30,7 +30,7 @@ export function uuidOpcional(v: unknown, campo: string): string | null {
 
 export function paginaDe(v: unknown): number {
   const p = Number.parseInt(String(v ?? ''), 10);
-  return Number.isFinite(p) && p >= 1 ? p : 1;
+  return Number.isFinite(p) && p >= 1 ? Math.min(p, 100000) : 1;
 }
 
 export function escolher<T extends string>(v: unknown, validos: readonly T[], padrao: T): T {

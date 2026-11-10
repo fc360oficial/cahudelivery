@@ -27,51 +27,51 @@ describe('AdminService.dashboard — só números do Delivery (origem app_client
   });
 });
 
-describe('AdminService.pedidos — filtro de origem', () => {
-  it('sem origem usa app_cliente', async () => {
-    const { svc, query, rodar } = montar();
-    await rodar(() => svc.pedidos({ pagina: 1 }));
-    const [sql, params] = chamada(query);
-    expect(sql).toContain('p.origem = $1');
-    expect(params[0]).toBe('app_cliente');
+describe('AdminService.pedidos — sempre só Delivery', () => {
+  it('filtra app_cliente e ignora um argumento origem', async () => {
+    for (const origem of [undefined, 'vendedor', 'todos', "x' or 1=1"]) {
+      const { svc, query, rodar } = montar();
+      await rodar(() => svc.pedidos({ origem, pagina: 1 } as never));
+      const [sql, params] = chamada(query);
+      expect(sql).toContain("p.origem = 'app_cliente'");
+      expect(params).toEqual([0]);
+    }
   });
-  it("origem 'vendedor' filtra por vendedor", async () => {
-    const { svc, query, rodar } = montar();
-    await rodar(() => svc.pedidos({ origem: 'vendedor', pagina: 1 }));
-    expect(chamada(query)[1][0]).toBe('vendedor');
-  });
-  it("origem 'todos' não filtra por origem", async () => {
-    const { svc, query, rodar } = montar();
-    await rodar(() => svc.pedidos({ origem: 'todos', pagina: 1 }));
-    const [sql, params] = chamada(query);
-    expect(sql).not.toContain('p.origem =');
-    expect(params).toEqual([0]);
-  });
-  it('valor inválido cai em app_cliente', async () => {
-    const { svc, query, rodar } = montar();
-    await rodar(() => svc.pedidos({ origem: "x' or 1=1", pagina: 1 }));
-    expect(chamada(query)[1][0]).toBe('app_cliente');
-  });
-  it('devolve origem e vendedor_nome nas linhas e mantém os campos existentes', async () => {
-    const linha = { id: 'p1', numero: 1, status: 'RECEBIDO', total: '10', cliente: 'X', documento: '1', origem: 'vendedor', vendedor_nome: 'Ana' };
+  it('mantém os campos devolvidos (inclui origem)', async () => {
+    const linha = { id: 'p1', numero: 1, status: 'RECEBIDO', total: '10', cliente: 'X', documento: '1', origem: 'app_cliente' };
     const { svc, query, rodar } = montar([linha]);
-    const out = await rodar(() => svc.pedidos({ origem: 'todos', pagina: 1 }));
+    const out = await rodar(() => svc.pedidos({ pagina: 1 }));
     expect(out.dados[0]).toEqual(linha);
     const sql = chamada(query)[0];
-    expect(sql).toContain('left join vendedores v on v.id = p.vendedor_id');
-    expect(sql).toContain('p.origem, v.nome as vendedor_nome');
+    expect(sql).toContain('p.origem');
     expect(sql).toContain('p.erp_pedido_id');
+    expect(sql).not.toContain('vendedores');
   });
 });
 
-describe('AdminService.pedido — detalhe traz o nome do vendedor', () => {
-  it('seleciona vendedor_nome sem filtrar origem', async () => {
-    const { svc, query, rodar } = montar([{ id: 'p1', origem: 'vendedor', vendedor_nome: 'Ana', pagamento: null }]);
-    const out = await rodar(() => svc.pedido('p1'));
-    const sql = chamada(query)[0];
-    expect(sql).toContain('v.nome as vendedor_nome');
-    expect(sql).toContain('left join vendedores v on v.id = p.vendedor_id');
-    expect(sql).not.toContain("origem = 'app_cliente'");
-    expect(out).toMatchObject({ origem: 'vendedor', vendedor_nome: 'Ana' });
+describe('AdminService — buscas por id só enxergam pedido do Delivery', () => {
+  const PRED = "origem = 'app_cliente'";
+  it('detalhe do pedido', async () => {
+    const { svc, query, rodar } = montar([{ id: 'p1', origem: 'app_cliente', pagamento: null }]);
+    await rodar(() => svc.pedido('p1'));
+    expect(chamada(query)[0]).toContain("p.origem = 'app_cliente'");
+  });
+  it('reenviarErp, consultarPagamento e simularPagamento', async () => {
+    const a = montar();
+    await expect(a.rodar(() => a.svc.reenviarErp('p1', 'u1'))).rejects.toThrow();
+    expect(chamada(a.query)[0]).toContain(PRED);
+    const b = montar();
+    await expect(b.rodar(() => b.svc.consultarPagamento('p1'))).rejects.toThrow();
+    expect(chamada(b.query)[0]).toContain(PRED);
+    const c = montar();
+    (c.svc as never as { provedores: unknown }).provedores = { obter: async () => ({ provedor: { nome: 'mock' } }) };
+    await expect(c.rodar(() => c.svc.simularPagamento('p1'))).rejects.toThrow();
+    expect(chamada(c.query)[0]).toContain(PRED);
+  });
+  it('contagem de pedidos do cliente só conta app_cliente', async () => {
+    const { svc, query, rodar } = montar();
+    await rodar(() => svc.clientes({ pagina: 1 }));
+    const sqls = query.mock.calls.map((c) => String((c as unknown[])[0]));
+    expect(sqls.some((q) => q.includes("p.cliente_id = clientes.id and p.origem = 'app_cliente'"))).toBe(true);
   });
 });

@@ -9,10 +9,18 @@ export function solucoesEfetivas(papel: string, lista: unknown): Solucao[] {
   return SOLUCOES.filter((s) => lista.includes(s));
 }
 
-/** Caminho da requisição sem query string, minúsculo e sem barra final. */
-export function caminhoDaRequisicao(url: string): string {
-  const semQuery = url.split('?')[0].split('#')[0].toLowerCase();
-  return semQuery.length > 1 ? semQuery.replace(/\/+$/, '') : semQuery;
+/**
+ * Caminho da requisição (pathname interpretado como o Express roteia, inclusive alvo em
+ * forma absoluta), minúsculo e sem barra final. null = alvo ilegível.
+ */
+export function caminhoDaRequisicao(url: string): string | null {
+  let caminho: string;
+  try {
+    caminho = new URL(url, 'http://x').pathname.toLowerCase();
+  } catch {
+    return null;
+  }
+  return caminho.length > 1 ? caminho.replace(/\/+$/, '') : caminho;
 }
 
 const dentro = (caminho: string, prefixo: string) =>

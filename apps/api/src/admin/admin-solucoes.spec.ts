@@ -1,10 +1,16 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { runComTenant } from '../tenancy/tenant-context';
 import { AdminAuthController } from './admin-auth.controller';
 import { AdminConfigController, UsuarioDto } from './admin-config.controller';
+import { AdminController } from './admin.controller';
 import { AdminGuard } from './admin.guard';
+import { caminhoDaRequisicao, solucaoExigida } from './solucoes';
 
 jest.mock('argon2', () => ({
   verify: jest.fn(async () => true),
@@ -21,7 +27,12 @@ const SEM_ACESSO = {
   codigo: 'SEM_ACESSO_A_SOLUCAO',
 };
 
-async function passa(payload: Record<string, unknown>, url: string) {
+// `linha` = o que o banco devolve para o usuário; por padrão espelha o token.
+async function passa(
+  payload: Record<string, unknown>,
+  url: string,
+  linha?: Record<string, unknown> | null,
+) {
   const jwt = {
     verifyAsync: jest.fn(async () => ({
       sub: 'u1',
@@ -37,8 +48,13 @@ async function passa(payload: Record<string, unknown>, url: string) {
     url,
   };
   const ctx = { switchToHttp: () => ({ getRequest: () => req }) };
+  const doBanco =
+    linha === undefined
+      ? { papel: payload.papel, ativo: true, solucoes: payload.solucoes }
+      : linha;
+  const query = jest.fn(async () => ({ rows: doBanco ? [doBanco] : [] }));
   try {
-    await rodar(jest.fn(), async () => guard.canActivate(ctx as never));
+    await rodar(query, async () => guard.canActivate(ctx as never));
     return { ok: true as const, req };
   } catch (e) {
     return { ok: false as const, erro: e as ForbiddenException, req };
@@ -162,6 +178,62 @@ describe('AdminGuard — acesso por solução', () => {
         )
       ).ok,
     ).toBe(false);
+  });
+});
+
+describe('AdminGuard — vale o banco, não o token', () => {
+  it('usuário inativo ou removido: 401', async () => {
+    for (const linha of [
+      { papel: 'admin', ativo: false, solucoes: ['delivery', 'vendas'] },
+      null,
+    ]) {
+      const r = await passa({ papel: 'admin' }, '/v1/admin/pedidos', linha);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.erro).toBeInstanceOf(UnauthorizedException);
+    }
+  });
+  it("token diz admin, banco diz operador ['vendas']: recusado no Delivery", async () => {
+    const r = await passa({ papel: 'admin' }, '/v1/admin/pedidos', {
+      papel: 'operador',
+      ativo: true,
+      solucoes: ['vendas'],
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erro.getResponse()).toEqual(SEM_ACESSO);
+  });
+  it("token sem claims, banco ['vendas']: chega em Vendas", async () => {
+    const r = await passa({}, '/v1/admin/vendas/painel', {
+      papel: 'operador',
+      ativo: true,
+      solucoes: ['vendas'],
+    });
+    expect(r.ok).toBe(true);
+    expect(
+      (r.req as { admin: { papel: string; solucoes: string[] } }).admin,
+    ).toMatchObject({ papel: 'operador', solucoes: ['vendas'] });
+  });
+});
+
+describe('caminhoDaRequisicao — alvo em forma absoluta', () => {
+  const vendas = { papel: 'operador', solucoes: ['vendas'] };
+  const delivery = { papel: 'operador', solucoes: ['delivery'] };
+  it('rota de Vendas em forma absoluta é classificada vendas', async () => {
+    const url = 'http://host/v1/admin/vendas/painel?x=1';
+    expect(solucaoExigida(caminhoDaRequisicao(url) as string)).toBe('vendas');
+    expect((await passa(vendas, url)).ok).toBe(true);
+    expect((await passa(delivery, url)).ok).toBe(false);
+  });
+  it('rota de Delivery em forma absoluta é classificada delivery', async () => {
+    const url = 'https://host:3000/v1/admin/pedidos';
+    expect(solucaoExigida(caminhoDaRequisicao(url) as string)).toBe('delivery');
+    expect((await passa(delivery, url)).ok).toBe(true);
+    expect((await passa(vendas, url)).ok).toBe(false);
+  });
+  it('alvo ilegível é recusado com 403', async () => {
+    expect(caminhoDaRequisicao('//')).toBeNull();
+    const r = await passa({ papel: 'admin' }, '//');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erro).toBeInstanceOf(ForbiddenException);
   });
 });
 
@@ -303,7 +375,24 @@ describe('usuários da retaguarda — solucoes', () => {
   });
   it('a listagem devolve solucoes', async () => {
     const q = jest.fn(async () => ({ rows: [] }));
-    await rodar(q, () => ctl.usuarios());
+    await rodar(q, () => ctl.usuarios(reqAdmin));
     expect(String((q.mock.calls[0] as unknown[])[0])).toContain('solucoes');
+  });
+  it('a listagem de usuários exige admin', async () => {
+    const q = jest.fn(async () => ({ rows: [] }));
+    const reqOp = { admin: { usuarioId: 'o', papel: 'operador' } } as never;
+    await expect(rodar(q, () => ctl.usuarios(reqOp))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    expect(q).not.toHaveBeenCalled();
+  });
+  it('logs de integração exigem admin', async () => {
+    const svc = { logsIntegracao: jest.fn(async () => ({ dados: [] })) };
+    const c = new AdminController(svc as never, {} as never, {} as never);
+    const reqOp = { admin: { usuarioId: 'o', papel: 'operador' } } as never;
+    expect(() => c.logs(reqOp, '1')).toThrow(ForbiddenException);
+    expect(svc.logsIntegracao).not.toHaveBeenCalled();
+    await c.logs(reqAdmin, '1');
+    expect(svc.logsIntegracao).toHaveBeenCalledWith(1);
   });
 });

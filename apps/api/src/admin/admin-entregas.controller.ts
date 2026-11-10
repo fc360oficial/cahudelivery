@@ -96,7 +96,7 @@ export class AdminEntregasController {
     @UploadedFiles() arquivos: { canhoto?: Express.Multer.File[]; foto?: Express.Multer.File[] },
   ) {
     const { pool, tenant } = tenantCtx();
-    const ped = await pool.query(`select status from pedidos where id = $1`, [id]);
+    const ped = await pool.query(`select status from pedidos where id = $1 and origem = 'app_cliente'`, [id]);
     if (!ped.rows[0]) throw new NotFoundException('Pedido não encontrado');
     if (ped.rows[0].status === 'CANCELADO' || ped.rows[0].status === 'AGUARDANDO_PAGAMENTO' || ped.rows[0].status === 'AGUARDANDO_VENDEDOR') {
       throw new BadRequestException('Pedido cancelado, sem pagamento ou retido não pode ser marcado como entregue');
@@ -160,7 +160,7 @@ export class AdminEntregasController {
   async fotoEntrega(@Param('id', ParseUUIDPipe) id: string, @Param('tipo') tipo: string, @Res() res: Response) {
     const { pool, tenant } = tenantCtx();
     if (tipo !== 'canhoto' && tipo !== 'foto') throw new NotFoundException();
-    const { rows } = await pool.query(`select foto_canhoto, foto_entrega from pedido_entregas where pedido_id = $1`, [id]);
+    const { rows } = await pool.query(`select foto_canhoto, foto_entrega from pedido_entregas where pedido_id = $1 and pedido_id in (select id from pedidos where origem = 'app_cliente')`, [id]);
     const nome: string | null = tipo === 'canhoto' ? rows[0]?.foto_canhoto : rows[0]?.foto_entrega;
     // Nome vem do nosso banco, mas confere o formato antes de montar caminho de disco.
     if (!nome || !/^[0-9a-f-]+-(canhoto|foto)-[a-z0-9]+-[0-9a-f]+\.[a-z]+$/.test(nome)) throw new NotFoundException();
@@ -179,7 +179,7 @@ export class AdminEntregasController {
     if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores podem estornar');
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor from pagamentos where pedido_id = $1 and metodo = 'cartao' and status in ('pago','estorno_solicitado')
+      `select id, provedor from pagamentos where pedido_id = $1 and metodo = 'cartao' and status in ('pago','estorno_solicitado') and pedido_id in (select id from pedidos where origem = 'app_cliente')
         order by criado_em desc limit 1`,
       [id],
     );
@@ -244,7 +244,7 @@ export class AdminEntregasController {
   private async reservaDoPedido(pedidoId: string) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor from pagamentos where pedido_id = $1 and status = 'autorizado' order by criado_em desc limit 1`,
+      `select id, provedor from pagamentos where pedido_id = $1 and status = 'autorizado' and pedido_id in (select id from pedidos where origem = 'app_cliente') order by criado_em desc limit 1`,
       [pedidoId],
     );
     if (!rows[0]) throw new BadRequestException('Pedido sem reserva de cartão em aberto');
@@ -262,7 +262,7 @@ export class AdminEntregasController {
     if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores podem registrar devolução');
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select id from pagamentos where pedido_id = $1 and metodo = 'pix' and status in ('pago','creditado')
+      `select id from pagamentos where pedido_id = $1 and metodo = 'pix' and status in ('pago','creditado') and pedido_id in (select id from pedidos where origem = 'app_cliente')
         order by criado_em desc limit 1`,
       [id],
     );
@@ -314,7 +314,7 @@ export class AdminEntregasController {
               (select json_agg(json_build_object('valor', e.valor, 'destino', e.destino, 'status', e.status, 'codigo', e.codigo,
                   'mensagem', e.mensagem, 'motivo', e.motivo, 'em', e.criado_em) order by e.criado_em)
                  from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
-         from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1`,
+         from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1 and p.origem = 'app_cliente'`,
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');

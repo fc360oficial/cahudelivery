@@ -81,7 +81,8 @@ export class AdminConfigController {
 
   // ---------- Usuários da retaguarda ----------
   @Get('usuarios')
-  async usuarios() {
+  async usuarios(@Req() req: ReqAdmin) {
+    this.exigirAdmin(req);
     const { pool } = tenantCtx();
     const { rows } = await pool.query(`select id, nome, email, papel, ativo, solucoes, criado_em from usuarios_admin order by nome`);
     return rows;

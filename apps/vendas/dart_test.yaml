@@ -1,0 +1,3 @@
+tags:
+  integracao:
+    description: Chamam a API de teste real (precisam de VENDAS_API_INTEGRACAO).

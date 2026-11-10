@@ -1,6 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
 import type { Request } from 'express';
 import { randomBytes } from 'node:crypto';
+import sharp from 'sharp';
+import { unlink } from 'node:fs/promises';
 import { diskStorage } from 'multer';
 import { extname, join } from 'node:path';
 import { padronizarFotoProduto, padronizarImagemCategoria } from './foto-produto';
@@ -26,14 +28,23 @@ export function opcoesUploadImagem() {
 export async function responderUploadImagem(req: Request, tipo: string | undefined, arquivo?: Express.Multer.File) {
   if (!arquivo) throw new BadRequestException('Nenhum arquivo enviado (campo: arquivo)');
   const base = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
-  // Foto de produto: padroniza (quadrado 1000x1000 fundo branco + miniatura). Banner/logo fica como veio.
-  if (tipo === 'produto') {
-    const { arquivo: nome, miniatura } = await padronizarFotoProduto(arquivo.path);
-    return { url: `${base}/uploads/${nome}`, urlMiniatura: `${base}/uploads/${miniatura}` };
+  try {
+    // O fileFilter só olha extensão e mimetype (declarados pelo cliente): confere pelo conteúdo.
+    const meta = await sharp(arquivo.path, { failOn: 'none' }).metadata();
+    if (!meta.width || !meta.height) throw new Error('sem dimensões');
+    // Foto de produto: padroniza (quadrado 1000x1000 fundo branco + miniatura). Banner/logo fica como veio.
+    if (tipo === 'produto') {
+      const { arquivo: nome, miniatura } = await padronizarFotoProduto(arquivo.path);
+      return { url: `${base}/uploads/${nome}`, urlMiniatura: `${base}/uploads/${miniatura}` };
+    }
+    if (tipo === 'categoria') {
+      const { arquivo: nome } = await padronizarImagemCategoria(arquivo.path);
+      return { url: `${base}/uploads/${nome}` };
+    }
+    return { url: `${base}/uploads/${arquivo.filename}` };
+  } catch {
+    // Não é imagem decodificável (ou o processamento falhou): não deixa o arquivo no disco.
+    await unlink(arquivo.path).catch(() => undefined);
+    throw new BadRequestException('Arquivo de imagem inválido');
   }
-  if (tipo === 'categoria') {
-    const { arquivo: nome } = await padronizarImagemCategoria(arquivo.path);
-    return { url: `${base}/uploads/${nome}` };
-  }
-  return { url: `${base}/uploads/${arquivo.filename}` };
 }

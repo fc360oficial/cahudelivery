@@ -1,8 +1,11 @@
 import {
   BadRequestException,
   Body,
+  CanActivate,
   Controller,
+  ExecutionContext,
   ForbiddenException,
+  Injectable,
   Get,
   Post,
   Put,
@@ -23,6 +26,19 @@ import { opcoesUploadImagem, responderUploadImagem } from './upload-imagem';
 type ReqAdmin = Request & { admin: AdminLogado };
 
 const CHAVE = 'logo_retaguarda_url';
+
+/**
+ * Recusa quem não é administrador. Como guard roda ANTES do interceptor de upload,
+ * um operador é barrado sem que o arquivo chegue a ser gravado em disco.
+ */
+@Injectable()
+export class ApenasAdminGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest<ReqAdmin>();
+    if (req.admin?.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
+    return true;
+  }
+}
 
 export class LogoDto {
   /** URL devolvida pelo upload; null remove a logo. */
@@ -73,6 +89,7 @@ export class AdminIdentidadeController {
   }
 
   @Post('upload')
+  @UseGuards(ApenasAdminGuard)
   @UseInterceptors(FileInterceptor('arquivo', opcoesUploadImagem()))
   upload(
     @Req() req: ReqAdmin,

@@ -2,10 +2,12 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable, Unauthor
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { Solucao, caminhoDaRequisicao, solucaoExigida, solucoesEfetivas } from './solucoes';
 
 export interface AdminLogado {
   usuarioId: string;
   papel: 'admin' | 'operador';
+  solucoes: Solucao[];
 }
 
 /** Exige usuário da retaguarda autenticado (token tipo 'admin' do mesmo tenant). */
@@ -22,7 +24,16 @@ export class AdminGuard implements CanActivate {
       if (payload.tipo !== 'admin' || payload.slug !== tenantCtx().tenant.slug) {
         throw new ForbiddenException();
       }
-      req.admin = { usuarioId: payload.sub, papel: payload.papel };
+      const solucoes = solucoesEfetivas(payload.papel, payload.solucoes);
+      const exigida = solucaoExigida(caminhoDaRequisicao(req.originalUrl ?? req.url ?? ''));
+      if (exigida && !solucoes.includes(exigida)) {
+        throw new ForbiddenException({
+          statusCode: 403,
+          message: 'Sem acesso a esta solução',
+          codigo: 'SEM_ACESSO_A_SOLUCAO',
+        });
+      }
+      req.admin = { usuarioId: payload.sub, papel: payload.papel, solucoes };
       return true;
     } catch (e) {
       if (e instanceof ForbiddenException) throw e;

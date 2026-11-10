@@ -92,3 +92,11 @@
   .area-vendas .grade-inicio { grid-template-columns: minmax(0, 1fr); }
   .area-vendas .grafico.sete { gap: 6px; }
 }
+
+/* Ajustes após ver com dados reais: gráfico mais alto e pedidos recentes compactos (6 linhas, nomes em uma linha). */
+.area-vendas .grafico { height: 400px; }
+.area-vendas .recente > span:first-child { min-width: 0; }
+.area-vendas .recente .rec-nome,
+.area-vendas .recente > span:first-child .sub { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.area-vendas .lista-inicio li:has(.recente):nth-child(n+7) { display: none; }
+@media (max-width: 900px) { .area-vendas .grafico { height: 220px; } }

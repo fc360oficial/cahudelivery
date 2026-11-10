@@ -1,4 +1,4 @@
-import { conferirPedido, DadosAtuais } from './conferir-pedido';
+import { arredondar, conferirPedido, DadosAtuais } from './conferir-pedido';
 
 function dados(parcial: Partial<DadosAtuais> = {}): DadosAtuais {
   return {
@@ -103,5 +103,34 @@ describe('conferirPedido', () => {
     expect(
       conferirPedido(item, dados({ creditoDisponivel: null })).divergencias,
     ).toEqual([]);
+  });
+});
+
+describe('arredondar', () => {
+  it('arredonda meio centavo para cima mesmo quando o binário fica abaixo', () => {
+    expect(arredondar(1.005)).toBe(1.01);
+    expect(arredondar(10.075)).toBe(10.08);
+    expect(arredondar(1234.565)).toBe(1234.57);
+    expect(arredondar(345.6)).toBe(345.6);
+  });
+});
+
+describe('conferirPedido com quantidade fracionada', () => {
+  it('arredonda cada linha antes de somar o total', () => {
+    const out = conferirPedido(
+      [
+        { produtoId: 'a', quantidade: 0.333, precoUnit: 1.55 },
+        { produtoId: 'b', quantidade: 0.333, precoUnit: 1.55 },
+        { produtoId: 'c', quantidade: 0.333, precoUnit: 1.55 },
+      ],
+      {
+        precos: new Map([['a', 1.55], ['b', 1.55], ['c', 1.55]]),
+        estoques: new Map([['a', 10], ['b', 10], ['c', 10]]),
+        nomes: new Map([['a', 'A'], ['b', 'B'], ['c', 'C']]),
+        creditoDisponivel: null,
+        exigeCredito: false,
+      },
+    );
+    expect(out).toEqual({ divergencias: [], totalAtual: 1.56 });
   });
 });

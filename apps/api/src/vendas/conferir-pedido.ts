@@ -21,7 +21,8 @@ export interface Divergencia {
 }
 
 export function arredondar(valor: number): number {
-  return Math.round((valor + Number.EPSILON) * 100) / 100;
+  // toPrecision(15) desfaz o erro binário de valor*100 (10.075*100 = 1007.4999999999999) antes de arredondar.
+  return Math.round(Number((valor * 100).toPrecision(15))) / 100;
 }
 
 /**
@@ -45,7 +46,8 @@ export function conferirPedido(
         enviado: item.precoUnit,
       });
     } else {
-      totalAtual += atual * item.quantidade;
+      // Arredonda linha a linha, como o pedido grava em pedido_itens e como o ERP fatura.
+      totalAtual += arredondar(atual * item.quantidade);
       if (Math.abs(atual - item.precoUnit) >= 0.005) {
         divergencias.push({
           tipo: 'preco',

@@ -18,6 +18,7 @@ interface Cenario {
   naCarteira?: boolean;
   vendedorDoExistente?: string;
   statusCliente?: string;
+  semCadastroErp?: boolean;
   limite?: string;
   titulosAbertos?: string;
   emTransito?: string;
@@ -33,7 +34,7 @@ function montar(c: Cenario = {}) {
       return { rows: c.existente ? [{ id: 'ped-antigo', numero: '7', status: 'RECEBIDO', total: '345.60', retencao_json: null, vendedor_id: c.vendedorDoExistente ?? 'v1' }] : [] };
     }
     if (sql.includes('from cliente_vendedor cv join clientes c')) {
-      return c.naCarteira === false ? { rowCount: 0, rows: [] } : { rowCount: 1, rows: [{ status: c.statusCliente ?? 'aprovado' }] };
+      return c.naCarteira === false ? { rowCount: 0, rows: [] } : { rowCount: 1, rows: [{ status: c.statusCliente ?? 'aprovado', erp_cliente_id: c.semCadastroErp ? null : '2725' }] };
     }
     if (sql.includes('with c as (')) return { rowCount: c.cancelRowCount ?? 1, rows: [] };
     if (sql.includes('from condicoes_pagamento_erp cp')) {
@@ -84,6 +85,12 @@ describe('VendasPedidosService.receber', () => {
   it('reenvio de idDispositivo que pertence a outro vendedor é recusado', async () => {
     const { servico, rodar, chamou } = montar({ existente: true, vendedorDoExistente: 'outro' });
     await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toBeInstanceOf(ConflictException);
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('recusa cliente que não está cadastrado no ERP', async () => {
+    const { servico, rodar, chamou } = montar({ semCadastroErp: true });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({ response: { codigo: 'CLIENTE_SEM_CADASTRO_ERP' } });
     expect(chamou('insert into pedidos')).toBe(false);
   });
 

@@ -58,15 +58,18 @@ export class VendasPedidosService {
     };
   }
 
-  /** Cliente ainda na carteira do vendedor e liberado para novos pedidos (usado ao receber e ao confirmar). */
+  /** Cliente ainda na carteira do vendedor, cadastrado no ERP e liberado para novos pedidos (usado ao receber e ao confirmar). */
   private async conferirCliente(q: Consulta, clienteId: string, vendedorId: string): Promise<void> {
     const carteira = await q.query(
-      `select c.status from cliente_vendedor cv join clientes c on c.id = cv.cliente_id
+      `select c.status, c.erp_cliente_id from cliente_vendedor cv join clientes c on c.id = cv.cliente_id
         where cv.cliente_id = $1 and cv.vendedor_id = $2`,
       [clienteId, vendedorId],
     );
     if (!carteira.rowCount) {
       throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
+    }
+    if (!carteira.rows[0].erp_cliente_id) {
+      throw new BadRequestException({ statusCode: 400, message: 'Cliente sem cadastro no ERP', codigo: 'CLIENTE_SEM_CADASTRO_ERP' });
     }
     if (carteira.rows[0].status === 'bloqueado' || carteira.rows[0].status === 'excluido') {
       throw new BadRequestException({ statusCode: 400, message: 'Cliente bloqueado para novos pedidos', codigo: 'CLIENTE_BLOQUEADO' });

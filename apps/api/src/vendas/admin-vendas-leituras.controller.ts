@@ -40,7 +40,7 @@ export class AdminVendasLeiturasController {
   }
 
   @Get('produtos')
-  produtos(@Query('busca') busca?: string, @Query('tabelaId') tabelaId?: string, @Query('pagina') pagina?: string) {
-    return this.consultas.produtos({ busca, tabelaId, pagina });
+  produtos(@Query('busca') busca?: string, @Query('tabelaId') tabelaId?: string, @Query('estoque') estoque?: string, @Query('imagem') imagem?: string, @Query('pagina') pagina?: string) {
+    return this.consultas.produtos({ busca, tabelaId, estoque, imagem, pagina });
   }
 }

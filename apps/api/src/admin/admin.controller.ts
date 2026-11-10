@@ -2,6 +2,7 @@ import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Param, Par
 import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
+import { ImagemProdutoDto } from './imagem-produto';
 import { AdminService } from './admin.service';
 import { MapaService } from './mapa.service';
 import { parseFiltrosMapa } from './mapa-filtros';
@@ -30,11 +31,6 @@ class DescontoQtdDto {
 
 class ValidadeDto {
   @IsOptional() @IsDateString() dataValidade?: string;
-}
-
-class ImagemProdutoDto {
-  @IsNotEmpty() @IsString() url!: string;
-  @IsOptional() @IsString() urlMiniatura?: string;
 }
 
 class MovimentoCarteiraDto {

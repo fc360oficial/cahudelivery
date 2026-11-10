@@ -394,13 +394,24 @@ describe('produtos', () => {
     codigo: 'A1',
     nome: 'Arroz',
     categoria: 'Mercearia',
+    unidade: 'CX',
     estoque: '12.500',
     preco: '10.90',
     ativo: true,
+    imagem_url: 'https://x/uploads/a-mini.jpg',
   };
-  it('sem tabelaId usa a primeira por nome; só tabelas do ERP', async () => {
+  const contagens = {
+    todos: '20',
+    com_estoque: '15',
+    sem_estoque: '5',
+    com_imagem: '9',
+    sem_imagem: '6',
+  };
+  it('sem tabelaId usa a primeira por nome; só tabelas do ERP; formato com foto, unidade e contagens', async () => {
     const { svc, rodar, sql, params } = montar({
       '/* produtos-tabelas */': tabelas,
+      '/* produtos-contagem-estoque */': [contagens],
+      '/* produtos-contagem-imagem */': [contagens],
       '/* produtos-total */': [{ total: '1' }],
       '/* produtos-dados */': [prod],
     });
@@ -417,19 +428,51 @@ describe('produtos', () => {
           codigo: 'A1',
           nome: 'Arroz',
           categoria: 'Mercearia',
+          unidade: 'CX',
           estoque: 12.5,
           preco: 10.9,
           ativo: true,
+          imagemUrl: 'https://x/uploads/a-mini.jpg',
         },
       ],
       pagina: 1,
       total: 1,
+      contagens: {
+        todos: 20,
+        comEstoque: 15,
+        semEstoque: 5,
+        comImagem: 9,
+        semImagem: 6,
+      },
     });
     expect(sql('/* produtos-tabelas */')).toContain(
       'erp_tabela_id is not null',
     );
     expect(sql('/* produtos-tabelas */')).toContain('order by');
     expect(params('/* produtos-dados */')).toContain(T1);
+    expect(sql('/* produtos-dados */')).toContain(
+      'coalesce(url_miniatura, url)',
+    );
+  });
+  it('produto sem preço na tabela entra na lista com preco null (left join em precos)', async () => {
+    const { svc, rodar, sql } = montar({
+      '/* produtos-tabelas */': tabelas,
+      '/* produtos-dados */': [
+        { ...prod, preco: null, imagem_url: null, unidade: null },
+      ],
+    });
+    const out = await rodar(() => svc.produtos({}));
+    expect(out.dados[0]).toMatchObject({
+      preco: null,
+      imagemUrl: null,
+      unidade: null,
+    });
+    const dados = sql('/* produtos-dados */');
+    expect(dados).toMatch(
+      /left join precos pc on pc\.produto_id = pr\.id\s+and pc\.tabela_preco_id = \$1::uuid/,
+    );
+    expect(dados).not.toMatch(/(?<!left )join precos/);
+    expect(sql('/* produtos-total */')).not.toContain('precos');
   });
   it('tabelaId válido da lista é usado; desconhecido volta para a primeira; não-UUID = 400', async () => {
     const a = montar({ '/* produtos-tabelas */': tabelas });
@@ -445,17 +488,15 @@ describe('produtos', () => {
       b.rodar(() => b.svc.produtos({ tabelaId: 'x' })),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
-  it('sem tabelas do ERP devolve vazio sem consultar produtos', async () => {
-    const { svc, rodar, query } = montar();
-    const out = await rodar(() => svc.produtos({}));
-    expect(out).toEqual({
-      tabelas: [],
-      tabelaId: null,
-      dados: [],
-      pagina: 1,
-      total: 0,
+  it('sem tabelas do ERP ainda lista os produtos (para a foto), sem preço e com tabelaId null', async () => {
+    const { svc, rodar, params } = montar({
+      '/* produtos-dados */': [{ ...prod, preco: null }],
     });
-    expect(query).toHaveBeenCalledTimes(1);
+    const out = await rodar(() => svc.produtos({}));
+    expect(out.tabelas).toEqual([]);
+    expect(out.tabelaId).toBeNull();
+    expect(out.dados[0].preco).toBeNull();
+    expect(params('/* produtos-dados */')[0]).toBeNull();
   });
   it('busca e paginação', async () => {
     const { svc, rodar, sql, params } = montar({
@@ -465,5 +506,44 @@ describe('produtos', () => {
     expect(sql('/* produtos-dados */')).toContain('ilike');
     expect(sql('/* produtos-dados */')).toContain('limit 30 offset 90');
     expect(params('/* produtos-dados */')).toContain('%arroz%');
+  });
+  it('contagens respeitam a busca; a de estoque ignora o filtro de estoque; a de imagem conta dentro dele', async () => {
+    const { svc, rodar, sql, params } = montar({
+      '/* produtos-tabelas */': tabelas,
+    });
+    await rodar(() =>
+      svc.produtos({ busca: 'arroz', estoque: 'com', imagem: 'sem' }),
+    );
+    const est = sql('/* produtos-contagem-estoque */');
+    expect(est).toContain('ilike');
+    expect(est).not.toContain('> 0)\n');
+    expect(est).not.toMatch(/where[^]*es\.quantidade, 0\) > 0\s*$/);
+    expect(params('/* produtos-contagem-estoque */')).toEqual(['%arroz%']);
+    const img = sql('/* produtos-contagem-imagem */');
+    expect(img).toContain('ilike');
+    expect(img).toMatch(/where[^]*and coalesce\(es\.quantidade, 0\) > 0/);
+    // o filtro de imagem escolhido não restringe a própria contagem de imagem
+    expect(img).not.toMatch(/where[^]*and not exists/);
+  });
+  it('filtros estoque e imagem entram na lista e no total; valores inválidos são ignorados', async () => {
+    const a = montar({ '/* produtos-tabelas */': tabelas });
+    await a.rodar(() => a.svc.produtos({ estoque: 'com', imagem: 'sem' }));
+    for (const tag of ['/* produtos-dados */', '/* produtos-total */']) {
+      expect(a.sql(tag)).toContain('coalesce(es.quantidade, 0) > 0');
+      expect(a.sql(tag)).toMatch(/and not exists \(select 1 from produto_imagens/);
+    }
+    const b = montar({ '/* produtos-tabelas */': tabelas });
+    await b.rodar(() => b.svc.produtos({ estoque: 'sem', imagem: 'com' }));
+    expect(b.sql('/* produtos-dados */')).toContain(
+      'coalesce(es.quantidade, 0) <= 0',
+    );
+    expect(b.sql('/* produtos-dados */')).toMatch(
+      /and exists \(select 1 from produto_imagens/,
+    );
+    const c = montar({ '/* produtos-tabelas */': tabelas });
+    await c.rodar(() => c.svc.produtos({ estoque: 'xx', imagem: 'yy' }));
+    expect(c.sql('/* produtos-dados */')).not.toContain('es.quantidade, 0) >');
+    expect(c.sql('/* produtos-dados */')).not.toContain('es.quantidade, 0) <=');
+    expect(c.sql('/* produtos-dados */')).not.toContain('produto_imagens i');
   });
 });

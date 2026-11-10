@@ -64,6 +64,8 @@ export interface ListaParametros {
   situacao?: unknown;
   status?: unknown;
   tabelaId?: unknown;
+  estoque?: unknown;
+  imagem?: unknown;
 }
 
 @Injectable()
@@ -333,6 +335,8 @@ export class AdminVendasConsultasService {
     const tabelaPedida = uuidOpcional(q.tabelaId, 'tabelaId');
     const busca = padraoBusca(q.busca);
     const pagina = paginaDe(q.pagina);
+    const estoque = escolher(q.estoque, ['com', 'sem'] as const, 'todos' as 'com' | 'sem' | 'todos');
+    const imagem = escolher(q.imagem, ['com', 'sem'] as const, 'todos' as 'com' | 'sem' | 'todos');
 
     const t = await pool.query(
       `/* produtos-tabelas */ select id, nome from tabelas_preco where erp_tabela_id is not null order by nome, id`,
@@ -341,37 +345,75 @@ export class AdminVendasConsultasService {
       id: r.id as string,
       nome: r.nome as string,
     }));
-    if (!tabelas.length)
-      return { tabelas, tabelaId: null, dados: [], pagina, total: 0 };
-    const tabelaId = (tabelas.find((x) => x.id === tabelaPedida) ?? tabelas[0])
-      .id;
+    // Sem tabela do ERP a lista continua valendo (a foto é do produto): só fica sem preço.
+    const tabelaId = tabelas.length
+      ? (tabelas.find((x) => x.id === tabelaPedida) ?? tabelas[0]).id
+      : null;
 
-    const f = new Filtro(`pc.tabela_preco_id = $1::uuid`);
-    f.params.push(tabelaId);
-    if (busca) {
-      const b = f.p(busca);
-      f.add(
-        `(pr.nome ilike ${b} or pr.sku ilike ${b} or pr.ean ilike ${b} or pr.erp_produto_id ilike ${b})`,
-      );
-    }
+    const COM_ESTOQUE = `coalesce(es.quantidade, 0) > 0`;
+    const SEM_ESTOQUE = `coalesce(es.quantidade, 0) <= 0`;
+    const TEM_IMAGEM = `exists (select 1 from produto_imagens i where i.produto_id = pr.id)`;
+    // Filtro de produtos: busca sempre; estoque e imagem só quando pedidos.
+    const filtro = (o: { tabela?: boolean; estoque?: boolean; imagem?: boolean }) => {
+      const f = new Filtro();
+      if (o.tabela) f.p(tabelaId, '::uuid');
+      if (busca) {
+        const b = f.p(busca);
+        f.add(
+          `(pr.nome ilike ${b} or pr.sku ilike ${b} or pr.ean ilike ${b} or pr.erp_produto_id ilike ${b})`,
+        );
+      }
+      if (o.estoque && estoque === 'com') f.add(COM_ESTOQUE);
+      if (o.estoque && estoque === 'sem') f.add(SEM_ESTOQUE);
+      if (o.imagem && imagem === 'com') f.add(TEM_IMAGEM);
+      if (o.imagem && imagem === 'sem') f.add(`not ${TEM_IMAGEM}`);
+      return f;
+    };
+
+    // Contagens dos chips (como no Delivery): estoque respeita a busca mas não o filtro de estoque...
+    const fe = filtro({});
+    const cEstoque = await pool.query(
+      `/* produtos-contagem-estoque */
+       select count(*)::int as todos,
+              count(*) filter (where ${COM_ESTOQUE})::int as com_estoque,
+              count(*) filter (where ${SEM_ESTOQUE})::int as sem_estoque
+         from produtos pr left join estoques es on es.produto_id = pr.id ${fe.onde}`,
+      fe.params,
+    );
+    // ...e imagem conta DENTRO do estoque escolhido ("dos 188 com estoque, quantos têm foto").
+    const fi = filtro({ estoque: true });
+    const cImagem = await pool.query(
+      `/* produtos-contagem-imagem */
+       select count(*) filter (where ${TEM_IMAGEM})::int as com_imagem,
+              count(*) filter (where not ${TEM_IMAGEM})::int as sem_imagem
+         from produtos pr left join estoques es on es.produto_id = pr.id ${fi.onde}`,
+      fi.params,
+    );
+
+    const ft = filtro({ estoque: true, imagem: true });
     const total = await pool.query(
       `/* produtos-total */
-       select count(*)::int as total from produtos pr join precos pc on pc.produto_id = pr.id ${f.onde}`,
-      f.params,
+       select count(*)::int as total from produtos pr left join estoques es on es.produto_id = pr.id ${ft.onde}`,
+      ft.params,
     );
+    const fd = filtro({ tabela: true, estoque: true, imagem: true });
     const { rows } = await pool.query(
       `/* produtos-dados */
        select pr.id, coalesce(pr.erp_produto_id, pr.sku) as codigo, pr.nome, cat.nome as categoria,
-              coalesce(es.quantidade, 0) as estoque, pc.preco, pr.ativo
+              pr.unidade_venda as unidade, coalesce(es.quantidade, 0) as estoque, pc.preco, pr.ativo,
+              (select coalesce(url_miniatura, url) from produto_imagens where produto_id = pr.id order by ordem asc limit 1) as imagem_url
          from produtos pr
-         join precos pc on pc.produto_id = pr.id
+         left join precos pc on pc.produto_id = pr.id
+                            and pc.tabela_preco_id = $1::uuid
          left join categorias cat on cat.id = pr.categoria_id
          left join estoques es on es.produto_id = pr.id
-         ${f.onde}
+         ${fd.onde}
         order by pr.nome, pr.id
         limit ${POR_PAGINA} offset ${(pagina - 1) * POR_PAGINA}`,
-      f.params,
+      fd.params,
     );
+    const ce = cEstoque.rows[0];
+    const ci = cImagem.rows[0];
     return {
       tabelas,
       tabelaId,
@@ -380,12 +422,21 @@ export class AdminVendasConsultasService {
         codigo: r.codigo,
         nome: r.nome,
         categoria: r.categoria ?? null,
+        unidade: r.unidade ?? null,
         estoque: n(r.estoque),
-        preco: dinheiro(n(r.preco)),
+        preco: r.preco === null || r.preco === undefined ? null : dinheiro(n(r.preco)),
         ativo: r.ativo,
+        imagemUrl: r.imagem_url ?? null,
       })),
       pagina,
       total: n(total.rows[0]?.total),
+      contagens: {
+        todos: n(ce?.todos),
+        comEstoque: n(ce?.com_estoque),
+        semEstoque: n(ce?.sem_estoque),
+        comImagem: n(ci?.com_imagem),
+        semImagem: n(ci?.sem_imagem),
+      },
     };
   }
 }

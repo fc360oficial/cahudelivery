@@ -30,6 +30,22 @@ describe('VendasSyncService.carga', () => {
     expect(registro![1]).toEqual(['v1', '1.0.0']);
   });
 
+  it('formas dizem se exigem crédito; títulos e preços só de tabela ERP', async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('from vendedores where id')) return { rows: [{ id: 'v1', nome: 'Ana', erp_vendedor_id: '6' }] };
+      if (sql.includes('/* formas */')) return { rows: [{ id: 'f1', descricao: 'BOLETO' }, { id: 'f2', descricao: 'PIX' }] };
+      return { rows: [] };
+    });
+    const out = await runComTenant({ tenant: {}, pool: { query } } as never, () => new VendasSyncService().carga('v1'));
+    expect(out.formas).toEqual([
+      { id: 'f1', descricao: 'BOLETO', exigeCredito: true },
+      { id: 'f2', descricao: 'PIX', exigeCredito: false },
+    ]);
+    const sqlDe = (marca: string) => String(query.mock.calls.find(([sql]) => String(sql).includes(marca))![0]);
+    expect(sqlDe('/* titulos */')).toContain('to_char(t.vencimento');
+    expect(sqlDe('/* precos */')).toContain('t.erp_tabela_id is not null');
+  });
+
   it('mantém limite nulo quando o ERP ainda não enviou', async () => {
     const query = jest.fn(async (sql: string) => {
       if (sql.includes('from vendedores where id')) return { rows: [{ id: 'v1', nome: 'Ana', erp_vendedor_id: '6' }] };

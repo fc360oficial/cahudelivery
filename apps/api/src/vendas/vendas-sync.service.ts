@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { formaInterna } from './vendas-pedidos.service';
 
 const n = (v: unknown): number => Number(v);
 const nOuNulo = (v: unknown): number | null => (v == null ? null : Number(v));
@@ -14,7 +15,7 @@ export interface CargaVendedor {
   }>;
   titulos: Array<{ clienteId: string; numero: string; valor: number; vencimento: string; status: string }>;
   tabelas: Array<{ id: string; nome: string; erpTabelaId: string }>;
-  formas: Array<{ id: string; descricao: string }>;
+  formas: Array<{ id: string; descricao: string; exigeCredito: boolean }>;
   condicoes: Array<{ id: string; descricao: string; formaId: string }>;
   tabelaCondicoes: Array<{ tabelaId: string; condicaoId: string }>;
   categorias: Array<{ id: string; nome: string }>;
@@ -56,7 +57,7 @@ export class VendasSyncService {
     );
     const titulos = await pool.query(
       `/* titulos */
-       select t.cliente_id, t.erp_titulo_id, t.valor, t.vencimento, t.status
+       select t.cliente_id, t.erp_titulo_id, t.valor, to_char(t.vencimento, 'YYYY-MM-DD') as vencimento, t.status
          from titulos_cliente t join cliente_vendedor cv on cv.cliente_id = t.cliente_id
         where cv.vendedor_id = $1 and t.status = 'ABERTO'
         order by t.vencimento`,
@@ -86,7 +87,8 @@ export class VendasSyncService {
       `/* precos */
        select pr.produto_id, pr.tabela_preco_id, pr.preco
          from precos pr join produtos p on p.id = pr.produto_id
-        where p.ativo`,
+         join tabelas_preco t on t.id = pr.tabela_preco_id
+        where p.ativo and t.erp_tabela_id is not null`,
     );
     const historico = await pool.query(
       `/* historico */
@@ -118,7 +120,7 @@ export class VendasSyncService {
         clienteId: t.cliente_id, numero: t.erp_titulo_id, valor: n(t.valor), vencimento: t.vencimento, status: t.status,
       })),
       tabelas: tabelas.rows.map((t) => ({ id: t.id, nome: t.nome, erpTabelaId: t.erp_tabela_id })),
-      formas: formas.rows.map((f) => ({ id: f.id, descricao: f.descricao })),
+      formas: formas.rows.map((f) => ({ id: f.id, descricao: f.descricao, exigeCredito: formaInterna(f.descricao) === 'boleto' })),
       condicoes: condicoes.rows.map((c) => ({ id: c.id, descricao: c.descricao, formaId: c.forma_pagamento_id })),
       tabelaCondicoes: tabelaCondicoes.rows.map((x) => ({ tabelaId: x.tabela_preco_id, condicaoId: x.condicao_pagamento_id })),
       categorias: categorias.rows.map((c) => ({ id: c.id, nome: c.nome })),

@@ -22,7 +22,7 @@ export class VendasController {
 
   @Get('sync')
   carga(@Req() req: ReqVendedor, @Headers('x-app-versao') appVersao?: string) {
-    return this.sync.carga(req.vendedor.vendedorId, appVersao);
+    return this.sync.carga(req.vendedor.vendedorId, appVersao?.slice(0, 40));
   }
 
   @Post('pedidos')

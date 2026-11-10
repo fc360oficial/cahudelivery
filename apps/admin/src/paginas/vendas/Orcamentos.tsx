@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../api';
 import { CabecalhoPagina, Cartao, formatarDataHora, formatarReais, Selo, Vazio, type VarianteSelo } from '../../vendas-ui';
 import { SeletorVendedor, useVendedores } from './comum';
@@ -28,6 +29,7 @@ export function VendasOrcamentos() {
   const [status, setStatus] = useState('');
   const [vendedorId, setVendedorId] = useState('');
   const [pagina, setPagina] = useState(1);
+  const nav = useNavigate();
   const vendedores = useVendedores();
   const [dados, setDados] = useState<{ dados: Linha[]; pagina: number; total: number } | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -84,7 +86,7 @@ export function VendasOrcamentos() {
                   {dados.dados.map((o) => {
                     const [rotulo, variante] = SITUACAO[o.status] ?? [o.status, 'cinza' as VarianteSelo];
                     return (
-                      <tr key={o.id}>
+                      <tr key={o.id} className="clicavel" tabIndex={0} onClick={() => nav(`/vendas/orcamentos/${o.id}`)} onKeyDown={(e) => { if (e.key === 'Enter') nav(`/vendas/orcamentos/${o.id}`); }}>
                         <td>{o.cliente}</td>
                         <td>{o.vendedor ?? '—'}</td>
                         <td>{o.tabela ?? '—'}</td>

@@ -29,6 +29,7 @@ import { Usuarios } from './paginas/Usuarios';
 import { VendasClientes } from './paginas/vendas/Clientes';
 import { VendasInicio } from './paginas/vendas/Inicio';
 import { VendasOrcamentos } from './paginas/vendas/Orcamentos';
+import { VendasPedidoDetalhe } from './paginas/vendas/PedidoDetalhe';
 import { VendasPedidos } from './paginas/vendas/Pedidos';
 import { VendasProdutos } from './paginas/vendas/Produtos';
 import { VendasTabelas } from './paginas/vendas/Tabelas';
@@ -82,6 +83,7 @@ const ROTAS_VENDAS: [string, React.ReactNode][] = [
   ['/vendas', <VendasInicio />],
   ['/vendas/vendedores', <VendasVendedores />],
   ['/vendas/pedidos', <VendasPedidos />],
+  ['/vendas/pedidos/:id', <VendasPedidoDetalhe />],
   ['/vendas/orcamentos', <VendasOrcamentos />],
   ['/vendas/clientes', <VendasClientes />],
   ['/vendas/tabelas', <VendasTabelas />],

@@ -1,0 +1,94 @@
+.area-vendas .filtros-vendas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.area-vendas .filtros-vendas select, .area-vendas .filtros-vendas input, .area-vendas .cabecalho-acoes select {
+  border: 1px solid var(--av-borda); border-radius: 10px; padding: 9px 12px; background: #fff; color: var(--av-texto); font: inherit; min-width: 0;
+}
+.area-vendas .filtros-vendas input[type="search"] { flex: 1 1 220px; max-width: 340px; }
+.area-vendas .btn-av { background: var(--av-marinho); color: #fff; border: 0; border-radius: 10px; padding: 9px 16px; font: inherit; font-weight: 700; cursor: pointer; }
+.area-vendas .btn-av:disabled { opacity: 0.5; cursor: default; }
+.area-vendas .btn-av-claro { background: #fff; color: var(--av-marinho); border: 1px solid var(--av-borda); }
+.area-vendas .abas-vendas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.area-vendas .abas-vendas button { border: 1px solid var(--av-borda); background: #fff; color: var(--av-texto-2); border-radius: 999px; padding: 7px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+.area-vendas .abas-vendas button.ativo { background: var(--av-marinho); color: #fff; border-color: var(--av-marinho); }
+.area-vendas .pag-vendas { display: flex; gap: 10px; align-items: center; justify-content: flex-end; margin-bottom: 10px; flex-wrap: wrap; color: var(--av-texto-2); }
+.area-vendas .erro-vendas { background: #fddcdc; color: #a61d1d; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
+.area-vendas .aviso-vendas { background: #fff0c2; color: #5c3d00; border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
+.area-vendas .tabela-vendas tr.clicavel { cursor: pointer; }
+.area-vendas .tabela-vendas tr.clicavel:hover td { background: #f5f8fd; }
+.area-vendas .sub { display: block; color: var(--av-texto-2); font-size: 12px; }
+.area-vendas .motivos { display: block; margin-top: 4px; font-size: 12px; color: #8a5a00; }
+.area-vendas .voltar-link { display: inline-block; margin-bottom: 12px; color: var(--av-azul); font-weight: 600; }
+
+/* Início */
+.area-vendas .grid-indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.area-vendas .indicador { display: flex; align-items: center; gap: 14px; }
+.area-vendas .indicador .icone { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; }
+.area-vendas .indicador .rotulo { color: var(--av-texto-2); font-size: 13px; font-weight: 600; }
+.area-vendas .indicador .valor { font-size: 24px; font-weight: 800; color: var(--av-marinho); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.area-vendas .indicador .nota { font-size: 12.5px; color: var(--av-texto-2); }
+.area-vendas .nota.sobe { color: #146b35; font-weight: 700; }
+.area-vendas .nota.desce { color: #a61d1d; font-weight: 700; }
+.area-vendas .grade-inicio { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+.area-vendas .grade-inicio.tres { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.area-vendas .titulo-cartao { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.area-vendas .titulo-cartao h2 { margin: 0; font-size: 16px; color: var(--av-marinho); }
+.area-vendas .titulo-cartao a { color: var(--av-azul); font-weight: 600; font-size: 13.5px; }
+.area-vendas .troca-dias { display: inline-flex; border: 1px solid var(--av-borda); border-radius: 999px; overflow: hidden; }
+.area-vendas .troca-dias button { border: 0; background: #fff; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; color: var(--av-texto-2); cursor: pointer; }
+.area-vendas .troca-dias button.ativo { background: var(--av-marinho); color: #fff; }
+.area-vendas .grafico { display: flex; align-items: flex-end; gap: 4px; height: 200px; padding-top: 22px; }
+.area-vendas .grafico.sete { gap: 12px; }
+.area-vendas .coluna { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.area-vendas .coluna .barra { width: 100%; background: var(--av-azul); border-radius: 6px 6px 0 0; min-height: 2px; }
+.area-vendas .coluna.hoje .barra { background: var(--av-marinho); }
+.area-vendas .coluna .vlr { font-size: 11px; color: var(--av-texto-2); margin-bottom: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.area-vendas .eixo { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--av-texto-2); }
+.area-vendas .eixo span { flex: 1; text-align: center; min-width: 0; }
+.area-vendas .eixo.esparso { justify-content: space-between; }
+.area-vendas .eixo.esparso span { flex: none; }
+.area-vendas .lista-inicio { list-style: none; margin: 0; padding: 0; }
+.area-vendas .lista-inicio li { border-bottom: 1px solid var(--av-borda); }
+.area-vendas .lista-inicio li:last-child { border-bottom: 0; }
+.area-vendas .recente { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; color: inherit; }
+.area-vendas .recente:hover .rec-nome { color: var(--av-azul); }
+.area-vendas .rec-nome { font-weight: 700; }
+.area-vendas .rec-dir { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.area-vendas .rec-dir strong { font-variant-numeric: tabular-nums; }
+.area-vendas .rank { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.area-vendas .medalha { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex-shrink: 0; background: #C9D2E3; color: var(--av-marinho); }
+.area-vendas .medalha.m1 { background: #FFC20E; color: var(--av-marinho); }
+.area-vendas .medalha.m2 { background: #1D5BE0; color: #fff; }
+.area-vendas .medalha.m3 { background: #F29F3D; color: var(--av-marinho); }
+.area-vendas .rank .rank-nome { flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.area-vendas .rank .rank-val { text-align: right; font-variant-numeric: tabular-nums; }
+.area-vendas .rank .rank-val strong { display: block; }
+.area-vendas .rosca-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.area-vendas .rosca { width: 160px; height: 160px; border-radius: 50%; position: relative; flex-shrink: 0; }
+.area-vendas .rosca::after { content: ''; position: absolute; inset: 26px; background: #fff; border-radius: 50%; }
+.area-vendas .rosca-centro { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 11px; color: var(--av-texto-2); }
+.area-vendas .rosca-centro strong { font-size: 14px; color: var(--av-marinho); }
+.area-vendas .legenda { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 150px; }
+.area-vendas .legenda li { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13.5px; }
+.area-vendas .legenda i { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.area-vendas .legenda .pct { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+.area-vendas .faixa-retidos { background: var(--av-marinho); color: #fff; border-bottom: 6px solid var(--av-amarelo); border-radius: 16px; padding: 18px 22px; display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap; margin-bottom: 14px; }
+.area-vendas .faixa-retidos strong { display: block; font-size: 17px; }
+.area-vendas .faixa-retidos p { margin: 4px 0 0; color: #c9d4ea; }
+.area-vendas .faixa-retidos a { background: var(--av-amarelo); color: var(--av-marinho); font-weight: 800; border-radius: 10px; padding: 10px 18px; }
+
+/* Detalhe */
+.area-vendas .grade-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.area-vendas .grade-info h2, .area-vendas .secao-detalhe h2 { margin: 0 0 10px; font-size: 14px; color: var(--av-texto-2); text-transform: uppercase; letter-spacing: 0.4px; }
+.area-vendas .grade-info p { margin: 3px 0; overflow-wrap: anywhere; }
+.area-vendas .secao-detalhe { margin-bottom: 14px; }
+.area-vendas .pendencias { list-style: none; margin: 0; padding: 0; }
+.area-vendas .pendencias li { padding: 8px 0; border-bottom: 1px solid var(--av-borda); }
+.area-vendas .pendencias li:last-child { border-bottom: 0; }
+.area-vendas .linha-tempo { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 2px solid var(--av-borda); }
+.area-vendas .linha-tempo li { position: relative; padding: 0 0 14px 12px; }
+.area-vendas .linha-tempo li::before { content: ''; position: absolute; left: -23px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--av-azul); }
+.area-vendas .totais-itens { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding: 12px 16px; border-top: 1px solid var(--av-borda); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 820px) {
+  .area-vendas .grade-inicio { grid-template-columns: minmax(0, 1fr); }
+  .area-vendas .grafico.sete { gap: 6px; }
+}

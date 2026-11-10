@@ -92,7 +92,7 @@ export class CatalogService {
       pool.query(
         `${SELECT_PRODUTO} and p.id in (
            select pi2.produto_id from pedido_itens pi2
-             join pedidos pe on pe.id = pi2.pedido_id and pe.criado_em > now() - interval '30 days'
+             join pedidos pe on pe.id = pi2.pedido_id and pe.criado_em > now() - interval '30 days' and pe.origem = 'app_cliente'
             group by pi2.produto_id order by sum(pi2.quantidade) desc limit 10)`,
         [tabela],
       ),
@@ -305,7 +305,7 @@ export class CatalogService {
     const similares = categoriaId
       ? await pool.query(
           `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id = $3
-            order by (select count(*) from pedido_itens i where i.produto_id = p.id) desc, p.nome limit ${LIMITE}`,
+            order by (select count(*) from pedido_itens i join pedidos pe on pe.id = i.pedido_id and pe.origem = 'app_cliente' where i.produto_id = p.id) desc, p.nome limit ${LIMITE}`,
           [tabela, id, categoriaId],
         )
       : { rows: [] as unknown[] };
@@ -313,9 +313,11 @@ export class CatalogService {
     const juntos = await pool.query(
       `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id is distinct from $3
          and p.id in (select i2.produto_id from pedido_itens i1
+                        join pedidos pe on pe.id = i1.pedido_id and pe.origem = 'app_cliente'
                         join pedido_itens i2 on i2.pedido_id = i1.pedido_id and i2.produto_id <> i1.produto_id
                        where i1.produto_id = $2)
-        order by (select count(*) from pedido_itens i1 join pedido_itens i2 on i2.pedido_id = i1.pedido_id
+        order by (select count(*) from pedido_itens i1 join pedidos pe on pe.id = i1.pedido_id and pe.origem = 'app_cliente'
+                   join pedido_itens i2 on i2.pedido_id = i1.pedido_id
                    where i1.produto_id = $2 and i2.produto_id = p.id) desc, p.nome
         limit ${LIMITE}`,
       [tabela, id, categoriaId],
@@ -331,7 +333,7 @@ export class CatalogService {
       const extra = await pool.query(
         `${SELECT_PRODUTO} and p.id <> $2 and p.categoria_id in (${irmas})
            and not (p.id = any($5::uuid[]))
-          order by (select count(*) from pedido_itens i where i.produto_id = p.id) desc, random()
+          order by (select count(*) from pedido_itens i join pedidos pe on pe.id = i.pedido_id and pe.origem = 'app_cliente' where i.produto_id = p.id) desc, random()
           limit ${LIMITE - pecaTambem.length}`,
         [tabela, id, categoriaId, paiId ?? categoriaId, pecaTambem.map((r) => r.id)],
       );

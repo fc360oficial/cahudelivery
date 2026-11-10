@@ -39,3 +39,37 @@ describe('OrdersService — pedidos retidos do vendedor ficam fora do app do cli
     expect(out).toEqual({ id: 'ped-1', numero: 7, total: '10.00', status: 'ENTREGUE' });
   });
 });
+
+describe('OrdersService — o app do cliente só enxerga pedidos de origem app_cliente', () => {
+  const sqlDa = (query: jest.Mock, i = 0) => String((query.mock.calls[i] as unknown[])[0]);
+  it('listar, detalhe (pedido do vendedor = não encontrado), notas e repetir filtram a origem', async () => {
+    const l = montar([]);
+    await l.rodar(() => l.svc.listar('cli-1', 1));
+    expect(sqlDa(l.query)).toContain("p.origem = 'app_cliente'");
+    const d = montar([]);
+    await expect(d.rodar(() => d.svc.detalhe('cli-1', 'ped-v'))).rejects.toBeInstanceOf(NotFoundException);
+    expect(sqlDa(d.query)).toContain("p.origem = 'app_cliente'");
+    const n = montar([]);
+    await n.rodar(() => n.svc.notas('cli-1', 1));
+    expect(sqlDa(n.query)).toContain("p.origem = 'app_cliente'");
+    const r = montar([{ id: 'carr-1' }]);
+    (r.svc as unknown as { catalog: unknown }).catalog = { tabelaPrecoDe: async () => null };
+    await r.rodar(() => r.svc.repetir('cli-1', 'ped-1'));
+    const ins = r.query.mock.calls.map((c) => String((c as unknown[])[0])).find((s) => s.includes('insert into carrinho_itens'));
+    expect(ins).toContain("p.origem = 'app_cliente'");
+  });
+
+  it('validarRiscoCartao conta só pedidos anteriores do app do cliente', async () => {
+    const query = jest.fn(async (sql: string) => {
+      if (sql.includes('cartao_valor_maximo')) {
+        return { rows: [{ chave: 'cartao_pedidos_anteriores', valor_json: { valor: 2 } }] };
+      }
+      return { rows: [{ n: 5 }] };
+    });
+    const svc = new OrdersService({} as never, {} as never, {} as never);
+    await runComTenant({ tenant: TENANT as never, pool: { query } as never }, () =>
+      (svc as unknown as { validarRiscoCartao(c: string, s: number): Promise<void> }).validarRiscoCartao('cli-1', 10));
+    const contagem = query.mock.calls.map((c) => String((c as unknown[])[0])).find((s) => s.includes('count(*)'));
+    expect(contagem).toContain("origem = 'app_cliente'");
+  });
+});

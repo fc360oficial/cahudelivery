@@ -411,7 +411,7 @@ export class OrdersService {
     const minimoPedidos = valor('cartao_pedidos_anteriores');
     if (minimoPedidos > 0) {
       const feitos = await pool.query(
-        `select count(*)::int as n from pedidos where cliente_id = $1 and status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`,
+        `select count(*)::int as n from pedidos where cliente_id = $1 and origem = 'app_cliente' and status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`,
         [clienteId],
       );
       if (feitos.rows[0].n < minimoPedidos) {
@@ -456,7 +456,7 @@ export class OrdersService {
               (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
                       'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
                  from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
-         from pedidos p where p.cliente_id = $1
+         from pedidos p where p.cliente_id = $1 and p.origem = 'app_cliente'
            and p.status <> 'AGUARDANDO_VENDEDOR'
            and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)
         order by p.criado_em desc limit 20 offset $2`,
@@ -472,7 +472,7 @@ export class OrdersService {
               n.numero_nf, n.chave_acesso, n.pdf_url, n.xml_url, n.emitida_em
          from pedidos p
          join pedido_notas n on n.pedido_id = p.id
-        where p.cliente_id = $1
+        where p.cliente_id = $1 and p.origem = 'app_cliente'
         order by n.emitida_em desc
         limit 20 offset $2`,
       [clienteId, (pagina - 1) * 20],
@@ -494,7 +494,7 @@ export class OrdersService {
         (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
                 'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
            from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
-         from pedidos p where p.id = $1 and p.cliente_id = $2
+         from pedidos p where p.id = $1 and p.cliente_id = $2 and p.origem = 'app_cliente'
            and p.status <> 'AGUARDANDO_VENDEDOR'
            and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)`,
       [pedidoId, clienteId],
@@ -513,7 +513,7 @@ export class OrdersService {
       `insert into carrinho_itens (carrinho_id, produto_id, quantidade, preco_unit_snapshot)
        select $1, i.produto_id, i.quantidade, i.preco_unit
          from pedido_itens i
-         join pedidos p on p.id = i.pedido_id and p.cliente_id = $2
+         join pedidos p on p.id = i.pedido_id and p.cliente_id = $2 and p.origem = 'app_cliente'
          join produtos pr on pr.id = i.produto_id and pr.ativo
         where i.pedido_id = $3
        on conflict (carrinho_id, produto_id) do update set quantidade = excluded.quantidade`,

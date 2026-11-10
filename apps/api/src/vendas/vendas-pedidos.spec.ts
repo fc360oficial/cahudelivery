@@ -69,6 +69,7 @@ describe('formaInterna', () => {
     expect(formaInterna('Crédito')).toBe('cartao');
     expect(formaInterna('BOLETO')).toBe('boleto');
     expect(formaInterna('Cheque')).toBe('boleto');
+    expect(formaInterna('BOLETO À VISTA')).toBe('boleto');
   });
 });
 
@@ -132,6 +133,31 @@ describe('VendasPedidosService.receber', () => {
   });
 });
 
+describe('VendasPedidosService.receber — regras de recusa', () => {
+  it('só aceita tabela de preço do ERP', async () => {
+    const { servico, rodar, chamou } = montar();
+    await rodar(() => servico.receber('v1', dto as never));
+    expect(chamou('t.id = $2 and t.erp_tabela_id is not null')).toBe(true);
+  });
+
+  it('total acima do limite é recusado antes de abrir transação', async () => {
+    const { servico, rodar, chamou } = montar();
+    const enorme = { ...dto, itens: [{ produtoId: 'p1', quantidade: 1000, precoUnit: 2000000 }] };
+    await expect(rodar(() => servico.receber('v1', enorme as never))).rejects.toMatchObject({
+      response: { codigo: 'VALOR_FORA_DO_LIMITE' },
+    });
+    expect(chamou('begin')).toBe(false);
+  });
+
+  it('produto repetido traz código legível', async () => {
+    const { servico, rodar } = montar();
+    const repetido = { ...dto, itens: [dto.itens[0], dto.itens[0]] };
+    await expect(rodar(() => servico.receber('v1', repetido as never))).rejects.toMatchObject({
+      response: { codigo: 'PRODUTO_REPETIDO' },
+    });
+  });
+});
+
 describe('VendasPedidosService.confirmar', () => {
   it('aceita o preço atual, libera o pedido e manda para a fila do ERP', async () => {
     const { servico, rodar, chamou, params } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4 });
@@ -140,6 +166,24 @@ describe('VendasPedidosService.confirmar', () => {
     expect(params('update pedido_itens set preco_unit')).toEqual(['ped-retido', 'p1', 86.4, 345.6]);
     expect(chamou('criado_em = now()')).toBe(true);
     expect(chamou('insert into sync_outbox')).toBe(true);
+  });
+
+  it('toma o mesmo bloqueio por cliente do receber', async () => {
+    const { servico, rodar, chamou } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4 });
+    await rodar(() => servico.confirmar('v1', 'ped-retido'));
+    expect(chamou('select pg_advisory_xact_lock')).toBe(true);
+  });
+
+  it('cliente que ficou bloqueado depois da retenção não libera o pedido', async () => {
+    const { servico, rodar, chamou } = montar({ retido: { precoItem: 84 }, precoAtual: 86.4, statusCliente: 'bloqueado' });
+    await expect(rodar(() => servico.confirmar('v1', 'ped-retido'))).rejects.toBeInstanceOf(BadRequestException);
+    expect(chamou('insert into sync_outbox')).toBe(false);
+  });
+
+  it('cliente removido da carteira não libera o pedido', async () => {
+    const { servico, rodar, chamou } = montar({ retido: { precoItem: 84 }, naCarteira: false });
+    await expect(rodar(() => servico.confirmar('v1', 'ped-retido'))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(chamou('insert into sync_outbox')).toBe(false);
   });
 
   it('continua retido se ainda falta estoque', async () => {
@@ -153,6 +197,19 @@ describe('VendasPedidosService.cancelar', () => {
   it('cancela o pedido retido do vendedor', async () => {
     const { servico, rodar } = montar({ cancelRowCount: 1 });
     expect(await rodar(() => servico.cancelar('v1', 'ped-retido'))).toEqual({ ok: true });
+  });
+
+  it('reabre o orçamento que tinha virado este pedido', async () => {
+    const { servico, rodar, chamou, params } = montar({ cancelRowCount: 1 });
+    await rodar(() => servico.cancelar('v1', 'ped-retido'));
+    expect(chamou("update orcamentos set status = 'aberto', pedido_id = null")).toBe(true);
+    expect(params("update orcamentos set status = 'aberto'")).toEqual(['ped-retido', 'v1']);
+  });
+
+  it('não mexe em orçamento quando o cancelamento não achou o pedido', async () => {
+    const { servico, rodar, chamou } = montar({ cancelRowCount: 0 });
+    await expect(rodar(() => servico.cancelar('v1', 'ped-retido'))).rejects.toBeInstanceOf(NotFoundException);
+    expect(chamou('update orcamentos')).toBe(false);
   });
 
   it('pedido inexistente ou já resolvido dá 404', async () => {

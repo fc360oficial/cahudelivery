@@ -34,6 +34,9 @@ export class VendasOrcamentosService {
     const produtoIds = dto.itens.map((i) => i.produtoId);
     if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no orçamento');
     const total = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
+    if (total > 999999999) {
+      throw new BadRequestException({ statusCode: 400, message: 'Valor do orçamento fora do limite', codigo: 'VALOR_FORA_DO_LIMITE' });
+    }
 
     const client = await pool.connect();
     try {

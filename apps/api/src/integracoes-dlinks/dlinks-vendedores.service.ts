@@ -37,15 +37,22 @@ export class DlinksVendedoresService {
   /**
    * O lote manda nos clientes que cita: os vínculos antigos desses clientes são
    * apagados e os do lote entram. Cliente que não aparece no lote não é tocado.
+   * Todos os vendedores de um cliente precisam vir na mesma chamada. Cliente enviado com
+   * funcionario_codigo vazio ou nulo é removido de todas as carteiras.
    */
   async syncCarteira(itens: ClienteFuncionarioDto[]): Promise<ResultadoSync> {
     const { pool } = tenantCtx();
     const ignorados: ResultadoSync['ignorados'] = [];
     const pares: Array<[string, string]> = [];
+    const semVendedor = new Set<string>();
     for (const item of itens) {
       const cli = await pool.query(`select id from clientes where erp_cliente_id = $1`, [item.cliente_codigo]);
       if (!cli.rowCount) {
         ignorados.push({ item, motivo: 'cliente_nao_encontrado' });
+        continue;
+      }
+      if (!item.funcionario_codigo) {
+        semVendedor.add(cli.rows[0].id);
         continue;
       }
       const vend = await pool.query(`select id from vendedores where erp_vendedor_id = $1`, [item.funcionario_codigo]);
@@ -55,8 +62,8 @@ export class DlinksVendedoresService {
       }
       pares.push([cli.rows[0].id, vend.rows[0].id]);
     }
-    if (pares.length) {
-      const clientes = [...new Set(pares.map(([c]) => c))];
+    if (pares.length || semVendedor.size) {
+      const clientes = [...new Set([...pares.map(([c]) => c), ...semVendedor])];
       const client = await pool.connect();
       try {
         await client.query('begin');
@@ -75,7 +82,7 @@ export class DlinksVendedoresService {
         client.release();
       }
     }
-    await this.registrarLog('sync_carteira', `${pares.length} vínculo(s), ${ignorados.length} ignorado(s)`, ignorados.length === 0);
-    return { processados: pares.length, ignorados };
+    await this.registrarLog('sync_carteira', `${pares.length} vínculo(s), ${semVendedor.size} cliente(s) sem vendedor, ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    return { processados: pares.length + semVendedor.size, ignorados };
   }
 }

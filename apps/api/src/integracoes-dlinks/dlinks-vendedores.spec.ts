@@ -47,4 +47,15 @@ describe('DlinksVendedoresService', () => {
     expect(out.processados).toBe(1);
     expect(out.ignorados.map((i) => i.motivo)).toEqual(['cliente_nao_encontrado', 'funcionario_nao_encontrado']);
   });
+
+  it('cliente enviado com vendedor vazio sai de todas as carteiras', async () => {
+    const { query, pool } = montar({ C1: 'cli-1' }, {});
+    const out = await rodar(pool, () =>
+      new DlinksVendedoresService().syncCarteira([{ cliente_codigo: 'C1', funcionario_codigo: '' }] as never),
+    );
+    const apagar = query.mock.calls.find(([sql]) => String(sql).includes('delete from cliente_vendedor'));
+    expect(apagar![1]).toEqual([['cli-1']]);
+    expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into cliente_vendedor'))).toBe(false);
+    expect(out.processados).toBe(1);
+  });
 });

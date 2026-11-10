@@ -55,6 +55,14 @@ describe('VendasOrcamentosService.salvar', () => {
     ).toHaveLength(2);
   });
 
+  it('total acima do limite é recusado', async () => {
+    const { servico, rodar } = montar();
+    const enorme = { ...dto, itens: [{ produtoId: 'p1', quantidade: 1000, precoUnit: 2000000 }] };
+    await expect(rodar(() => servico.salvar('v1', 'orc-1', enorme as never))).rejects.toMatchObject({
+      response: { codigo: 'VALOR_FORA_DO_LIMITE' },
+    });
+  });
+
   it('recusa cliente fora da carteira', async () => {
     const { servico, rodar } = montar({ naCarteira: false });
     await expect(

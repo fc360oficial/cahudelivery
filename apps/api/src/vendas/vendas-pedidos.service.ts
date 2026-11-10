@@ -34,6 +34,7 @@ export interface PedidoListado {
  */
 export function formaInterna(descricao: string): 'boleto' | 'pix' | 'cartao' {
   const d = descricao.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+  if (/BOLETO/.test(d)) return 'boleto';
   if (/PIX|DINHEIRO|VISTA|DEBITO/.test(d)) return 'pix';
   if (/CART|CREDITO/.test(d)) return 'cartao';
   return 'boleto';
@@ -57,6 +58,21 @@ export class VendasPedidosService {
     };
   }
 
+  /** Cliente ainda na carteira do vendedor e liberado para novos pedidos (usado ao receber e ao confirmar). */
+  private async conferirCliente(q: Consulta, clienteId: string, vendedorId: string): Promise<void> {
+    const carteira = await q.query(
+      `select c.status from cliente_vendedor cv join clientes c on c.id = cv.cliente_id
+        where cv.cliente_id = $1 and cv.vendedor_id = $2`,
+      [clienteId, vendedorId],
+    );
+    if (!carteira.rowCount) {
+      throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
+    }
+    if (carteira.rows[0].status === 'bloqueado' || carteira.rows[0].status === 'excluido') {
+      throw new BadRequestException({ statusCode: 400, message: 'Cliente bloqueado para novos pedidos', codigo: 'CLIENTE_BLOQUEADO' });
+    }
+  }
+
   private async dadosAtuais(q: Consulta, clienteId: string, tabelaId: string, produtoIds: string[], exigeCredito: boolean): Promise<DadosAtuais> {
     const { rows } = await q.query(
       `/* dados_atuais */
@@ -67,7 +83,7 @@ export class VendasPedidosService {
         where p.id = any($1::uuid[]) and p.ativo`,
       [produtoIds, tabelaId],
     );
-    if (rows.length !== produtoIds.length) throw new BadRequestException('Produto inexistente ou inativo no pedido');
+    if (rows.length !== produtoIds.length) throw new BadRequestException({ statusCode: 400, message: 'Produto inexistente ou inativo no pedido', codigo: 'PRODUTO_INDISPONIVEL' });
     const precos = new Map<string, number>();
     const estoques = new Map<string, number>();
     const nomes = new Map<string, string>();
@@ -105,24 +121,14 @@ export class VendasPedidosService {
     const existente = await this.porIdDispositivo(pool, dto.idDispositivo, vendedorId);
     if (existente) return existente;
 
-    const carteira = await pool.query(
-      `select c.status from cliente_vendedor cv join clientes c on c.id = cv.cliente_id
-        where cv.cliente_id = $1 and cv.vendedor_id = $2`,
-      [dto.clienteId, vendedorId],
-    );
-    if (!carteira.rowCount) {
-      throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
-    }
-    if (carteira.rows[0].status === 'bloqueado' || carteira.rows[0].status === 'excluido') {
-      throw new BadRequestException({ statusCode: 400, message: 'Cliente bloqueado para novos pedidos', codigo: 'CLIENTE_BLOQUEADO' });
-    }
+    await this.conferirCliente(pool, dto.clienteId, vendedorId);
 
     const produtoIds = dto.itens.map((i) => i.produtoId);
-    if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no pedido');
+    if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException({ statusCode: 400, message: 'Produto repetido no pedido', codigo: 'PRODUTO_REPETIDO' });
 
     const cond = await pool.query(
       `select cp.descricao as condicao, fp.descricao as forma,
-              exists (select 1 from tabelas_preco t where t.id = $2) as tabela_existe,
+              exists (select 1 from tabelas_preco t where t.id = $2 and t.erp_tabela_id is not null) as tabela_existe,
               exists (select 1 from tabela_preco_condicoes x where x.tabela_preco_id = $2) as tabela_tem_vinculo,
               exists (select 1 from tabela_preco_condicoes x
                        where x.tabela_preco_id = $2 and x.condicao_pagamento_id = cp.id) as permitida
@@ -131,7 +137,7 @@ export class VendasPedidosService {
       [dto.condicaoPagamentoId, dto.tabelaPrecoId],
     );
     const c = cond.rows[0];
-    if (!c || !c.tabela_existe) throw new BadRequestException('Tabela ou condição de pagamento inexistente');
+    if (!c || !c.tabela_existe) throw new BadRequestException({ statusCode: 400, message: 'Tabela ou condição de pagamento inexistente', codigo: 'TABELA_OU_CONDICAO_INEXISTENTE' });
     // Tabela sem nenhum vínculo cadastrado aceita qualquer condição (o vínculo ainda não chegou do ERP).
     if (c.tabela_tem_vinculo && !c.permitida) {
       throw new BadRequestException({ statusCode: 400, message: 'Condição de pagamento não permitida para esta tabela', codigo: 'CONDICAO_NAO_PERMITIDA' });
@@ -144,8 +150,13 @@ export class VendasPedidosService {
         `select * from cliente_enderecos where cliente_id = $1 order by padrao desc limit 1`,
         [dto.clienteId],
       );
-      if (!end.rows[0]) throw new BadRequestException('Cliente sem endereço cadastrado para entrega');
+      if (!end.rows[0]) throw new BadRequestException({ statusCode: 400, message: 'Cliente sem endereço cadastrado para entrega', codigo: 'SEM_ENDERECO' });
       enderecoJson = JSON.stringify(end.rows[0]);
+    }
+
+    const totalEnviado = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
+    if (totalEnviado > 999999999) {
+      throw new BadRequestException({ statusCode: 400, message: 'Valor do pedido fora do limite', codigo: 'VALOR_FORA_DO_LIMITE' });
     }
 
     const client = await pool.connect();
@@ -155,7 +166,6 @@ export class VendasPedidosService {
       const dados = await this.dadosAtuais(client, dto.clienteId, dto.tabelaPrecoId, produtoIds, forma === 'boleto');
       const { divergencias, totalAtual } = conferirPedido(dto.itens, dados);
       const retido = divergencias.length > 0;
-      const totalEnviado = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
       const total = retido ? totalEnviado : totalAtual;
       const status = retido ? 'AGUARDANDO_VENDEDOR' : 'RECEBIDO';
       const ped = await client.query(
@@ -226,6 +236,8 @@ export class VendasPedidosService {
       );
       const p = ped.rows[0];
       if (!p) throw new NotFoundException('Pedido não encontrado ou já resolvido');
+      await client.query('select pg_advisory_xact_lock(hashtext($1))', [p.cliente_id]);
+      await this.conferirCliente(client, p.cliente_id, vendedorId);
       const itens = await client.query(
         `/* itens_retidos */ select produto_id, quantidade, preco_unit from pedido_itens where pedido_id = $1`,
         [pedidoId],
@@ -285,6 +297,12 @@ export class VendasPedidosService {
       [pedidoId, vendedorId],
     );
     if (!rowCount) throw new NotFoundException('Pedido não encontrado ou já resolvido');
+    // Orçamento que virou este pedido volta a ficar aberto.
+    await pool.query(
+      `update orcamentos set status = 'aberto', pedido_id = null, atualizado_em = now()
+        where pedido_id = $1 and vendedor_id = $2 and status = 'convertido'`,
+      [pedidoId, vendedorId],
+    );
     return { ok: true };
   }
 

@@ -456,7 +456,10 @@ export class OrdersService {
               (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
                       'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
                  from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
-         from pedidos p where p.cliente_id = $1 order by p.criado_em desc limit 20 offset $2`,
+         from pedidos p where p.cliente_id = $1
+           and p.status <> 'AGUARDANDO_VENDEDOR'
+           and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)
+        order by p.criado_em desc limit 20 offset $2`,
       [clienteId, (pagina - 1) * 20],
     );
     return { dados: rows, pagina };
@@ -491,11 +494,16 @@ export class OrdersService {
         (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
                 'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
            from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
-         from pedidos p where p.id = $1 and p.cliente_id = $2`,
+         from pedidos p where p.id = $1 and p.cliente_id = $2
+           and p.status <> 'AGUARDANDO_VENDEDOR'
+           and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)`,
       [pedidoId, clienteId],
     );
     if (!ped.rows[0]) throw new NotFoundException('Pedido não encontrado');
-    return ped.rows[0];
+    // Colunas do lado do vendedor não vão para o app do cliente.
+    const { retencao_json, id_dispositivo, vendedor_id, criado_no_aparelho_em, ...visivel } = ped.rows[0];
+    void retencao_json; void id_dispositivo; void vendedor_id; void criado_no_aparelho_em;
+    return visivel;
   }
 
   async repetir(clienteId: string, pedidoId: string) {

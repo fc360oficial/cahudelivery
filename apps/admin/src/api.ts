@@ -11,6 +11,8 @@ export interface Sessao {
   solucoes?: Solucao[];
   /** Solução em que o usuário está agora (atualizada pela rota). */
   solucaoAtual?: Solucao;
+  /** Logo da distribuidora no menu (cache da sessão): undefined = ainda não buscada; null = sem logo. */
+  logoUrl?: string | null;
 }
 
 export type Solucao = 'delivery' | 'vendas';
@@ -53,6 +55,21 @@ export function sessao(): Sessao | null {
 
 export function salvarSessao(s: Sessao) {
   localStorage.setItem('sessao', JSON.stringify(s));
+}
+
+/** Logo padrão do menu quando a distribuidora não enviou uma. */
+export const LOGO_PADRAO = '/logo.png';
+
+/** Logo em cache na sessão (undefined = ainda não buscada). */
+export function logoDaSessao(): string | null | undefined {
+  return sessao()?.logoUrl;
+}
+
+/** Guarda a logo na sessão e avisa o menu para atualizar na hora. */
+export function definirLogoDaSessao(url: string | null) {
+  const s = sessao();
+  if (s) salvarSessao({ ...s, logoUrl: url });
+  window.dispatchEvent(new Event('logo-cliente'));
 }
 
 export function sair() {

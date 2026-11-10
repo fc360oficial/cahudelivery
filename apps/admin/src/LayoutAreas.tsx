@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { sair, sessao, solucoesDaSessao } from './api';
+import { api, definirLogoDaSessao, LOGO_PADRAO, logoDaSessao, sair, sessao, solucoesDaSessao } from './api';
 import './vendas.css';
 
 export function Icone({ children }: { children: React.ReactNode }) {
@@ -52,15 +52,33 @@ const EM_BREVE: Item[] = [
 const ITENS_ADMIN: Item[] = [
   { para: '/admin/usuarios', rotulo: 'Usuários e acessos', icone: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></> },
   { para: '/admin/integracao', rotulo: 'Integração ERP', icone: <><path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0z" /><path d="M12 17v4" /></> },
+  { para: '/admin/identidade', rotulo: 'Identidade', icone: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.800" /><path d="M21 16l-5-5-8 9" /></> },
 ];
 
-/** Logo do cliente (preta sobre fundo claro): chip branco pequeno; some se a imagem não carregar. */
+/**
+ * Logo do cliente: vem do cadastro da distribuidora (buscada uma vez e guardada na sessão),
+ * com /logo.png como padrão. Chip branco pequeno; some se a imagem não carregar.
+ */
 function LogoCliente() {
+  const [logo, setLogo] = useState<string | null | undefined>(logoDaSessao());
   const [falhou, setFalhou] = useState(false);
+  useEffect(() => {
+    const atualizar = () => { setLogo(logoDaSessao()); setFalhou(false); };
+    window.addEventListener('logo-cliente', atualizar);
+    if (logoDaSessao() === undefined) {
+      // Sem cache ainda: busca uma vez. Se falhar, fica o padrão (sem gravar na sessão).
+      api<{ logoUrl: string | null }>('/admin/identidade')
+        .then((r) => definirLogoDaSessao(r.logoUrl))
+        .catch(() => setLogo(null));
+    }
+    return () => window.removeEventListener('logo-cliente', atualizar);
+  }, []);
+  // Enquanto busca, reserva o espaço do chip (sem pular o layout).
+  if (logo === undefined) return <div className="av-logo-cliente carregando" aria-hidden="true" />;
   if (falhou) return null;
   return (
     <div className="av-logo-cliente">
-      <img src="/logo.png" alt="" onError={() => setFalhou(true)} />
+      <img src={logo ?? LOGO_PADRAO} alt="" onError={() => setFalhou(true)} />
     </div>
   );
 }

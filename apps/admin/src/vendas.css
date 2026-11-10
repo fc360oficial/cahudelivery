@@ -114,3 +114,9 @@ a.solucao-cartao:hover { border-color: #ffc20e; }
 .area-fluxo .av-menu::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 0.22); border-radius: 999px; }
 .area-fluxo .av-menu::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.4); }
 .area-fluxo .av-menu::-webkit-scrollbar-button { display: none; }
+.area-fluxo .av-logo-cliente.carregando { width: 76px; height: 34px; background: transparent; }
+.area-vendas .identidade-previa { margin-top: 18px; }
+.area-vendas .identidade-rotulo { display: block; margin-bottom: 8px; font-size: 12.5px; color: var(--av-texto-2); }
+.area-vendas .av-cliente-previa { display: inline-flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--av-marinho); color: #fff; }
+.area-vendas .identidade-chip { background: #fff; border-radius: 8px; padding: 3px 6px; display: grid; place-items: center; }
+.area-vendas .identidade-chip img { height: 28px; width: auto; max-width: 64px; object-fit: contain; display: block; }

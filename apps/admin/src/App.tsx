@@ -10,6 +10,7 @@ import { Clientes } from './paginas/Clientes';
 import { Configuracoes } from './paginas/Configuracoes';
 import { Dashboard } from './paginas/Dashboard';
 import { Dossie } from './paginas/Dossie';
+import { Identidade } from './paginas/Identidade';
 import { IndicaLanding } from './paginas/IndicaLanding';
 import { Indicacoes } from './paginas/Indicacoes';
 import { Login } from './paginas/Login';
@@ -111,6 +112,7 @@ export default function App() {
         ))}
         <Route path="/admin/usuarios" element={<Protegido area="admin"><Usuarios /></Protegido>} />
         <Route path="/admin/integracao" element={<Protegido area="admin"><Logs /></Protegido>} />
+        <Route path="/admin/identidade" element={<Protegido area="admin"><Identidade /></Protegido>} />
         <Route path="/usuarios" element={<Navigate to="/admin/usuarios" replace />} />
         <Route path="/logs" element={<Navigate to="/admin/integracao" replace />} />
         <Route path="/solucoes" element={<Solucoes />} />

@@ -4,6 +4,7 @@ import { AdminVendasConsultasService } from './admin-vendas-consultas.service';
 import { AdminVendasImagensController } from './admin-vendas-imagens.controller';
 import { AdminVendasLeiturasController } from './admin-vendas-leituras.controller';
 import { AdminVendasPainelService } from './admin-vendas-painel.service';
+import { AdminVendasCategoriasController } from './admin-vendas-categorias.controller';
 import { AdminVendasController } from './admin-vendas.controller';
 import { VendasAuthController } from './vendas-auth.controller';
 import { VendasAuthService } from './vendas-auth.service';
@@ -15,7 +16,7 @@ import { VendasController } from './vendas.controller';
 import { VendedorGuard } from './vendedor.guard';
 
 @Module({
-  controllers: [VendasAuthController, VendasController, AdminVendasController, AdminVendasLeiturasController, AdminVendasImagensController],
+  controllers: [VendasAuthController, VendasController, AdminVendasController, AdminVendasLeiturasController, AdminVendasImagensController, AdminVendasCategoriasController],
   providers: [VendasAuthService, VendedorGuard, VendasSyncService, VendasPedidosService, VendasOrcamentosService, VendasResumoService, AdminVendasPainelService, AdminVendasConsultasService, AdminGuard],
 })
 export class VendasModule {}

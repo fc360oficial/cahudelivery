@@ -21,6 +21,7 @@ const ITENS_VENDAS: Item[] = [
   { para: '/vendas/clientes', rotulo: 'Clientes', icone: <><rect x="4" y="3" width="16" height="18" rx="2" /><circle cx="12" cy="10" r="2.500" /><path d="M7.500 17c.600-2 2.200-3 4.500-3s3.900 1 4.500 3" /></> },
   { para: '/vendas/tabelas', rotulo: 'Tabelas de preço', icone: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18M9 4v16" /></> },
   { para: '/vendas/produtos', rotulo: 'Produtos', icone: <><path d="M12 3l8 4.500v9L12 21l-8-4.500v-9z" /><path d="M4 7.500l8 4.500 8-4.500M12 12v9" /></> },
+  { para: '/vendas/categorias', rotulo: 'Categorias', icone: <><path d="M12 3l9 4.500-9 4.500-9-4.500z" /><path d="M3 12l9 4.500 9-4.500M3 16.500l9 4.500 9-4.500" /></> },
 ];
 
 const ITENS_DELIVERY: Item[] = [

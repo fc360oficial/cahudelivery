@@ -81,3 +81,20 @@
 
 /* Nota ao lado da forma de pagamento: na mesma linha do nome, sem subir. */
 .area-vendas label > .cad-nota { display: inline; margin: 0 0 0 6px; font-size: 12.5px; color: #4a566e; font-weight: 400; vertical-align: baseline; }
+
+/* Categorias */
+.area-vendas .cad-cat-form { margin-bottom: 16px; }
+.area-vendas .cad-cat-form .cad-filtros { margin-bottom: 0; align-items: flex-end; }
+.area-vendas .cad-cat-campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--av-texto-2); }
+.area-vendas .cad-cat-campo input[type='number'] { width: 90px; }
+.area-vendas .cad-cat-foto { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+.area-vendas .cad-cat-foto.ocupado { cursor: progress; }
+.area-vendas .cad-cat-foto img { width: 42px; height: 28px; object-fit: cover; border-radius: 4px; }
+.area-vendas .cad-cat-foto input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.area-vendas .cad-cat-foto:focus-within { outline: 2px solid var(--av-azul); outline-offset: 2px; }
+.area-vendas .cad-cat-nome { display: inline-flex; align-items: center; gap: 8px; }
+.area-vendas .cad-cat-nome.sub { padding-left: 22px; }
+.area-vendas .cad-cat-nome img, .area-vendas .cad-cat-semfoto { width: 42px; height: 28px; border-radius: 4px; flex: none; }
+.area-vendas .cad-cat-nome img { object-fit: cover; border: 1px solid var(--av-borda); }
+.area-vendas .cad-cat-semfoto { display: inline-block; border: 1px dashed var(--av-borda); }
+.area-vendas .cad-cat-acoes { display: flex; gap: 8px; flex-wrap: wrap; }

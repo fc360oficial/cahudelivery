@@ -6,8 +6,8 @@ import { ItemPedidoVendedorDto } from './pedido-vendedor.dto';
 export class OrcamentoDto {
   @IsUUID() clienteId!: string;
   @IsUUID() tabelaPrecoId!: string;
-  @IsOptional() @IsUUID() condicaoPagamentoId?: string;
-  @IsIn(['entrega', 'retirada']) tipoEntrega!: 'entrega' | 'retirada';
+  @IsOptional() @IsUUID() formaPagamentoId?: string;
+  @IsOptional() @IsIn(['entrega', 'retirada']) tipoEntrega?: 'entrega' | 'retirada';
   @IsOptional() @IsString() @MaxLength(500) observacoes?: string;
 
   @IsArray() @ArrayMinSize(1) @ArrayMaxSize(500)

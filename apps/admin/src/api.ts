@@ -7,6 +7,45 @@ export interface Sessao {
   nome: string;
   papel: string;
   distribuidora: string;
+  /** Soluções a que o usuário tem acesso. Sessões antigas não têm: ver solucoesDaSessao(). */
+  solucoes?: Solucao[];
+  /** Solução em que o usuário está agora (atualizada pela rota). */
+  solucaoAtual?: Solucao;
+  /** Logo da distribuidora no menu (cache da sessão): undefined = ainda não buscada; null = sem logo. */
+  logoUrl?: string | null;
+}
+
+export type Solucao = 'delivery' | 'vendas';
+
+/** Lista efetiva de soluções: sessão antiga SEM lista = só Delivery; lista vazia fica vazia; admin = as duas. */
+export function solucoesDaSessao(s: Sessao | null = sessao()): Solucao[] {
+  if (!s) return [];
+  if (s.papel === 'admin') return ['delivery', 'vendas'];
+  const l = (s.solucoes ?? ['delivery']).filter((x): x is Solucao => x === 'delivery' || x === 'vendas');
+  return l;
+}
+
+/** Página inicial de cada solução. */
+export const HOME_DA_SOLUCAO: Record<Solucao, string> = { delivery: '/', vendas: '/vendas' };
+
+/** Solução atual (a salva na sessão, se o usuário ainda tiver acesso; senão a primeira dele). */
+export function solucaoAtual(s: Sessao | null = sessao()): Solucao | null {
+  const lista = solucoesDaSessao(s);
+  if (!s || !lista.length) return null;
+  return s.solucaoAtual && lista.includes(s.solucaoAtual) ? s.solucaoAtual : lista[0];
+}
+
+/** Troca a solução atual e persiste na sessão. */
+export function trocarSolucao(sol: Solucao) {
+  const s = sessao();
+  if (!s || s.solucaoAtual === sol) return;
+  salvarSessao({ ...s, solucaoAtual: sol });
+}
+
+/** Para onde mandar o usuário logo após o login: uma solução = direto; mais de uma = escolha. */
+export function destinoInicial(s: Sessao | null = sessao()): string {
+  const lista = solucoesDaSessao(s);
+  return lista.length === 1 ? HOME_DA_SOLUCAO[lista[0]] : '/solucoes';
 }
 
 export function sessao(): Sessao | null {
@@ -16,6 +55,21 @@ export function sessao(): Sessao | null {
 
 export function salvarSessao(s: Sessao) {
   localStorage.setItem('sessao', JSON.stringify(s));
+}
+
+/** Logo padrão do menu quando a distribuidora não enviou uma. */
+export const LOGO_PADRAO = '/logo.png';
+
+/** Logo em cache na sessão (undefined = ainda não buscada). */
+export function logoDaSessao(): string | null | undefined {
+  return sessao()?.logoUrl;
+}
+
+/** Guarda a logo na sessão e avisa o menu para atualizar na hora. */
+export function definirLogoDaSessao(url: string | null) {
+  const s = sessao();
+  if (s) salvarSessao({ ...s, logoUrl: url });
+  window.dispatchEvent(new Event('logo-cliente'));
 }
 
 export function sair() {
@@ -52,11 +106,11 @@ export async function upload(arquivo: File): Promise<string> {
 }
 
 /** tipo='produto' → a API padroniza a foto (quadrado 1000x1000 fundo branco) e devolve também a miniatura. */
-export async function uploadCompleto(arquivo: File, tipo?: 'produto' | 'categoria'): Promise<{ url: string; urlMiniatura?: string }> {
+export async function uploadCompleto(arquivo: File, tipo?: 'produto' | 'categoria', prefixo = '/admin'): Promise<{ url: string; urlMiniatura?: string }> {
   const s = sessao();
   const fd = new FormData();
   fd.append('arquivo', arquivo);
-  const res = await fetch(`${API_URL}/admin/upload${tipo ? `?tipo=${tipo}` : ''}`, {
+  const res = await fetch(`${API_URL}${prefixo}/upload${tipo ? `?tipo=${tipo}` : ''}`, {
     method: 'POST',
     headers: { 'X-Tenant': TENANT, ...(s ? { Authorization: `Bearer ${s.accessToken}` } : {}) },
     body: fd,

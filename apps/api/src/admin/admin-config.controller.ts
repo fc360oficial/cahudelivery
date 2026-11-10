@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   ForbiddenException,
@@ -13,10 +14,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { IsBoolean, IsEmail, IsIn, IsNotEmpty, IsObject, IsOptional, MinLength } from 'class-validator';
+import { ArrayUnique, IsArray, IsBoolean, IsEmail, IsIn, IsNotEmpty, IsObject, IsOptional, MinLength } from 'class-validator';
 import type { Request } from 'express';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { AdminGuard, AdminLogado } from './admin.guard';
+import { SOLUCOES, Solucao } from './solucoes';
 
 type ReqAdmin = Request & { admin: AdminLogado };
 
@@ -26,12 +28,13 @@ class NotificacaoDto {
   @IsIn(['todos']) destino!: 'todos'; // segmentos entram com o FCM
 }
 
-class UsuarioDto {
+export class UsuarioDto {
   @IsNotEmpty() nome!: string;
   @IsEmail() email!: string;
   @IsOptional() @MinLength(8) senha?: string;
   @IsIn(['admin', 'operador']) papel!: 'admin' | 'operador';
   @IsOptional() @IsBoolean() ativo?: boolean;
+  @IsOptional() @IsArray() @ArrayUnique() @IsIn(SOLUCOES, { each: true }) solucoes?: Solucao[];
 }
 
 class ConfiguracoesDto {
@@ -78,9 +81,10 @@ export class AdminConfigController {
 
   // ---------- Usuários da retaguarda ----------
   @Get('usuarios')
-  async usuarios() {
+  async usuarios(@Req() req: ReqAdmin) {
+    this.exigirAdmin(req);
     const { pool } = tenantCtx();
-    const { rows } = await pool.query(`select id, nome, email, papel, ativo, criado_em from usuarios_admin order by nome`);
+    const { rows } = await pool.query(`select id, nome, email, papel, ativo, solucoes, criado_em from usuarios_admin order by nome`);
     return rows;
   }
 
@@ -88,10 +92,11 @@ export class AdminConfigController {
   async criarUsuario(@Req() req: ReqAdmin, @Body() dto: UsuarioDto) {
     this.exigirAdmin(req);
     if (!dto.senha) throw new ForbiddenException('Senha obrigatória para novo usuário');
+    const solucoes = this.solucoesDoUsuario(dto, ['delivery']);
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `insert into usuarios_admin (nome, email, senha_hash, papel) values ($1,$2,$3,$4) returning id, nome, email, papel, ativo`,
-      [dto.nome, dto.email.toLowerCase(), await argon2.hash(dto.senha), dto.papel],
+      `insert into usuarios_admin (nome, email, senha_hash, papel, solucoes) values ($1,$2,$3,$4,$5) returning id, nome, email, papel, ativo, solucoes`,
+      [dto.nome, dto.email.toLowerCase(), await argon2.hash(dto.senha), dto.papel, solucoes],
     );
     return rows[0];
   }
@@ -99,11 +104,12 @@ export class AdminConfigController {
   @Put('usuarios/:id')
   async editarUsuario(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string, @Body() dto: UsuarioDto) {
     this.exigirAdmin(req);
+    const solucoes = this.solucoesDoUsuario(dto, null);
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `update usuarios_admin set nome=$2, email=$3, papel=$4, ativo=coalesce($5,ativo) where id=$1
-       returning id, nome, email, papel, ativo`,
-      [id, dto.nome, dto.email.toLowerCase(), dto.papel, dto.ativo],
+      `update usuarios_admin set nome=$2, email=$3, papel=$4, ativo=coalesce($5,ativo), solucoes=coalesce($6, solucoes) where id=$1
+       returning id, nome, email, papel, ativo, solucoes`,
+      [id, dto.nome, dto.email.toLowerCase(), dto.papel, dto.ativo, solucoes],
     );
     if (!rows[0]) throw new NotFoundException();
     if (dto.senha) {
@@ -137,6 +143,14 @@ export class AdminConfigController {
       [req.admin.usuarioId, JSON.stringify(dto.valores)],
     );
     return this.configuracoes();
+  }
+
+  /** Admin tem sempre as duas; operador precisa de ao menos uma. Sem lista: usa o padrão informado. */
+  private solucoesDoUsuario(dto: UsuarioDto, padrao: Solucao[] | null): Solucao[] | null {
+    if (dto.papel === 'admin') return [...SOLUCOES];
+    if (dto.solucoes === undefined) return padrao;
+    if (dto.solucoes.length === 0) throw new BadRequestException('Operador precisa de ao menos uma solução');
+    return dto.solucoes;
   }
 
   private exigirAdmin(req: ReqAdmin) {

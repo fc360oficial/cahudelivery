@@ -2,6 +2,7 @@ import { Body, Controller, Delete, ForbiddenException, Get, HttpCode, Param, Par
 import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import type { Request } from 'express';
 import { AdminGuard, AdminLogado } from './admin.guard';
+import { ImagemProdutoDto } from './imagem-produto';
 import { AdminService } from './admin.service';
 import { MapaService } from './mapa.service';
 import { parseFiltrosMapa } from './mapa-filtros';
@@ -32,11 +33,6 @@ class ValidadeDto {
   @IsOptional() @IsDateString() dataValidade?: string;
 }
 
-class ImagemProdutoDto {
-  @IsNotEmpty() @IsString() url!: string;
-  @IsOptional() @IsString() urlMiniatura?: string;
-}
-
 class MovimentoCarteiraDto {
   @IsNumber() valor!: number;
   @IsString() motivo!: string;
@@ -57,8 +53,8 @@ export class AdminController {
   }
 
   @Get('pedidos')
-  pedidos(@Query('status') status?: string, @Query('busca') busca?: string, @Query('origem') origem?: string, @Query('pagina') pagina = '1') {
-    return this.admin.pedidos({ status, busca, origem, pagina: Math.max(1, Number(pagina) || 1) });
+  pedidos(@Query('status') status?: string, @Query('busca') busca?: string, @Query('pagina') pagina = '1') {
+    return this.admin.pedidos({ status, busca, pagina: Math.max(1, Number(pagina) || 1) });
   }
 
   @Get('pedidos/:id')
@@ -174,7 +170,8 @@ export class AdminController {
   }
 
   @Get('logs/integracao')
-  logs(@Query('pagina') pagina = '1') {
+  logs(@Req() req: ReqAdmin, @Query('pagina') pagina = '1') {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
     return this.admin.logsIntegracao(Math.max(1, Number(pagina) || 1));
   }
 

@@ -129,12 +129,12 @@ export function Patrocinadores() {
           </div>
           <div className="filtros" style={{ marginTop: 8 }}>
             <label className="btn btn-claro">
-              {subindoLogo ? 'Enviando…' : '📁 Logo (redondo)'}
+              {subindoLogo ? 'Enviando…' : 'Logo (redondo)'}
               <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => escolherArquivo('logoUrl', setSubindoLogo, e)} style={{ display: 'none' }} />
             </label>
             {form.logoUrl && <img src={form.logoUrl} alt="" style={{ height: 38, width: 38, borderRadius: '50%', objectFit: 'cover' }} />}
             <label className="btn btn-claro">
-              {subindoBanner ? 'Enviando…' : '📁 Banner (1400x400)'}
+              {subindoBanner ? 'Enviando…' : 'Banner (1400x400)'}
               <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => escolherArquivo('bannerUrl', setSubindoBanner, e)} style={{ display: 'none' }} />
             </label>
             {form.bannerUrl && <img src={form.bannerUrl} alt="" style={{ height: 38, borderRadius: 6 }} />}

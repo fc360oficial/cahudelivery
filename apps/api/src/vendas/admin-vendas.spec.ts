@@ -6,9 +6,10 @@ import { AdminVendasController } from './admin-vendas.controller';
 const ADMIN = { admin: { usuarioId: 'u1', papel: 'admin' } } as never;
 const OPERADOR = { admin: { usuarioId: 'u2', papel: 'operador' } } as never;
 
-function montar(opcoes: { loginEmUso?: boolean; updateRowCount?: number; falhaEm?: { trecho: string; code: string } } = {}) {
+function montar(opcoes: { semTabela?: boolean; loginEmUso?: boolean; updateRowCount?: number; falhaEm?: { trecho: string; code: string } } = {}) {
   const query = jest.fn(async (sql: string) => {
     if (opcoes.falhaEm && sql.includes(opcoes.falhaEm.trecho)) throw Object.assign(new Error('falha'), { code: opcoes.falhaEm.code });
+    if (sql.includes('from tabelas_preco where id = $1 and erp_tabela_id is not null')) return { rowCount: opcoes.semTabela ? 0 : 1, rows: [] };
     if (sql.includes('from vendedores where login = $1 and id <> $2')) return { rowCount: opcoes.loginEmUso ? 1 : 0, rows: [] };
     if (sql.includes('update vendedores set login')) return { rowCount: opcoes.updateRowCount ?? 1, rows: [] };
     return { rows: [], rowCount: 0 };
@@ -73,32 +74,82 @@ describe('AdminVendasController.definirAcesso', () => {
   });
 });
 
-describe('AdminVendasController.definirCondicoes', () => {
-  it('troca todas as condições da tabela', async () => {
+describe('AdminVendasController.definirFormas', () => {
+  it('troca todas as formas da tabela', async () => {
     const { controller, rodar, params, chamou } = montar();
-    await rodar(() => controller.definirCondicoes(ADMIN, 'tab-1', { condicaoIds: ['c1', 'c2'] } as never));
-    expect(params('delete from tabela_preco_condicoes')).toEqual(['tab-1']);
-    expect(chamou('insert into tabela_preco_condicoes')).toBe(true);
-    expect(params('insert into tabela_preco_condicoes')).toEqual(['tab-1', ['c1', 'c2']]);
+    await rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1', 'f2'] } as never));
+    expect(params('delete from tabela_preco_formas')).toEqual(['tab-1']);
+    expect(chamou('insert into tabela_preco_formas')).toBe(true);
+    expect(params('insert into tabela_preco_formas')).toEqual(['tab-1', ['f1', 'f2']]);
+  });
+
+  it('grava o tipo de entrega da tabela na mesma transação', async () => {
+    const { controller, rodar, params, chamou } = montar();
+    await rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'], tipoEntrega: 'retirada' } as never));
+    expect(params('update tabelas_preco set tipo_entrega')).toEqual(['retirada', 'tab-1']);
+    expect(chamou('commit')).toBe(true);
+  });
+
+  it('sem tipoEntrega no corpo não mexe no tipo da tabela', async () => {
+    const { controller, rodar, chamou } = montar();
+    await rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'] } as never));
+    expect(chamou('update tabelas_preco set tipo_entrega')).toBe(false);
+  });
+
+  it('operador não altera o tipo de entrega', async () => {
+    const { controller, rodar, chamou } = montar();
+    await expect(rodar(() => controller.definirFormas(OPERADOR, 'tab-1', { formaIds: [], tipoEntrega: 'entrega' } as never))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(chamou('')).toBe(false);
   });
 
   it('recusa operador sem fazer nenhuma consulta', async () => {
     const { controller, rodar, chamou } = montar();
-    await expect(rodar(() => controller.definirCondicoes(OPERADOR, 'tab-1', { condicaoIds: [] } as never))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(rodar(() => controller.definirFormas(OPERADOR, 'tab-1', { formaIds: [] } as never))).rejects.toBeInstanceOf(ForbiddenException);
     expect(chamou('')).toBe(false);
   });
 
-  it('tabela ou condição inexistente (23503) vira 400 e faz rollback', async () => {
-    const { controller, rodar, chamou } = montar({ falhaEm: { trecho: 'insert into tabela_preco_condicoes', code: '23503' } });
-    await expect(rodar(() => controller.definirCondicoes(ADMIN, 'tab-1', { condicaoIds: ['c1'] } as never))).rejects.toBeInstanceOf(BadRequestException);
+  it('tabela ou forma inexistente (23503) vira 400 e faz rollback', async () => {
+    const { controller, rodar, chamou } = montar({ falhaEm: { trecho: 'insert into tabela_preco_formas', code: '23503' } });
+    await expect(rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'] } as never))).rejects.toBeInstanceOf(BadRequestException);
     expect(chamou('rollback')).toBe(true);
   });
 
-  it('lista vazia só apaga, sem inserir', async () => {
+  it('tabela inexistente ou que não veio do ERP dá 404 e não altera nada', async () => {
+    const { controller, rodar, chamou, query } = montar({ semTabela: true });
+    await expect(rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: ['f1'], tipoEntrega: 'entrega' } as never))).rejects.toMatchObject({ message: 'Tabela de preço não encontrada', status: 404 });
+    expect(String(query.mock.calls.find(([sql]) => String(sql).includes('from tabelas_preco where id'))![0])).toContain('erp_tabela_id is not null');
+    expect(chamou('delete from tabela_preco_formas')).toBe(false);
+    expect(chamou('update tabelas_preco set tipo_entrega')).toBe(false);
+    expect(chamou('rollback')).toBe(true);
+  });
+
+  it('lista vazia (tabela fora do app dos vendedores) só apaga, sem inserir', async () => {
     const { controller, rodar, chamou } = montar();
-    const r = await rodar(() => controller.definirCondicoes(ADMIN, 'tab-1', { condicaoIds: [] } as never));
+    const r = await rodar(() => controller.definirFormas(ADMIN, 'tab-1', { formaIds: [] } as never));
     expect(r).toEqual({ ok: true });
-    expect(chamou('delete from tabela_preco_condicoes')).toBe(true);
-    expect(chamou('insert into tabela_preco_condicoes')).toBe(false);
+    expect(chamou('delete from tabela_preco_formas')).toBe(true);
+    expect(chamou('insert into tabela_preco_formas')).toBe(false);
+  });
+});
+
+describe('AdminVendasController.tabelasFormas', () => {
+  it('lista só tabelas do ERP com as formas aceitas e a marca de crédito', async () => {
+    const { controller, rodar, query } = montar();
+    query.mockImplementation((async (sql: string) => {
+      if (sql.includes('from tabelas_preco t')) return { rows: [{ id: 't1', nome: 'ENTREGA BOLETO 14', erp_tabela_id: '9', forma_ids: ['f1'], tipo_entrega: 'retirada' }] };
+      if (sql.includes('from formas_pagamento_erp')) {
+        return { rows: [{ id: 'f1', descricao: 'BOLETO', erp_forma_pagamento_id: '15' }, { id: 'f2', descricao: 'PIX', erp_forma_pagamento_id: '3' }] };
+      }
+      return { rows: [], rowCount: 0 };
+    }) as never);
+    const out = await rodar(() => controller.tabelasFormas());
+    expect(out).toEqual({
+      tabelas: [{ id: 't1', nome: 'ENTREGA BOLETO 14', codigo: '9', formaIds: ['f1'], tipoEntrega: 'retirada' }],
+      formas: [
+        { id: 'f1', descricao: 'BOLETO', codigo: '15', exigeCredito: true },
+        { id: 'f2', descricao: 'PIX', codigo: '3', exigeCredito: false },
+      ],
+    });
+    expect(String(query.mock.calls[0][0])).toContain('t.erp_tabela_id is not null');
   });
 });

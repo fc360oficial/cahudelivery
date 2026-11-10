@@ -1,0 +1,100 @@
+/* Vendedores, Clientes, Tabelas e condições, Produtos. Tudo sob .area-vendas. */
+.area-vendas .cad-nota { margin: 0 0 14px; color: var(--av-texto-2); font-size: 13.5px; }
+.area-vendas .cad-aviso { margin: 0 0 14px; padding: 12px 16px; border-radius: 12px; background: #fff0c2; color: #6b4600; font-size: 14px; }
+.area-vendas .cad-erro { margin: 0 0 14px; padding: 12px 16px; border-radius: 12px; background: #fddcdc; color: #a61d1d; font-size: 14px; white-space: pre-line; }
+.area-vendas .cad-ok { margin: 0 0 14px; padding: 12px 16px; border-radius: 12px; background: #d6f3df; color: #146b35; font-size: 14px; }
+.area-vendas .cad-filtros { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.area-vendas .cad-filtros input, .area-vendas .cad-filtros select, .area-vendas .cad-form input[type='text'], .area-vendas .cad-form input[type='password'] {
+  background: #fff; border: 1px solid var(--av-borda); border-radius: 10px; padding: 9px 12px; color: var(--av-texto); font: inherit; min-width: 0;
+}
+.area-vendas .cad-filtros input[type='search'] { flex: 1; min-width: 200px; max-width: 360px; }
+.area-vendas .cad-filtros select { max-width: 100%; }
+.area-vendas .cad-btn {
+  background: var(--av-azul); color: #fff; border: 0; border-radius: 10px; padding: 9px 16px; font: inherit; font-weight: 700; cursor: pointer;
+}
+.area-vendas .cad-btn:hover:not(:disabled) { background: #174bbd; }
+.area-vendas .cad-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.area-vendas .cad-btn-claro { background: #fff; color: var(--av-marinho); border: 1px solid var(--av-borda); }
+.area-vendas .cad-btn-claro:hover:not(:disabled) { background: #f3f6fb; }
+.area-vendas .cad-btn-mini { padding: 5px 12px; font-size: 13px; border-radius: 8px; }
+.area-vendas .cad-link { background: none; border: 0; padding: 0; color: var(--av-azul); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
+.area-vendas .cad-sub { display: block; color: var(--av-texto-2); font-size: 12.5px; }
+.area-vendas .cad-fraco { color: var(--av-texto-2); }
+.area-vendas .cad-negativo { color: #a61d1d; font-weight: 700; }
+.area-vendas .cad-painel { margin-bottom: 18px; }
+.area-vendas .cad-painel h2 { margin: 0 0 12px; font-size: 17px; color: var(--av-marinho); }
+.area-vendas .cad-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; align-items: end; }
+.area-vendas .cad-form label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--av-texto-2); }
+.area-vendas .cad-form .cad-check { flex-direction: row; align-items: center; gap: 8px; color: var(--av-texto); font-size: 14px; }
+.area-vendas .cad-form .cad-senha { display: flex; gap: 6px; }
+.area-vendas .cad-form .cad-senha input { flex: 1; }
+.area-vendas .cad-ajuda { grid-column: 1 / -1; margin: 0; color: var(--av-texto-2); font-size: 13px; }
+.area-vendas .cad-acoes { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+.area-vendas .cad-pag { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; color: var(--av-texto-2); font-size: 14px; }
+.area-vendas .cad-tabela-card { margin-bottom: 16px; }
+.area-vendas .cad-tabela-topo { display: flex; gap: 10px 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.area-vendas .cad-tabela-topo h2 { margin: 0; font-size: 17px; color: var(--av-marinho); }
+.area-vendas .cad-tabela-topo .cad-tabela-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.area-vendas .cad-grupo { margin: 0 0 12px; padding: 0; border: 0; min-width: 0; }
+.area-vendas .cad-grupo legend { padding: 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: var(--av-texto-2); margin-bottom: 6px; }
+.area-vendas .cad-tipo { display: inline-flex; gap: 0; margin: 0; padding: 0; border: 1px solid var(--av-borda, #c9d2de); border-radius: 8px; overflow: hidden; }
+.area-vendas .cad-tipo-legenda { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.area-vendas .cad-tipo label { display: flex; align-items: center; gap: 6px; padding: 6px 14px; font-size: 14px; cursor: pointer; }
+.area-vendas .cad-tipo label.ativo { background: var(--av-marinho); color: #fff; font-weight: 600; }
+.area-vendas .cad-tipo input { accent-color: var(--av-marinho); }
+.area-vendas .cad-tipo label:focus-within { outline: 2px solid var(--av-marinho); outline-offset: -2px; }
+.area-vendas .cad-opcoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 16px; }
+.area-vendas .cad-opcoes label { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+@media (max-width: 560px) {
+  .area-vendas .cad-filtros input[type='search'] { max-width: none; min-width: 100%; }
+  .area-vendas .cad-filtros select { width: 100%; }
+}
+
+/* Produtos: chips de filtro e foto do produto */
+.area-vendas .cad-chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; font-size: 13.5px; }
+.area-vendas .cad-chip {
+  border: 1px solid var(--av-borda); background: #fff; color: var(--av-texto-2); border-radius: 999px; padding: 7px 14px;
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; min-height: 34px;
+}
+.area-vendas .cad-chip:hover { background: #f3f6fb; }
+.area-vendas .cad-chip.ativo { background: var(--av-azul); border-color: var(--av-azul); color: #fff; }
+.area-vendas .cad-foto { position: relative; width: 56px; }
+.area-vendas .cad-foto-alvo { display: block; position: relative; width: 56px; height: 56px; cursor: pointer; }
+.area-vendas .cad-foto-alvo.ocupado { cursor: progress; }
+.area-vendas .cad-foto-alvo input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.area-vendas .cad-foto-alvo:focus-within { outline: 2px solid var(--av-azul); outline-offset: 2px; border-radius: 8px; }
+.area-vendas .cad-foto img { display: block; width: 56px; height: 56px; object-fit: contain; background: #fff; border: 1px solid var(--av-borda); border-radius: 8px; }
+.area-vendas .cad-foto-vazia {
+  display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; box-sizing: border-box; text-align: center;
+  border: 1px dashed var(--av-borda); border-radius: 8px; background: #f3f6fb; color: var(--av-texto-2); font-size: 11px;
+}
+.area-vendas .cad-foto-enviando {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.85); color: var(--av-marinho); font-size: 10.5px; font-weight: 700;
+}
+.area-vendas .cad-foto-remover {
+  position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--av-borda);
+  background: #fff; color: #a61d1d; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.area-vendas .cad-foto-remover:hover { background: #fddcdc; }
+
+/* Nota ao lado da forma de pagamento: na mesma linha do nome, sem subir. */
+.area-vendas label > .cad-nota { display: inline; margin: 0 0 0 6px; font-size: 12.5px; color: #4a566e; font-weight: 400; vertical-align: baseline; }
+
+/* Categorias */
+.area-vendas .cad-cat-form { margin-bottom: 16px; }
+.area-vendas .cad-cat-form .cad-filtros { margin-bottom: 0; align-items: flex-end; }
+.area-vendas .cad-cat-campo { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--av-texto-2); }
+.area-vendas .cad-cat-campo input[type='number'] { width: 90px; }
+.area-vendas .cad-cat-foto { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; position: relative; }
+.area-vendas .cad-cat-foto.ocupado { cursor: progress; }
+.area-vendas .cad-cat-foto img { width: 42px; height: 28px; object-fit: cover; border-radius: 4px; }
+.area-vendas .cad-cat-foto input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.area-vendas .cad-cat-foto:focus-within { outline: 2px solid var(--av-azul); outline-offset: 2px; }
+.area-vendas .cad-cat-nome { display: inline-flex; align-items: center; gap: 8px; }
+.area-vendas .cad-cat-nome.sub { padding-left: 22px; }
+.area-vendas .cad-cat-nome img, .area-vendas .cad-cat-semfoto { width: 42px; height: 28px; border-radius: 4px; flex: none; }
+.area-vendas .cad-cat-nome img { object-fit: cover; border: 1px solid var(--av-borda); }
+.area-vendas .cad-cat-semfoto { display: inline-block; border: 1px dashed var(--av-borda); }
+.area-vendas .cad-cat-acoes { display: flex; gap: 8px; flex-wrap: wrap; }

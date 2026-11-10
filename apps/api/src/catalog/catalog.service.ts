@@ -68,7 +68,7 @@ export class CatalogService {
     return {
       appNome: tenant.appNome,
       distribuidora: tenant.nomeFantasia,
-      tema: tema.rows[0] ?? null,
+      tema: tema.rows[0] ? { ...tema.rows[0], logo_retaguarda_url: tema.rows[0].config_json?.logo_retaguarda_url ?? null } : null,
       configuracoes: Object.fromEntries(cfg.rows.map((r) => [r.chave, r.valor_json])),
     };
   }

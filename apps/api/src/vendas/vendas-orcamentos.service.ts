@@ -3,12 +3,13 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { tenantCtx } from '../tenancy/tenant-context';
 import { arredondar } from './conferir-pedido';
 import { OrcamentoDto } from './orcamento.dto';
+import { conferirTabelaForma } from './vendas-pedidos.service';
 
 export interface OrcamentoListado {
   id: string;
   clienteId: string;
   tabelaPrecoId: string;
-  condicaoPagamentoId: string | null;
+  formaPagamentoId: string | null;
   tipoEntrega: string;
   observacoes: string | null;
   total: number;
@@ -31,6 +32,21 @@ export class VendasOrcamentosService {
     if (!carteira.rowCount) {
       throw new ForbiddenException({ statusCode: 403, message: 'Cliente fora da sua carteira', codigo: 'CLIENTE_FORA_DA_CARTEIRA' });
     }
+    const tab = await pool.query(`/* tabela_tipo */ select tipo_entrega from tabelas_preco where id = $1`, [dto.tabelaPrecoId]);
+    if (!tab.rows[0]) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Produto, tabela ou forma de pagamento não existe mais. Sincronize o aplicativo.',
+        codigo: 'REFERENCIA_INVALIDA',
+      });
+    }
+    // A tabela de preço define se é entrega ou retirada; o app não escolhe.
+    const tipoEntrega: 'entrega' | 'retirada' = tab.rows[0].tipo_entrega === 'retirada' ? 'retirada' : 'entrega';
+    if (dto.tipoEntrega && dto.tipoEntrega !== tipoEntrega) {
+      throw new BadRequestException({ statusCode: 400, message: `Esta tabela é de ${tipoEntrega}`, codigo: 'TIPO_ENTREGA_DIFERENTE_DA_TABELA' });
+    }
+    // Orçamento sem forma é permitido; com forma, vale a mesma regra do pedido (a tabela precisa aceitá-la).
+    if (dto.formaPagamentoId) await conferirTabelaForma(pool, dto.tabelaPrecoId, dto.formaPagamentoId);
     const produtoIds = dto.itens.map((i) => i.produtoId);
     if (new Set(produtoIds).size !== produtoIds.length) throw new BadRequestException('Produto repetido no orçamento');
     const total = arredondar(dto.itens.reduce((t, i) => t + arredondar(i.precoUnit * i.quantidade), 0));
@@ -42,14 +58,14 @@ export class VendasOrcamentosService {
     try {
       await client.query('begin');
       const gravado = await client.query(
-        `insert into orcamentos (id, vendedor_id, cliente_id, tabela_preco_id, condicao_pagamento_id, tipo_entrega, observacoes, total)
+        `insert into orcamentos (id, vendedor_id, cliente_id, tabela_preco_id, forma_pagamento_erp_id, tipo_entrega, observacoes, total)
          values ($1,$2,$3,$4,$5,$6,$7,$8)
          on conflict (id) do update set
            cliente_id = excluded.cliente_id, tabela_preco_id = excluded.tabela_preco_id,
-           condicao_pagamento_id = excluded.condicao_pagamento_id, tipo_entrega = excluded.tipo_entrega,
+           forma_pagamento_erp_id = excluded.forma_pagamento_erp_id, tipo_entrega = excluded.tipo_entrega,
            observacoes = excluded.observacoes, total = excluded.total, atualizado_em = now()
          where orcamentos.vendedor_id = excluded.vendedor_id and orcamentos.status = 'aberto'`,
-        [id, vendedorId, dto.clienteId, dto.tabelaPrecoId, dto.condicaoPagamentoId ?? null, dto.tipoEntrega, dto.observacoes ?? null, total],
+        [id, vendedorId, dto.clienteId, dto.tabelaPrecoId, dto.formaPagamentoId ?? null, tipoEntrega, dto.observacoes ?? null, total],
       );
       if (!gravado.rowCount) {
         throw new ConflictException({ statusCode: 409, message: 'Este orçamento não pode mais ser alterado', codigo: 'ORCAMENTO_FECHADO' });
@@ -65,11 +81,11 @@ export class VendasOrcamentosService {
       return { id, status: 'aberto' as const, total };
     } catch (e) {
       await client.query('rollback');
-      // Catálogo desatualizado no celular: produto, tabela ou condição já não existem no cadastro.
+      // Catálogo desatualizado no celular: produto, tabela ou forma de pagamento já não existem no cadastro.
       if ((e as { code?: string }).code === '23503') {
         throw new BadRequestException({
           statusCode: 400,
-          message: 'Produto, tabela ou condição de pagamento não existe mais. Sincronize o aplicativo.',
+          message: 'Produto, tabela ou forma de pagamento não existe mais. Sincronize o aplicativo.',
           codigo: 'REFERENCIA_INVALIDA',
         });
       }
@@ -82,7 +98,7 @@ export class VendasOrcamentosService {
   async listar(vendedorId: string): Promise<OrcamentoListado[]> {
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select o.id, o.cliente_id, o.tabela_preco_id, o.condicao_pagamento_id, o.tipo_entrega, o.observacoes, o.total,
+      `select o.id, o.cliente_id, o.tabela_preco_id, o.forma_pagamento_erp_id, o.tipo_entrega, o.observacoes, o.total,
               o.status, o.pedido_id, o.criado_em, o.atualizado_em,
               (select json_agg(json_build_object('produtoId', i.produto_id, 'quantidade', i.quantidade, 'precoUnit', i.preco_unit))
                  from orcamento_itens i where i.orcamento_id = o.id) as itens
@@ -92,7 +108,7 @@ export class VendasOrcamentosService {
       [vendedorId],
     );
     return rows.map((o) => ({
-      id: o.id, clienteId: o.cliente_id, tabelaPrecoId: o.tabela_preco_id, condicaoPagamentoId: o.condicao_pagamento_id,
+      id: o.id, clienteId: o.cliente_id, tabelaPrecoId: o.tabela_preco_id, formaPagamentoId: o.forma_pagamento_erp_id,
       tipoEntrega: o.tipo_entrega, observacoes: o.observacoes, total: Number(o.total), status: o.status, pedidoId: o.pedido_id,
       criadoEm: o.criado_em, atualizadoEm: o.atualizado_em,
       itens: (o.itens ?? []).map((i: { produtoId: string; quantidade: unknown; precoUnit: unknown }) => ({

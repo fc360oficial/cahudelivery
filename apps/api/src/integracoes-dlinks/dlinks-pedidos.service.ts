@@ -83,7 +83,7 @@ export class DlinksPedidosService {
               p.endereco_snapshot_json, p.valor_saldo_usado,
               v.erp_vendedor_id as vendedor_codigo, v.nome as vendedor_nome,
               tp.erp_tabela_id as tabela_codigo, tp.nome as tabela_nome,
-              cpe.erp_condicao_id as condicao_codigo, fpe.erp_forma_pagamento_id as forma_codigo,
+              fpe.erp_forma_pagamento_id as forma_codigo,
               c.documento, c.erp_cliente_id, c.tipo, c.razao_social, c.nome_fantasia, c.email, c.telefone,
               (select json_agg(json_build_object(
                   'erpProdutoId', coalesce(pr.erp_produto_id, pr.sku),
@@ -99,8 +99,7 @@ export class DlinksPedidosService {
          from pedidos p join clientes c on c.id = p.cliente_id
          left join vendedores v on v.id = p.vendedor_id
          left join tabelas_preco tp on tp.id = p.tabela_preco_id
-         left join condicoes_pagamento_erp cpe on cpe.id = p.condicao_pagamento_id
-         left join formas_pagamento_erp fpe on fpe.id = cpe.forma_pagamento_id
+         left join formas_pagamento_erp fpe on fpe.id = p.forma_pagamento_erp_id
         where p.criado_em >= ($1::date)::timestamp at time zone 'America/Recife'
           and p.criado_em < ($2::date + 1)::timestamp at time zone 'America/Recife'
           and p.status <> 'AGUARDANDO_PAGAMENTO'
@@ -141,7 +140,7 @@ export class DlinksPedidosService {
         origem: r.origem,
         vendedor: r.vendedor_codigo ? { codigo: r.vendedor_codigo, nome: r.vendedor_nome } : undefined,
         tabelaPreco: r.tabela_codigo ? { codigo: r.tabela_codigo, nome: r.tabela_nome } : undefined,
-        condicaoPagamentoCodigo: r.condicao_codigo ?? undefined,
+        condicaoPagamentoCodigo: undefined,
         formaPagamentoCodigo: r.forma_codigo ?? undefined,
       })),
     };

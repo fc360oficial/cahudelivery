@@ -5,6 +5,7 @@ import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 import type { Request } from 'express';
 import { LimiteAuthService, ipDaRequisicao } from '../auth/limite-auth.service';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { solucoesEfetivas } from './solucoes';
 
 class AdminLoginDto {
   @IsEmail() email!: string;
@@ -44,7 +45,7 @@ export class AdminAuthController {
     const chaves = [`admin:${dto.email.toLowerCase()}`, `ip:${ipDaRequisicao(req)}`];
     await this.limite.conferir(chaves);
     const { rows } = await pool.query(
-      `select id, nome, papel, senha_hash, ativo from usuarios_admin where email = $1`,
+      `select id, nome, papel, senha_hash, ativo, solucoes from usuarios_admin where email = $1`,
       [dto.email.toLowerCase()],
     );
     const u = rows[0];
@@ -53,10 +54,11 @@ export class AdminAuthController {
       throw new UnauthorizedException('Credenciais inválidas');
     }
     await this.limite.limpar(chaves[0]);
+    const solucoes = solucoesEfetivas(u.papel, u.solucoes);
     const accessToken = await this.jwt.signAsync(
-      { sub: u.id, slug: tenant.slug, tipo: 'admin', papel: u.papel },
+      { sub: u.id, slug: tenant.slug, tipo: 'admin', papel: u.papel, solucoes },
       { expiresIn: '12h' },
     );
-    return { accessToken, nome: u.nome, papel: u.papel, distribuidora: tenant.nomeFantasia };
+    return { accessToken, nome: u.nome, papel: u.papel, solucoes, distribuidora: tenant.nomeFantasia };
   }
 }

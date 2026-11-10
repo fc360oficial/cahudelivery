@@ -4,6 +4,7 @@ import { excluirCliente } from '../clientes/excluir-cliente';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
 import { ehProvedorCartao } from '../pagamentos/provedor-pagamento';
+import { definirImagemProduto as definirImagemProdutoCompartilhada, removerImagemProduto as removerImagemProdutoCompartilhada } from './imagem-produto';
 import { tenantCtx } from '../tenancy/tenant-context';
 
 @Injectable()
@@ -69,18 +70,13 @@ export class AdminService {
     };
   }
 
-  async pedidos(f: { status?: string; busca?: string; origem?: string; pagina: number }) {
+  async pedidos(f: { status?: string; busca?: string; pagina: number }) {
     const { pool } = tenantCtx();
-    const cond: string[] = ['true'];
+    const cond: string[] = ["p.origem = 'app_cliente'"];
     const params: unknown[] = [];
     if (f.status) {
       params.push(f.status);
       cond.push(`p.status = $${params.length}`);
-    }
-    const origem = f.origem === 'vendedor' || f.origem === 'todos' ? f.origem : 'app_cliente';
-    if (origem !== 'todos') {
-      params.push(origem);
-      cond.push(`p.origem = $${params.length}`);
     }
     if (f.busca) {
       params.push(`%${f.busca}%`);
@@ -89,10 +85,9 @@ export class AdminService {
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select p.id, p.numero, p.status, p.forma_pagamento, p.total, p.erp_pedido_id, p.criado_em,
-              p.origem, v.nome as vendedor_nome,
+              p.origem,
               c.nome_fantasia as cliente, c.documento
          from pedidos p join clientes c on c.id = p.cliente_id
-         left join vendedores v on v.id = p.vendedor_id
         where ${cond.join(' and ')}
         order by p.criado_em desc limit 25 offset $${params.length}`,
       params,
@@ -119,7 +114,7 @@ export class AdminService {
             'mensagem', e.mensagem, 'motivo', e.motivo, 'origem', e.origem, 'em', e.criado_em) order by e.criado_em)
            from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
          from pedidos p join clientes c on c.id = p.cliente_id
-         left join vendedores v on v.id = p.vendedor_id where p.id = $1`,
+         left join vendedores v on v.id = p.vendedor_id where p.id = $1 and p.origem = 'app_cliente'`,
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');
@@ -141,7 +136,7 @@ export class AdminService {
   async consultarPagamento(pedidoId: string) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor, provedor_ref, expira_em, metodo, status, captura from pagamentos where pedido_id = $1 order by criado_em desc limit 1`,
+      `select id, provedor, provedor_ref, expira_em, metodo, status, captura from pagamentos where pedido_id = $1 and pedido_id in (select id from pedidos where origem = 'app_cliente') order by criado_em desc limit 1`,
       [pedidoId],
     );
     if (!rows[0]) throw new NotFoundException('Pedido sem pagamento online');
@@ -165,7 +160,7 @@ export class AdminService {
     const { pool, tenant } = tenantCtx();
     const pt = await this.provedores.obter(tenant.slug);
     if (!pt || pt.provedor.nome !== 'mock') throw new BadRequestException('Só disponível com provedor mock');
-    const { rows } = await pool.query(`select id, valor from pagamentos where pedido_id = $1 and status = 'pendente'`, [pedidoId]);
+    const { rows } = await pool.query(`select id, valor from pagamentos where pedido_id = $1 and status = 'pendente' and pedido_id in (select id from pedidos where origem = 'app_cliente')`, [pedidoId]);
     if (!rows[0]) throw new NotFoundException('Sem pagamento pendente');
     await this.pagamentos.confirmarPago(pool, rows[0].id, Number(rows[0].valor), new Date());
     return { status: 'pago' };
@@ -174,7 +169,7 @@ export class AdminService {
   /** Reenfileira um pedido com falha de integração para novo envio ao ERP. */
   async reenviarErp(id: string, usuarioId: string) {
     const { pool } = tenantCtx();
-    const ped = await pool.query(`select status from pedidos where id = $1`, [id]);
+    const ped = await pool.query(`select status from pedidos where id = $1 and origem = 'app_cliente'`, [id]);
     if (!ped.rows[0]) throw new NotFoundException('Pedido não encontrado');
     if (ped.rows[0].status !== 'FALHA_INTEGRACAO') {
       throw new BadRequestException('Só é possível reenviar pedidos com falha de integração');
@@ -220,7 +215,7 @@ export class AdminService {
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select id, tipo, documento, nome_fantasia, email, telefone, status, criado_em, tabela_preco_id,
-        (select count(*)::int from pedidos p where p.cliente_id = clientes.id) as pedidos,
+        (select count(*)::int from pedidos p where p.cliente_id = clientes.id and p.origem = 'app_cliente') as pedidos,
         coalesce(cc.senha_provisoria, true) as aguardando_acesso, cc.senha_definida_em, cc.ultimo_login_em,
         (select k.expira_em from cliente_codigos_acesso k
           where k.cliente_id = clientes.id and k.usado_em is null and k.expira_em > now()) as codigo_expira_em
@@ -457,58 +452,12 @@ export class AdminService {
     return { ok: true };
   }
 
-  async definirImagemProduto(produtoId: string, url: string, usuarioId: string, urlMiniatura?: string) {
-    const { pool } = tenantCtx();
-    const client = await pool.connect();
-    try {
-      await client.query('begin');
-      // Serializa por produto: evita 2 uploads simultâneos criarem 2 linhas de capa (ordem=0).
-      await client.query(`select pg_advisory_xact_lock(hashtext($1))`, [produtoId]);
-      const produto = await client.query(`select 1 from produtos where id = $1`, [produtoId]);
-      if (!produto.rowCount) throw new NotFoundException('Produto não encontrado');
-      const capa = await client.query(
-        `select id from produto_imagens where produto_id = $1 order by ordem asc limit 1`,
-        [produtoId],
-      );
-      if (capa.rowCount) {
-        await client.query(`update produto_imagens set url = $2, url_miniatura = $3 where id = $1`, [capa.rows[0].id, url, urlMiniatura ?? null]);
-      } else {
-        await client.query(
-          `insert into produto_imagens (produto_id, url, url_miniatura, ordem, origem) values ($1, $2, $3, 0, 'retaguarda')`,
-          [produtoId, url, urlMiniatura ?? null],
-        );
-      }
-      await client.query(
-        `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
-         values ($1,'definir_imagem_produto','produto',$2,$3)`,
-        [usuarioId, produtoId, JSON.stringify({ url })],
-      );
-      await client.query('commit');
-    } catch (e) {
-      await client.query('rollback');
-      throw e;
-    } finally {
-      client.release();
-    }
-    return { ok: true };
+  definirImagemProduto(produtoId: string, url: string, usuarioId: string, urlMiniatura?: string) {
+    return definirImagemProdutoCompartilhada(tenantCtx().pool, produtoId, url, usuarioId, urlMiniatura);
   }
 
-  async removerImagemProduto(produtoId: string, usuarioId: string) {
-    const { pool } = tenantCtx();
-    const produto = await pool.query(`select 1 from produtos where id = $1`, [produtoId]);
-    if (!produto.rowCount) throw new NotFoundException('Produto não encontrado');
-    await pool.query(
-      `delete from produto_imagens where id = (
-         select id from produto_imagens where produto_id = $1 order by ordem asc limit 1
-       )`,
-      [produtoId],
-    );
-    await pool.query(
-      `insert into auditoria (usuario_admin_id, acao, entidade, entidade_id, dados_json)
-       values ($1,'remover_imagem_produto','produto',$2,$3)`,
-      [usuarioId, produtoId, JSON.stringify({})],
-    );
-    return { ok: true };
+  removerImagemProduto(produtoId: string, usuarioId: string) {
+    return removerImagemProdutoCompartilhada(tenantCtx().pool, produtoId, usuarioId);
   }
 
   async logsIntegracao(pagina: number) {

@@ -1,7 +1,8 @@
-import { Body, ConflictException, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Put, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, NotFoundException, Param, ParseUUIDPipe, Put, Req, UseGuards } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { ArrayUnique, IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MinLength } from 'class-validator';
-import { AdminGuard } from '../admin/admin.guard';
+import type { Request } from 'express';
+import { AdminGuard, type AdminLogado } from '../admin/admin.guard';
 import { tenantCtx } from '../tenancy/tenant-context';
 
 class AcessoVendedorDto {
@@ -39,16 +40,24 @@ export class AdminVendasController {
 
   /** Senha ausente mantém a atual. Trocar a senha ou desativar derruba as sessões abertas do vendedor. */
   @Put('vendedores/:id/acesso')
-  async definirAcesso(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AcessoVendedorDto) {
+  async definirAcesso(@Req() req: Request & { admin: AdminLogado }, @Param('id', ParseUUIDPipe) id: string, @Body() dto: AcessoVendedorDto) {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
     const { pool } = tenantCtx();
     const login = dto.login.trim().toLowerCase();
     const emUso = await pool.query(`select 1 from vendedores where login = $1 and id <> $2`, [login, id]);
     if (emUso.rowCount) throw new ConflictException('Este login já está em uso por outro vendedor');
     const senhaHash = dto.senha ? await argon2.hash(dto.senha) : null;
-    const { rowCount } = await pool.query(
-      `update vendedores set login = $2, senha_hash = coalesce($3, senha_hash), ativo = $4 where id = $1`,
-      [id, login, senhaHash, dto.ativo],
-    );
+    let rowCount: number | null;
+    try {
+      ({ rowCount } = await pool.query(
+        `update vendedores set login = $2, senha_hash = coalesce($3, senha_hash), ativo = $4 where id = $1`,
+        [id, login, senhaHash, dto.ativo],
+      ));
+    } catch (e) {
+      // Corrida entre dois administradores: a restrição unique pegou o que a pré-checagem não viu.
+      if ((e as { code?: string }).code === '23505') throw new ConflictException('Este login já está em uso por outro vendedor');
+      throw e;
+    }
     if (!rowCount) throw new NotFoundException('Vendedor não encontrado');
     if (senhaHash || !dto.ativo) {
       // Apaga em vez de revogar: a renovação aceita token revogado há menos de 30 s.
@@ -77,7 +86,8 @@ export class AdminVendasController {
   }
 
   @Put('tabelas-condicoes/:tabelaId')
-  async definirCondicoes(@Param('tabelaId', ParseUUIDPipe) tabelaId: string, @Body() dto: CondicoesDaTabelaDto) {
+  async definirCondicoes(@Req() req: Request & { admin: AdminLogado }, @Param('tabelaId', ParseUUIDPipe) tabelaId: string, @Body() dto: CondicoesDaTabelaDto) {
+    if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores');
     const { pool } = tenantCtx();
     const client = await pool.connect();
     try {
@@ -93,6 +103,14 @@ export class AdminVendasController {
       await client.query('commit');
     } catch (e) {
       await client.query('rollback');
+      // Tabela ou condição que não existe mais no cadastro.
+      if ((e as { code?: string }).code === '23503') {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: 'Tabela de preço ou condição de pagamento inexistente',
+          codigo: 'REFERENCIA_INVALIDA',
+        });
+      }
       throw e;
     } finally {
       client.release();

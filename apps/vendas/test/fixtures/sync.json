@@ -1,0 +1,474 @@
+{
+ "geradoEm": "2026-11-10T18:38:47.320Z",
+ "vendedor": {
+  "id": "04071531-cc50-4452-8ee1-77e6299ae06b",
+  "nome": "ANA PAULA (TESTE)",
+  "erpVendedorId": "D01"
+ },
+ "clientes": [
+  {
+   "id": "d32cf921-acc1-4ae0-82e5-fa68561c0acf",
+   "erpClienteId": "2737",
+   "documento": "12345678000190",
+   "razaoSocial": "MERCADINHO EXEMPLO UM LTDA",
+   "nomeFantasia": "MERCADINHO EXEMPLO UM LTDA",
+   "telefone": null,
+   "status": "aprovado",
+   "limiteCredito": 30000,
+   "emAberto": 0,
+   "pedidosEmTransito": 2233.31,
+   "endereco": {
+    "logradouro": "RUA DAS FLORES",
+    "numero": "10",
+    "complemento": null,
+    "bairro": "CENTRO",
+    "cidade": "IPOJUCA",
+    "uf": "PE",
+    "cep": "55590000"
+   }
+  },
+  {
+   "id": "a2b0ed27-af6e-4210-8a00-940692dfffbe",
+   "erpClienteId": "2770",
+   "documento": "23456789000101",
+   "razaoSocial": "MERCADINHO EXEMPLO DOIS LTDA",
+   "nomeFantasia": "MERCADINHO EXEMPLO DOIS LTDA",
+   "telefone": null,
+   "status": "aprovado",
+   "limiteCredito": 30000,
+   "emAberto": 0,
+   "pedidosEmTransito": 0,
+   "endereco": {
+    "logradouro": "AVENIDA PRINCIPAL",
+    "numero": "200",
+    "complemento": null,
+    "bairro": "BOA VISTA",
+    "cidade": "RECIFE",
+    "uf": "PE",
+    "cep": "50050000"
+   }
+  },
+  {
+   "id": "2268fc4a-db54-4874-beb4-af2d2766c337",
+   "erpClienteId": "2494",
+   "documento": "34567890000112",
+   "razaoSocial": "MERCADINHO EXEMPLO TRES LTDA",
+   "nomeFantasia": "MERCADINHO EXEMPLO TRES LTDA",
+   "telefone": null,
+   "status": "aprovado",
+   "limiteCredito": 30000,
+   "emAberto": 0,
+   "pedidosEmTransito": 0,
+   "endereco": {
+    "logradouro": "RUA DO COMERCIO",
+    "numero": "35",
+    "complemento": null,
+    "bairro": "VILA NOVA",
+    "cidade": "IPOJUCA",
+    "uf": "PE",
+    "cep": "55590100"
+   }
+  },
+  {
+   "id": "d4190d68-8272-4c92-879e-867d2481802a",
+   "erpClienteId": "2375",
+   "documento": "45678901000123",
+   "razaoSocial": "MERCADINHO EXEMPLO QUATRO LTDA",
+   "nomeFantasia": "MERCADINHO EXEMPLO QUATRO LTDA",
+   "telefone": null,
+   "status": "aprovado",
+   "limiteCredito": 30000,
+   "emAberto": 0,
+   "pedidosEmTransito": 0,
+   "endereco": {
+    "logradouro": "AVENIDA BEIRA MAR",
+    "numero": "480",
+    "complemento": null,
+    "bairro": "JARDIM AMERICA",
+    "cidade": "RECIFE",
+    "uf": "PE",
+    "cep": "51000000"
+   }
+  }
+ ],
+ "titulos": [
+  {
+   "clienteId": "d32cf921-acc1-4ae0-82e5-fa68561c0acf",
+   "numero": "TIT-1001",
+   "valor": 1250.5,
+   "vencimento": "2026-11-20",
+   "status": "ABERTO"
+  },
+  {
+   "clienteId": "d32cf921-acc1-4ae0-82e5-fa68561c0acf",
+   "numero": "TIT-1002",
+   "valor": 980,
+   "vencimento": "2026-12-05",
+   "status": "ABERTO"
+  }
+ ],
+ "tabelas": [
+  {
+   "id": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "nome": "TABELA ENTREGA BOLETO 14 DIAS",
+   "erpTabelaId": "5",
+   "tipoEntrega": "entrega"
+  },
+  {
+   "id": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "nome": "TABELA ENTREGA BOLETO 14/21 DIAS",
+   "erpTabelaId": "8",
+   "tipoEntrega": "entrega"
+  },
+  {
+   "id": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "nome": "TABELA ENTREGA BOLETO 14/21/28 DIAS",
+   "erpTabelaId": "12",
+   "tipoEntrega": "entrega"
+  },
+  {
+   "id": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "nome": "TABELA RETIRADA PIX/CARTÃO/BOLETO 7 DIAS",
+   "erpTabelaId": "1",
+   "tipoEntrega": "retirada"
+  }
+ ],
+ "formas": [
+  {
+   "id": "8c4dc3e7-6808-46c1-aa20-780c55dcbe8a",
+   "descricao": "Boleto",
+   "exigeCredito": true
+  },
+  {
+   "id": "6ab47116-e269-459e-886a-5e8cebed4593",
+   "descricao": "PIX",
+   "exigeCredito": false
+  },
+  {
+   "id": "d4bdfdc2-872b-44ec-a798-79490c267598",
+   "descricao": "CARTAO",
+   "exigeCredito": false
+  }
+ ],
+ "tabelaFormas": [
+  {
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "formaId": "8c4dc3e7-6808-46c1-aa20-780c55dcbe8a"
+  },
+  {
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "formaId": "8c4dc3e7-6808-46c1-aa20-780c55dcbe8a"
+  },
+  {
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "formaId": "8c4dc3e7-6808-46c1-aa20-780c55dcbe8a"
+  },
+  {
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "formaId": "6ab47116-e269-459e-886a-5e8cebed4593"
+  },
+  {
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "formaId": "d4bdfdc2-872b-44ec-a798-79490c267598"
+  },
+  {
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "formaId": "8c4dc3e7-6808-46c1-aa20-780c55dcbe8a"
+  }
+ ],
+ "categorias": [
+  {
+   "id": "6e6af3a7-d9f2-495a-aada-fb4b25ec28d4",
+   "nome": "Mercearia"
+  },
+  {
+   "id": "7cc5d2fc-5771-4720-9443-b93ac520fa9e",
+   "nome": "Higiene e Beleza"
+  }
+ ],
+ "produtos": [
+  {
+   "id": "ac40bf26-34cd-4c44-bb12-c223d2098f64",
+   "sku": "17500435016633",
+   "ean": "17500435016633",
+   "nome": "ABS BASICO ALWAYS C/A SECO CX 8PCT C32",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 8,
+   "categoriaId": "7cc5d2fc-5771-4720-9443-b93ac520fa9e",
+   "estoque": 0,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/mtxd1orc-c079eff73c90-m.jpg"
+  },
+  {
+   "id": "66bf0fbe-c7e0-48b5-8dc1-b7870be4f86f",
+   "sku": "17500435248348",
+   "ean": "17500435248348",
+   "nome": "ABS BASICO ALWAYS C/A SUAVE 8PCT C48",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 8,
+   "categoriaId": "7cc5d2fc-5771-4720-9443-b93ac520fa9e",
+   "estoque": 0,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/mtxd2hhy-5c1eec963933-m.jpg"
+  },
+  {
+   "id": "c7f2e467-b1d9-4889-b8ae-fe9ef0bb16e2",
+   "sku": "17500435126196",
+   "ean": "17500435126196",
+   "nome": "ABS BASICO ALWAYS C/A SUAVE CX 8PCT CX32",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 8,
+   "categoriaId": "7cc5d2fc-5771-4720-9443-b93ac520fa9e",
+   "estoque": 0,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/mtxd3hrw-a704aba726b1-m.jpg"
+  },
+  {
+   "id": "0293bf65-8910-46d6-a3a8-42413b1151ea",
+   "sku": "17500435190654",
+   "ean": "17500435190654",
+   "nome": "ABS NOTURNO ALWAYS SECA LV48/PG40",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 3,
+   "categoriaId": "7cc5d2fc-5771-4720-9443-b93ac520fa9e",
+   "estoque": 96,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/mtxd45m2-318da7982c67-m.jpg"
+  },
+  {
+   "id": "da656a90-e8bf-47fa-b02a-43fc6864afce",
+   "sku": "37891030003017",
+   "ean": "37891030003017",
+   "nome": "ACHOC BEB UHT MOCOQUINHA 200ML CX27",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 27,
+   "categoriaId": "6e6af3a7-d9f2-495a-aada-fb4b25ec28d4",
+   "estoque": 0,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/mtxd8r6q-eb4abe8d0f8d-m.jpg"
+  },
+  {
+   "id": "b4b949f1-a2fe-4906-8786-3b00f7a29b05",
+   "sku": "17891000359836",
+   "ean": "17891000359836",
+   "nome": "ACHOC LIQ NESCAU 180ML CX27",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 27,
+   "categoriaId": "6e6af3a7-d9f2-495a-aada-fb4b25ec28d4",
+   "estoque": 0,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/mtxdn6gj-817eab08c942-m.jpg"
+  },
+  {
+   "id": "91779279-6fd1-42e9-ba1d-1a7c2210a843",
+   "sku": "17896725200913",
+   "ean": "17896725200913",
+   "nome": "ACUCAR CRISTAL OLHO DAGUA 1KG FD10",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 10,
+   "categoriaId": "6e6af3a7-d9f2-495a-aada-fb4b25ec28d4",
+   "estoque": 0,
+   "imagemUrl": "https://cahudelivery.duckdns.org/uploads/muh6aa04-7b708a6292f4-m.jpg"
+  },
+  {
+   "id": "f7ae2303-a35d-4557-b6cb-f18b6540142b",
+   "sku": "7897154430110",
+   "ean": "7897154430110",
+   "nome": "ACUCAR CRISTAL PETRIBU 1KG FD10",
+   "unidade": "CX",
+   "qtdPorEmbalagem": 10,
+   "categoriaId": "6e6af3a7-d9f2-495a-aada-fb4b25ec28d4",
+   "estoque": 0,
+   "imagemUrl": null
+  }
+ ],
+ "precos": [
+  {
+   "produtoId": "c7f2e467-b1d9-4889-b8ae-fe9ef0bb16e2",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 71.07
+  },
+  {
+   "produtoId": "b4b949f1-a2fe-4906-8786-3b00f7a29b05",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 40.72
+  },
+  {
+   "produtoId": "b4b949f1-a2fe-4906-8786-3b00f7a29b05",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 40.32
+  },
+  {
+   "produtoId": "b4b949f1-a2fe-4906-8786-3b00f7a29b05",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 41.11
+  },
+  {
+   "produtoId": "f7ae2303-a35d-4557-b6cb-f18b6540142b",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 31.2
+  },
+  {
+   "produtoId": "f7ae2303-a35d-4557-b6cb-f18b6540142b",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 31.5
+  },
+  {
+   "produtoId": "da656a90-e8bf-47fa-b02a-43fc6864afce",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 26.42
+  },
+  {
+   "produtoId": "da656a90-e8bf-47fa-b02a-43fc6864afce",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 26.68
+  },
+  {
+   "produtoId": "da656a90-e8bf-47fa-b02a-43fc6864afce",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 26.93
+  },
+  {
+   "produtoId": "ac40bf26-34cd-4c44-bb12-c223d2098f64",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 71.07
+  },
+  {
+   "produtoId": "ac40bf26-34cd-4c44-bb12-c223d2098f64",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 71.76
+  },
+  {
+   "produtoId": "ac40bf26-34cd-4c44-bb12-c223d2098f64",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 72.45
+  },
+  {
+   "produtoId": "66bf0fbe-c7e0-48b5-8dc1-b7870be4f86f",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 90.64
+  },
+  {
+   "produtoId": "66bf0fbe-c7e0-48b5-8dc1-b7870be4f86f",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 91.52
+  },
+  {
+   "produtoId": "66bf0fbe-c7e0-48b5-8dc1-b7870be4f86f",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 92.4
+  },
+  {
+   "produtoId": "0293bf65-8910-46d6-a3a8-42413b1151ea",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 61.8
+  },
+  {
+   "produtoId": "0293bf65-8910-46d6-a3a8-42413b1151ea",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 62.4
+  },
+  {
+   "produtoId": "0293bf65-8910-46d6-a3a8-42413b1151ea",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 63
+  },
+  {
+   "produtoId": "c7f2e467-b1d9-4889-b8ae-fe9ef0bb16e2",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 71.76
+  },
+  {
+   "produtoId": "c7f2e467-b1d9-4889-b8ae-fe9ef0bb16e2",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 72.45
+  },
+  {
+   "produtoId": "91779279-6fd1-42e9-ba1d-1a7c2210a843",
+   "tabelaId": "b5213633-f44a-4a3a-ab60-ed294e5e6175",
+   "preco": 31.93
+  },
+  {
+   "produtoId": "91779279-6fd1-42e9-ba1d-1a7c2210a843",
+   "tabelaId": "1b7a852a-8a79-41ac-9277-37906ee78507",
+   "preco": 32.24
+  },
+  {
+   "produtoId": "91779279-6fd1-42e9-ba1d-1a7c2210a843",
+   "tabelaId": "0f441a58-fb32-4baa-ac46-0ef4b297b7d0",
+   "preco": 32.55
+  },
+  {
+   "produtoId": "66bf0fbe-c7e0-48b5-8dc1-b7870be4f86f",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 88
+  },
+  {
+   "produtoId": "91779279-6fd1-42e9-ba1d-1a7c2210a843",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 31
+  },
+  {
+   "produtoId": "b4b949f1-a2fe-4906-8786-3b00f7a29b05",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 39.15
+  },
+  {
+   "produtoId": "f7ae2303-a35d-4557-b6cb-f18b6540142b",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 30
+  },
+  {
+   "produtoId": "da656a90-e8bf-47fa-b02a-43fc6864afce",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 25.65
+  },
+  {
+   "produtoId": "c7f2e467-b1d9-4889-b8ae-fe9ef0bb16e2",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 69
+  },
+  {
+   "produtoId": "ac40bf26-34cd-4c44-bb12-c223d2098f64",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 69
+  },
+  {
+   "produtoId": "0293bf65-8910-46d6-a3a8-42413b1151ea",
+   "tabelaId": "38904033-f32f-4ee8-b4a7-e52d8b28da34",
+   "preco": 60
+  }
+ ],
+ "historico": [
+  {
+   "pedidoId": "c628301c-46dd-4598-baaa-df4f619bf9a6",
+   "numero": 24,
+   "clienteId": "d32cf921-acc1-4ae0-82e5-fa68561c0acf",
+   "criadoEm": "2026-11-10T15:29:00.000Z",
+   "total": 2233.31,
+   "status": "RECEBIDO",
+   "origem": "vendedor",
+   "itens": [
+    {
+     "produtoId": "30b3bb2c-16c2-49fd-928d-d775a97c3b21",
+     "quantidade": 2,
+     "precoUnit": 40.17
+    },
+    {
+     "produtoId": "bbf3bf66-a2e4-4494-90b0-33ffc80dbe95",
+     "quantidade": 5,
+     "precoUnit": 173.04
+    },
+    {
+     "produtoId": "3ce0ae58-e547-403d-8de0-a8d485d9a56e",
+     "quantidade": 7,
+     "precoUnit": 11.88
+    },
+    {
+     "produtoId": "bd42fddd-084c-458a-87f2-04198fd9666c",
+     "quantidade": 5,
+     "precoUnit": 3.61
+    },
+    {
+     "produtoId": "adefffe2-9653-4f5d-ad97-4900002e2f25",
+     "quantidade": 6,
+     "precoUnit": 197.76
+    }
+   ]
+  }
+ ]
+}

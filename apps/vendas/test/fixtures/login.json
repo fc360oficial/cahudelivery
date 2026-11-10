@@ -1,0 +1,9 @@
+{
+  "accessToken": "AT",
+  "refreshToken": "RT",
+  "vendedor": {
+    "id": "04071531-cc50-4452-8ee1-77e6299ae06b",
+    "nome": "ANA PAULA (TESTE)"
+  },
+  "distribuidora": "CAHU Distribuidora"
+}

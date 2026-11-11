@@ -48,3 +48,26 @@ String normalizarBusca(String s) {
   }
   return b.toString().trim();
 }
+
+/// Situação de um pedido do servidor em português ("EM_FATURAMENTO" -> "Em faturamento").
+String rotuloStatusPedido(String status) => switch (status.toUpperCase()) {
+      'RECEBIDO' => 'Recebido',
+      'ENVIADO_ERP' => 'Enviado ao ERP',
+      'ABERTO' => 'Aberto no ERP',
+      'EM_FATURAMENTO' => 'Em faturamento',
+      'FATURADO' => 'Faturado',
+      'ENTREGUE' => 'Entregue',
+      'CANCELADO' => 'Cancelado',
+      'AGUARDANDO_VENDEDOR' => 'Retido',
+      _ => status.isEmpty ? '-' : status[0].toUpperCase() + status.substring(1).toLowerCase().replaceAll('_', ' '),
+    };
+
+/// Documento com máscara de CPF/CNPJ quando tem 11 ou 14 dígitos; senão devolve como veio.
+String documentoFormatado(String doc) {
+  final d = doc.replaceAll(RegExp(r'\D'), '');
+  if (d.length == 11) return '${d.substring(0, 3)}.${d.substring(3, 6)}.${d.substring(6, 9)}-${d.substring(9)}';
+  if (d.length == 14) {
+    return '${d.substring(0, 2)}.${d.substring(2, 5)}.${d.substring(5, 8)}/${d.substring(8, 12)}-${d.substring(12)}';
+  }
+  return doc;
+}

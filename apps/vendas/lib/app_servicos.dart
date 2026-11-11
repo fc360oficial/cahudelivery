@@ -87,8 +87,12 @@ class AppServicos {
     // Sincronizar = enviar a fila primeiro e só depois baixar a carga.
     sync.enviarFila = fila.enviarFila;
     sessao.aoLogar = () async {
-      await fila.recuperarInterrompidos();
-      await carrinho.restaurar();
+      try {
+        await fila.recuperarInterrompidos();
+        await carrinho.restaurar();
+      } catch (e) {
+        debugPrint('ao logar: $e');
+      }
       await sync.iniciar();
     };
     sessao.aoDeslogar = () async {

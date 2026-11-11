@@ -4,8 +4,11 @@ import '../../app_servicos.dart';
 import '../../core/formatadores.dart';
 import '../../core/tema.dart';
 import '../../data/modelos.dart';
+import '../../services/carrinho_service.dart';
 import '../../services/sincronizacao_service.dart';
 import '../../widgets/em_construcao.dart';
+import '../../widgets/comuns.dart';
+import '../pedido/iniciar_pedido.dart';
 import '../shell/home_shell.dart';
 
 /// Tela Início: saudação, vendas do dia/mês (resumo em cache), atalhos grandes,
@@ -41,6 +44,7 @@ class _InicioPageState extends State<InicioPage> {
 
   Future<void> _carregar() async {
     final r = await _s!.meta.resumo();
+    await _s!.fila.atualizarContadores();
     if (mounted) setState(() => _resumo = r);
   }
 
@@ -55,6 +59,24 @@ class _InicioPageState extends State<InicioPage> {
     ));
   }
 
+  Future<void> _descartar(CarrinhoService cart) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Descartar o pedido?'),
+        content: Text('O pedido de ${cart.cliente?.nomeFantasia ?? ''} em andamento será apagado.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+              style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Descartar')),
+        ],
+      ),
+    );
+    if (ok == true) await cart.limpar();
+  }
+
   void _abrir(String titulo) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => EmConstrucaoPage(titulo: titulo)));
 
@@ -62,11 +84,15 @@ class _InicioPageState extends State<InicioPage> {
   Widget build(BuildContext context) {
     final s = Servicos.of(context);
     return ListenableBuilder(
-      listenable: Listenable.merge([s.sincronizacao, s.sessao]),
+      listenable: Listenable.merge([s.sincronizacao, s.sessao, s.fila, s.carrinho]),
       builder: (context, _) {
         final sync = s.sincronizacao;
         final nome = primeiroNome(s.sessao.vendedor?.nome ?? '');
         final r = _resumo;
+        final fila = s.fila;
+        final cart = s.carrinho;
+        // Retidos: o que está nas tabelas locais; o resumo do servidor também conta os de outros aparelhos.
+        final retidos = fila.retidos > (r?.pedidosRetidos ?? 0) ? fila.retidos : (r?.pedidosRetidos ?? 0);
         return RefreshIndicator(
           onRefresh: _sincronizar,
           child: ListView(
@@ -81,6 +107,20 @@ class _InicioPageState extends State<InicioPage> {
               if (sync.dadosAntigos) ...[
                 const SizedBox(height: 12),
                 const _AvisoDadosAntigos(),
+              ],
+              if (fila.naFila > 0) ...[
+                const SizedBox(height: 12),
+                _IndicadorFila(qtd: fila.naFila),
+              ],
+              if (cart.temRascunho) ...[
+                const SizedBox(height: 12),
+                _CartaoRascunho(
+                  cliente: cart.cliente!.nomeFantasia,
+                  itens: cart.qtdItens,
+                  total: cart.total,
+                  aoContinuar: () => continuarPedido(context),
+                  aoDescartar: () => _descartar(cart),
+                ),
               ],
               const SizedBox(height: 16),
               Row(
@@ -104,9 +144,19 @@ class _InicioPageState extends State<InicioPage> {
                   ),
                 ],
               ),
-              if (r != null && r.pedidosRetidos > 0) ...[
+              if (retidos > 0) ...[
                 const SizedBox(height: 12),
-                _CartaoRetidos(qtd: r.pedidosRetidos, aoTocar: () => HomeShell.of(context).irPara(AbaVendas.pedidos)),
+                _CartaoRetidos(qtd: retidos, aoTocar: () => HomeShell.of(context).irPara(AbaVendas.pedidos)),
+              ],
+              if (fila.recusados > 0) ...[
+                const SizedBox(height: 12),
+                CaixaAviso(
+                  key: const Key('aviso-recusados'),
+                  tom: TomAviso.erro,
+                  texto: fila.recusados == 1
+                      ? '1 pedido foi recusado pelo servidor e não foi enviado. Veja em Pedidos.'
+                      : '${fila.recusados} pedidos foram recusados pelo servidor e não foram enviados. Veja em Pedidos.',
+                ),
               ],
               const SizedBox(height: 16),
               GridView.count(
@@ -117,7 +167,7 @@ class _InicioPageState extends State<InicioPage> {
                 crossAxisSpacing: 12,
                 childAspectRatio: 1.35,
                 children: [
-                  _BotaoGrande(icone: Icons.add_shopping_cart_rounded, rotulo: 'Novo pedido', destaque: true, aoTocar: () => _abrir('Novo pedido')),
+                  _BotaoGrande(icone: Icons.add_shopping_cart_rounded, rotulo: 'Novo pedido', destaque: true, aoTocar: () => iniciarNovoPedido(context)),
                   _BotaoGrande(icone: Icons.storefront_rounded, rotulo: 'Clientes', aoTocar: () => HomeShell.of(context).irPara(AbaVendas.clientes)),
                   _BotaoGrande(
                     icone: Icons.request_quote_outlined,
@@ -147,6 +197,82 @@ class _InicioPageState extends State<InicioPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _IndicadorFila extends StatelessWidget {
+  const _IndicadorFila({required this.qtd});
+  final int qtd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('indicador-fila'),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF1FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFBFD3FA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule_send_rounded, color: Cores.azul),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('Na fila: $qtd', style: const TextStyle(fontWeight: FontWeight.w800, color: Cores.marinho)),
+          ),
+          const Flexible(child: Text('sobe quando a internet voltar', textAlign: TextAlign.right, style: TextStyle(color: Cores.textoSuave, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+}
+
+class _CartaoRascunho extends StatelessWidget {
+  const _CartaoRascunho({required this.cliente, required this.itens, required this.total, required this.aoContinuar, required this.aoDescartar});
+  final String cliente;
+  final int itens;
+  final double total;
+  final VoidCallback aoContinuar, aoDescartar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      key: const Key('cartao-rascunho'),
+      color: const Color(0xFFFFF4D6),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 6, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Continuar pedido de $cliente',
+                maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800, color: Cores.marinho, fontSize: 15)),
+            const SizedBox(height: 2),
+            Text(itens == 0 ? 'Sem itens ainda' : '$itens ${itens == 1 ? 'item' : 'itens'} · ${moeda(total)}',
+                style: const TextStyle(color: Cores.textoSuave)),
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                      onPressed: aoDescartar,
+                      style: TextButton.styleFrom(minimumSize: const Size(48, 48), foregroundColor: Cores.erro),
+                      child: const Text('Descartar')),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                      key: const Key('continuar-pedido'),
+                      onPressed: aoContinuar,
+                      style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+                      child: const Text('Continuar')),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

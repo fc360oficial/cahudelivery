@@ -119,7 +119,10 @@ class FilaEnvioService extends ChangeNotifier {
 
   /// Grava o pedido (estado `aguardando_envio`, UUID novo) e tenta enviar agora. Quem chama
   /// pode descartar o rascunho assim que este método começar: o pedido já está no banco.
-  Future<ResultadoEnvio> enviarPedido(NovoPedido p) async {
+  ///
+  /// [aposGravar] roda logo depois da gravação e ANTES de falar com a rede: é onde a tela
+  /// descarta o rascunho, para o app morto no meio do envio não deixar pedido duplicado.
+  Future<ResultadoEnvio> enviarPedido(NovoPedido p, {Future<void> Function()? aposGravar}) async {
     final agora = _agora();
     final id = _novoId();
     final vendedor = await _pedidos.vendedorObrigatorio();
@@ -136,6 +139,7 @@ class FilaEnvioService extends ChangeNotifier {
       atualizadoEm: agora,
     ));
     await atualizarContadores();
+    await aposGravar?.call();
     await enviarFila();
     final r = await _pedidos.porId(id);
     return _resultadoDoPedido(r!);
@@ -143,7 +147,7 @@ class FilaEnvioService extends ChangeNotifier {
 
   /// Grava o orçamento (estado `local`) e tenta enviar agora. [id] existente = nova versão do
   /// mesmo orçamento (o `PUT` é idempotente por id).
-  Future<ResultadoEnvio> salvarOrcamento(NovoOrcamento o, {String? id}) async {
+  Future<ResultadoEnvio> salvarOrcamento(NovoOrcamento o, {String? id, Future<void> Function()? aposGravar}) async {
     final agora = _agora();
     final oid = id ?? _novoId();
     final vendedor = await _orcamentos.vendedorObrigatorio();
@@ -161,6 +165,7 @@ class FilaEnvioService extends ChangeNotifier {
       atualizadoEm: agora,
     ));
     await atualizarContadores();
+    await aposGravar?.call();
     await enviarFila();
     final r = await _orcamentos.porId(oid);
     return _resultadoDoOrcamento(r!);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/em_construcao.dart';
+import '../clientes/clientes_page.dart';
 import '../../widgets/marca.dart';
 import '../inicio/inicio_page.dart';
 import '../mais/mais_page.dart';
@@ -16,12 +17,29 @@ class HomeShell extends StatefulWidget {
   /// Troca de aba a partir de qualquer tela filha: `HomeShell.of(context).irPara(AbaVendas.clientes)`.
   static HomeShellState of(BuildContext context) => context.findAncestorStateOfType<HomeShellState>()!;
 
+  /// A casca que está na tela, para telas EMPILHADAS (que ficam fora dela na árvore) pedirem
+  /// uma aba: `HomeShell.ativo?.irPara(AbaVendas.pedidos)`.
+  static HomeShellState? get ativo => HomeShellState._ativo;
+
   @override
   State<HomeShell> createState() => HomeShellState();
 }
 
 class HomeShellState extends State<HomeShell> {
+  static HomeShellState? _ativo;
   late AbaVendas _aba = widget.abaInicial;
+
+  @override
+  void initState() {
+    super.initState();
+    _ativo = this;
+  }
+
+  @override
+  void dispose() {
+    if (identical(_ativo, this)) _ativo = null;
+    super.dispose();
+  }
 
   void irPara(AbaVendas aba) => setState(() => _aba = aba);
 
@@ -29,7 +47,7 @@ class HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final abas = <AbaVendas, Widget>{
       AbaVendas.inicio: const InicioPage(),
-      AbaVendas.clientes: const EmConstrucaoPage(titulo: 'Clientes', comAppBar: false),
+      AbaVendas.clientes: const ClientesPage(),
       AbaVendas.pedidos: const EmConstrucaoPage(titulo: 'Pedidos', comAppBar: false),
       AbaVendas.mais: const MaisPage(),
     };

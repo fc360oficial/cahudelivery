@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../app_servicos.dart';
 import '../../core/tema.dart';
 import '../../data/modelos.dart';
+import '../../widgets/barra_navegacao.dart';
 import '../../widgets/comuns.dart';
 import '../pedido/etapa_catalogo.dart';
 import '../pedido/iniciar_pedido.dart';
@@ -62,7 +63,9 @@ class _CatalogoPageState extends State<CatalogoPage> {
       final tabelas = await s.tabelas.listar();
       final categorias = await s.produtos.categorias();
       final lembrada = await s.meta.ler(chaveTabela);
-      final id = tabelas.any((t) => t.tabela.id == lembrada) ? lembrada : (tabelas.isEmpty ? null : tabelas.first.tabela.id);
+      final id = tabelas.any((t) => t.tabela.id == lembrada)
+          ? lembrada
+          : (tabelas.isEmpty ? null : tabelas.first.tabela.id);
       if (!mounted) return;
       setState(() {
         _tabelas = tabelas;
@@ -81,7 +84,10 @@ class _CatalogoPageState extends State<CatalogoPage> {
   }
 
   void _aoRolar() {
-    if (_rolagem.hasClients && _rolagem.position.pixels > _rolagem.position.maxScrollExtent - 400 && _temMais && !_carregando) {
+    if (_rolagem.hasClients &&
+        _rolagem.position.pixels > _rolagem.position.maxScrollExtent - 400 &&
+        _temMais &&
+        !_carregando) {
       _carregar(reiniciar: false);
     }
   }
@@ -138,13 +144,24 @@ class _CatalogoPageState extends State<CatalogoPage> {
           TextButton(
             key: const Key('catalogo-novo-pedido'),
             onPressed: () => iniciarNovoPedido(context),
-            style: TextButton.styleFrom(foregroundColor: Cores.amarelo, minimumSize: const Size(48, 48)),
-            child: const Text('Novo pedido', style: TextStyle(fontWeight: FontWeight.w800)),
+            style: TextButton.styleFrom(
+              foregroundColor: Cores.amarelo,
+              minimumSize: const Size(48, 48),
+            ),
+            child: const Text(
+              'Novo pedido',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: _iniciando ? const Center(child: CircularProgressIndicator()) : _conteudo(),
+      bottomNavigationBar: const BarraNavegacaoEmpilhada(
+        atual: AbaVendas.inicio,
+      ),
+      body: _iniciando
+          ? const Center(child: CircularProgressIndicator())
+          : _conteudo(),
     );
   }
 
@@ -159,19 +176,28 @@ class _CatalogoPageState extends State<CatalogoPage> {
     }
     return Column(
       children: [
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Column(
             children: [
               DropdownButtonFormField<String>(
                 key: const Key('seletor-tabela'),
                 initialValue: _tabelaId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Tabela de preço', prefixIcon: Icon(Icons.sell_outlined)),
+                decoration: const InputDecoration(
+                  labelText: 'Tabela de preço',
+                  prefixIcon: Icon(Icons.sell_outlined),
+                ),
                 items: [
                   for (final t in _tabelas)
-                    DropdownMenuItem(value: t.tabela.id, child: Text(t.tabela.nome, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    DropdownMenuItem(
+                      value: t.tabela.id,
+                      child: Text(
+                        t.tabela.nome,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                 ],
                 onChanged: _trocarTabela,
               ),
@@ -179,10 +205,13 @@ class _CatalogoPageState extends State<CatalogoPage> {
               CampoBusca(
                 chave: const Key('busca-catalogo'),
                 controlador: _busca,
-                dica: 'Buscar produto, código ou EAN',
+                dica: 'Buscar produto...',
                 aoMudar: (_) {
                   _espera?.cancel();
-                  _espera = Timer(const Duration(milliseconds: 250), () => _carregar(reiniciar: true));
+                  _espera = Timer(
+                    const Duration(milliseconds: 250),
+                    () => _carregar(reiniciar: true),
+                  );
                 },
               ),
               SizedBox(
@@ -190,43 +219,53 @@ class _CatalogoPageState extends State<CatalogoPage> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    ChipFiltro(rotulo: 'Todos', ativo: _categoria == null, aoTocar: () => _escolherCategoria(null)),
-                    for (final c in _categorias) ChipFiltro(rotulo: c.nome, ativo: _categoria == c.id, aoTocar: () => _escolherCategoria(c.id)),
+                    ChipFiltro(
+                      rotulo: 'Todos',
+                      ativo: _categoria == null,
+                      aoTocar: () => _escolherCategoria(null),
+                    ),
+                    for (final c in _categorias)
+                      ChipFiltro(
+                        rotulo: c.nome,
+                        ativo: _categoria == c.id,
+                        aoTocar: () => _escolherCategoria(c.id),
+                      ),
                   ],
                 ),
               ),
             ],
           ),
         ),
-        const Divider(height: 1),
         Expanded(child: _lista_()),
       ],
     );
   }
 
   Widget _lista_() {
-    if (_erro != null) return EstadoErro(mensagem: _erro!, aoTentarDeNovo: () => _carregar(reiniciar: true));
+    if (_erro != null) {
+      return EstadoErro(
+        mensagem: _erro!,
+        aoTentarDeNovo: () => _carregar(reiniciar: true),
+      );
+    }
     if (_lista.isEmpty) {
       if (_carregando) return const Center(child: CircularProgressIndicator());
       final filtrando = _busca.text.trim().isNotEmpty || _categoria != null;
       return EstadoVazio(
         key: const Key('catalogo-vazio'),
-        icone: filtrando ? Icons.search_off_rounded : Icons.inventory_2_outlined,
+        icone: filtrando
+            ? Icons.search_off_rounded
+            : Icons.inventory_2_outlined,
         titulo: filtrando ? 'Nenhum produto encontrado' : 'Catálogo vazio',
-        texto: filtrando ? 'Tente outro nome, código ou categoria.' : 'Sincronize o aplicativo para baixar os produtos.',
+        texto: filtrando
+            ? 'Tente outro nome, código ou categoria.'
+            : 'Sincronize o aplicativo para baixar os produtos.',
       );
     }
-    return ListView.separated(
-      controller: _rolagem,
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      itemCount: _lista.length + (_temMais ? 1 : 0),
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (_, i) {
-        if (i >= _lista.length) {
-          return const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)));
-        }
-        return CartaoProduto(item: _lista[i]);
-      },
+    return GradeProdutos(
+      controlador: _rolagem,
+      itens: _lista,
+      temMais: _temMais,
     );
   }
 }

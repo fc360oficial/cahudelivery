@@ -209,7 +209,7 @@ class Cartao extends StatelessWidget {
       decoration: ShapeDecoration(
         color: color,
         shape: forma,
-        shadows: const [BoxShadow(color: Color(0x140B1F4B), blurRadius: 12, offset: Offset(0, 2))],
+        shadows: const [BoxShadow(color: Color(0x0F0B1F4B), blurRadius: 24, spreadRadius: -4, offset: Offset(0, 8))],
       ),
       child: Material(type: MaterialType.transparency, shape: forma, clipBehavior: clipBehavior, child: child),
     );

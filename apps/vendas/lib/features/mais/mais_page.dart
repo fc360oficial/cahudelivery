@@ -169,12 +169,6 @@ class MaisPage extends StatelessWidget {
                         ),
                         const Divider(height: 1, indent: 70),
                         const _ItemMais(
-                          icone: Icons.flag_rounded,
-                          titulo: 'Metas',
-                          emBreve: true,
-                        ),
-                        const Divider(height: 1, indent: 70),
-                        const _ItemMais(
                           icone: Icons.route_rounded,
                           titulo: 'Rota do dia',
                           emBreve: true,

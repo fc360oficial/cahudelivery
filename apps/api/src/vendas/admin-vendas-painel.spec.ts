@@ -362,7 +362,7 @@ describe('AdminVendasPainelService.painel', () => {
       });
       const out = await a.rodar(() => a.svc.painel({}));
       // metas: v1 21000 + v3 10500; faturado do time = 21000 + 3000 + 1000
-      expect(out.indicadores.meta).toEqual({ percentual: 5, metaMes: 31500, vendidoMes: 25000, atingidoPct: 79.4 });
+      expect(out.indicadores.meta).toEqual({ percentual: 5, metaMes: 31500, vendidoMes: 22000, atingidoPct: 69.8 });
       const b = montar({
         meta: [{ id: V1, vendido_mes: '100', vendido_ant: '0', erp_ant: null, percentual: null }],
       });

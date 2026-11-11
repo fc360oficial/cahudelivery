@@ -194,7 +194,10 @@ export class AdminVendasPainelService {
       }),
     );
     const metas = [...metaPorVendedor.values()];
-    const vendidoTime = dinheiro(metas.reduce((s, m) => s + m.vendidoMes, 0));
+    // Só entra na conta do time quem tem meta: vendedor sem meta não pode inflar o percentual.
+    // (Sem nenhuma meta no time, mostra o faturado de todos.)
+    const comMeta = metas.filter((m) => m.metaMes !== null);
+    const vendidoTime = dinheiro((comMeta.length ? comMeta : metas).reduce((s, m) => s + m.vendidoMes, 0));
     const metaTime = metas.some((m) => m.metaMes !== null)
       ? dinheiro(metas.reduce((s, m) => s + (m.metaMes ?? 0), 0))
       : null;
@@ -219,7 +222,7 @@ export class AdminVendasPainelService {
           total: dinheiro(n(e.orc_total)),
         },
         // Meta do mês corrente (não depende de `periodo`): soma das metas dos vendedores que têm meta;
-        // vendidoMes = faturado no mês por todos os vendedores do escopo (com ou sem meta).
+        // vendidoMes = faturado no mês pelos vendedores do escopo que têm meta.
         meta: {
           percentual,
           metaMes: metaTime,

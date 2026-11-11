@@ -18,13 +18,16 @@ String dataCurta(DateTime d) => '${_p(d.day)}/${_p(d.month)}';
 String dataHoraCurta(DateTime d) => '${dataCurta(d)} ${hora(d)}';
 String dataCompleta(DateTime d) => '${dataCurta(d)}/${d.year}';
 
-/// Linha de conexão do Início: "Online · última sincronização 09:38"
+/// "09:38" quando a sincronização foi hoje, "09/11 18:02" quando foi em outro dia.
+String quandoSincronizou(DateTime l, DateTime agora) {
+  final x = l.toLocal();
+  return x.year == agora.year && x.month == agora.month && x.day == agora.day ? hora(x) : dataHoraCurta(x);
+}
+
+/// Linha de conexão em texto corrido: "Online · última sincronização 09:38"
 /// ou "Sem internet · dados de 09/11 18:02". [agora] só serve para saber se é hoje.
 String linhaConexao({required bool online, required DateTime? ultima, required DateTime agora}) {
-  final l = ultima?.toLocal();
-  final quando = l == null
-      ? null
-      : (l.year == agora.year && l.month == agora.month && l.day == agora.day ? hora(l) : dataHoraCurta(l));
+  final quando = ultima == null ? null : quandoSincronizou(ultima, agora);
   if (online) return quando == null ? 'Online · ainda não sincronizado' : 'Online · última sincronização $quando';
   return quando == null ? 'Sem internet · sem dados' : 'Sem internet · dados de $quando';
 }

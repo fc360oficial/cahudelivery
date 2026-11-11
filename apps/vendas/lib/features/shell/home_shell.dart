@@ -3,20 +3,20 @@ import 'package:flutter/material.dart';
 import '../../app_servicos.dart';
 import '../../data/situacao_pedido.dart';
 import '../clientes/clientes_page.dart';
-import '../../widgets/marca.dart';
+import '../../widgets/barra_navegacao.dart';
 import '../inicio/inicio_page.dart';
 import '../mais/mais_page.dart';
 import '../pedidos/pedidos_page.dart';
 
-/// Abas da barra inferior.
-enum AbaVendas { inicio, clientes, pedidos, mais }
+export '../../widgets/barra_navegacao.dart' show AbaVendas;
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key, this.abaInicial = AbaVendas.inicio});
   final AbaVendas abaInicial;
 
   /// Troca de aba a partir de qualquer tela filha: `HomeShell.of(context).irPara(AbaVendas.clientes)`.
-  static HomeShellState of(BuildContext context) => context.findAncestorStateOfType<HomeShellState>()!;
+  static HomeShellState of(BuildContext context) =>
+      context.findAncestorStateOfType<HomeShellState>()!;
 
   /// A casca que está na tela, para telas EMPILHADAS (que ficam fora dela na árvore) pedirem
   /// uma aba: `HomeShell.ativo?.irPara(AbaVendas.pedidos)`.
@@ -56,21 +56,16 @@ class HomeShellState extends State<HomeShell> {
       AbaVendas.pedidos: const PedidosPage(),
       AbaVendas.mais: const MaisPage(),
     };
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: const MarcaFluxoVendas(altura: 30),
-      ),
-      body: IndexedStack(index: _aba.index, children: abas.values.toList()),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _aba.index,
-        onDestinationSelected: (i) => irPara(AbaVendas.values[i]),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'Início'),
-          NavigationDestination(icon: Icon(Icons.storefront_outlined), selectedIcon: Icon(Icons.storefront_rounded), label: 'Clientes'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long_rounded), label: 'Pedidos'),
-          NavigationDestination(icon: Icon(Icons.menu_rounded), selectedIcon: Icon(Icons.menu_rounded), label: 'Mais'),
-        ],
+    // Cada aba desenha o próprio topo (Início com a marca, as outras com barra azul e seta de voltar).
+    // Voltar do aparelho numa aba que não é o Início leva ao Início, em vez de fechar o app.
+    return PopScope(
+      canPop: _aba == AbaVendas.inicio,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) irPara(AbaVendas.inicio);
+      },
+      child: Scaffold(
+        body: IndexedStack(index: _aba.index, children: abas.values.toList()),
+        bottomNavigationBar: BarraNavegacao(atual: _aba, aoTocar: irPara),
       ),
     );
   }

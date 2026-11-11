@@ -28,6 +28,7 @@ import 'package:fluxo_vendas/features/shell/home_shell.dart';
 import 'package:fluxo_vendas/services/conectividade.dart';
 import 'package:fluxo_vendas/services/fila_envio_service.dart';
 import 'package:fluxo_vendas/widgets/foto_produto.dart';
+import 'package:fluxo_vendas/widgets/logo_cliente.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -55,8 +56,13 @@ void main() {
       _fotos['https://fotos.exemplo/p$i.jpg'] = MemoryImage(File('test/fixtures/fotos/p$i.jpg').readAsBytesSync());
     }
     FotoProduto.provedor = (url) => _fotos[url];
+    final logo = MemoryImage(File('test/fixtures/logo_cliente.png').readAsBytesSync());
+    LogoCliente.provedor = (url) => url.endsWith('/logo-cahu.png') ? logo : null;
   });
-  tearDownAll(() => FotoProduto.provedor = null);
+  tearDownAll(() {
+    FotoProduto.provedor = null;
+    LogoCliente.provedor = null;
+  });
 
   late AppServicos s;
   late BancoLocal banco;
@@ -378,6 +384,10 @@ class _Mundo {
         'refreshToken': 'RT',
         'vendedor': {'id': 'ven-1', 'nome': 'JOÃO SILVA'},
         'distribuidora': 'CAHU Distribuidora',
+      };
+    } else if (caminho == '/config') {
+      corpo = {
+        'tema': {'logo_url': 'https://logos.exemplo/logo-cahu.png'},
       };
     } else if (caminho == '/vendas/sync') {
       corpo = _carga();

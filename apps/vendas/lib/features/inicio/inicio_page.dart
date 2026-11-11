@@ -8,6 +8,8 @@ import '../../data/situacao_pedido.dart';
 import '../../services/carrinho_service.dart';
 import '../../services/sincronizacao_service.dart';
 import '../../widgets/comuns.dart';
+import '../../widgets/icones_inicio.dart';
+import '../../widgets/logo_cliente.dart';
 import '../../widgets/marca.dart';
 import '../catalogo/catalogo_page.dart';
 import '../orcamentos/orcamentos_page.dart';
@@ -25,6 +27,7 @@ class InicioPage extends StatefulWidget {
 
 class _InicioPageState extends State<InicioPage> {
   ResumoVendedor? _resumo;
+  String? _logo;
   AppServicos? _s;
 
   @override
@@ -47,8 +50,14 @@ class _InicioPageState extends State<InicioPage> {
 
   Future<void> _carregar() async {
     final r = await _s!.meta.resumo();
+    final logo = await _s!.meta.logoCliente();
     await _s!.fila.atualizarContadores();
-    if (mounted) setState(() => _resumo = r);
+    if (mounted) {
+      setState(() {
+        _resumo = r;
+        _logo = logo;
+      });
+    }
   }
 
   Future<void> _sincronizar() async {
@@ -121,6 +130,7 @@ class _InicioPageState extends State<InicioPage> {
           children: [
             _Topo(
               nome: nome,
+              logoUrl: _logo,
               avisos: retidos + fila.recusados,
               aoTocarSino: () => retidos > 0
                   ? abrirPedidos(FiltroPedido.retidos)
@@ -154,23 +164,23 @@ class _InicioPageState extends State<InicioPage> {
                       childAspectRatio: 1.5,
                       children: [
                         _BotaoGrande(
-                          icone: Icons.shopping_cart_rounded,
+                          icone: TipoIconeInicio.pedido,
                           rotulo: 'Novo pedido',
                           aoTocar: () => iniciarNovoPedido(context),
                         ),
                         _BotaoGrande(
-                          icone: Icons.groups_rounded,
+                          icone: TipoIconeInicio.clientes,
                           rotulo: 'Clientes',
                           aoTocar: () =>
                               HomeShell.of(context).irPara(AbaVendas.clientes),
                         ),
                         _BotaoGrande(
-                          icone: Icons.inventory_2_rounded,
+                          icone: TipoIconeInicio.catalogo,
                           rotulo: 'Catálogo',
                           aoTocar: () => _abrir(const CatalogoPage()),
                         ),
                         _BotaoGrande(
-                          icone: Icons.request_quote_rounded,
+                          icone: TipoIconeInicio.orcamentos,
                           rotulo: 'Orçamentos',
                           selo: (r?.orcamentosAbertos ?? 0) > 0
                               ? '${r!.orcamentosAbertos}'
@@ -250,8 +260,9 @@ class _InicioPageState extends State<InicioPage> {
 
 /// Área branca do alto: a marca no centro e o sino à direita (com o número de avisos).
 class _Topo extends StatelessWidget {
-  const _Topo({required this.nome, required this.avisos, required this.aoTocarSino});
+  const _Topo({required this.nome, required this.avisos, required this.aoTocarSino, this.logoUrl});
   final String nome;
+  final String? logoUrl;
   final int avisos;
   final VoidCallback aoTocarSino;
 
@@ -259,7 +270,9 @@ class _Topo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: Colors.white,
-      child: SafeArea(
+      child: CustomPaint(
+        painter: _CurvaTopo(),
+        child: SafeArea(
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 14),
@@ -320,23 +333,58 @@ class _Topo extends StatelessWidget {
               ),
             ],
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: Text(
-              'Olá, $nome!',
-              style: const TextStyle(fontSize: 30, height: 1.15, fontWeight: FontWeight.w800, color: Cores.marinho),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(right: 8),
-            child: Text('Vamos fazer um ótimo dia de vendas!', style: TextStyle(fontSize: 15, color: Cores.texto)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Olá, $nome!',
+                      style: const TextStyle(fontSize: 30, height: 1.15, fontWeight: FontWeight.w800, color: Cores.marinho),
+                    ),
+                    const Text('Vamos fazer um ótimo dia de vendas!', style: TextStyle(fontSize: 15, color: Cores.texto)),
+                  ],
+                ),
+              ),
+              if (logoUrl != null && logoUrl!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 12, right: 8),
+                  child: LogoCliente(key: const Key('logo-cliente'), url: logoUrl),
+                ),
+            ],
           ),
             ],
           ),
         ),
       ),
+      ),
     );
   }
+}
+
+/// Faixas decorativas do canto superior esquerdo (amarela e azul-clara), atrás do cabeçalho.
+class _CurvaTopo extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final azul = Path()
+      ..moveTo(0, 0)
+      ..lineTo(w * 0.46, 0)
+      ..quadraticBezierTo(w * 0.20, h * 0.20, 0, h * 0.58)
+      ..close();
+    canvas.drawPath(azul, Paint()..color = const Color(0xFFE3ECFC));
+    final amarelo = Path()
+      ..moveTo(0, 0)
+      ..lineTo(w * 0.24, 0)
+      ..quadraticBezierTo(w * 0.09, h * 0.14, 0, h * 0.36)
+      ..close();
+    canvas.drawPath(amarelo, Paint()..color = Cores.amarelo);
+  }
+
+  @override
+  bool shouldRepaint(_CurvaTopo old) => false;
 }
 
 /// O cartão azul grande: faturado no mês à esquerda, % da meta à direita e a barra amarela embaixo.
@@ -475,7 +523,7 @@ class _BotaoGrande extends StatelessWidget {
     required this.aoTocar,
     this.selo,
   });
-  final IconData icone;
+  final TipoIconeInicio icone;
   final String rotulo;
   final VoidCallback aoTocar;
   final String? selo;
@@ -492,7 +540,7 @@ class _BotaoGrande extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icone, size: 42, color: Cores.azul),
+                  IconeInicio(icone, tamanho: 48),
                   const SizedBox(height: 8),
                   Text(
                     rotulo,

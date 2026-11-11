@@ -108,7 +108,7 @@ class MaisPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                  Card(
+                  Cartao(
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Row(
@@ -150,7 +150,7 @@ class MaisPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Card(
+                  Cartao(
                     child: Column(
                       children: [
                         _ItemMais(
@@ -183,7 +183,7 @@ class MaisPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Card(
+                  Cartao(
                     child: Padding(
                       padding: const EdgeInsets.all(14),
                       child: Column(
@@ -239,7 +239,7 @@ class MaisPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  Card(
+                  Cartao(
                     child: ListTile(
                       key: const Key('mais-sair'),
                       minVerticalPadding: 12,

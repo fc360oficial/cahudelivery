@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app_servicos.dart';
 import '../../core/mensagens.dart';
 import '../../core/tema.dart';
+import '../../widgets/comuns.dart';
 import '../../widgets/marca.dart';
 
 /// Entrada do vendedor. Mostra a mensagem do encerramento forçado (bloqueado/expirado), se houver.
@@ -78,7 +79,7 @@ class _LoginPageState extends State<LoginPage> {
                     style: TextStyle(color: Cores.textoSuave, fontSize: 15),
                   ),
                   const SizedBox(height: 28),
-                  Card(
+                  Cartao(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
                       child: Form(

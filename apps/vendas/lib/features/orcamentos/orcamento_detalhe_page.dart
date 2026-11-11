@@ -234,7 +234,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
+        Cartao(
           margin: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -332,7 +332,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
           const Text('Este orçamento não tem itens.', style: TextStyle(color: Cores.textoSuave))
         else
           for (final i in d.itens) ...[
-            Card(
+            Cartao(
               margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(12),

@@ -195,7 +195,7 @@ class _EtapaTabelaState extends State<EtapaTabela> {
             final t = tabelas[i - 1];
             final escolhida = cart.tabela?.tabela.id == t.tabela.id;
             final retirada = t.tabela.tipoEntrega == TipoEntrega.retirada;
-            return Card(
+            return Cartao(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
                 side: escolhida
@@ -301,7 +301,7 @@ class EtapaForma extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         for (final f in tabela.formas) ...[
-          Card(
+          Cartao(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: cart.forma?.id == f.id

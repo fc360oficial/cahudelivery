@@ -274,7 +274,7 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
-        Card(
+        Cartao(
           margin: EdgeInsets.zero,
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -395,7 +395,7 @@ class _LinhaItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Cartao(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(12),

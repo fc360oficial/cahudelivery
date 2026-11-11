@@ -160,7 +160,7 @@ class _ClientePageState extends State<ClientePage> {
           texto: 'Os pedidos dos últimos 90 dias aparecem aqui.',
         )
       else
-        Card(
+        Cartao(
           child: Column(
             children: [
               for (var i = 0; i < compras.length; i++) ...[
@@ -186,7 +186,7 @@ class _ClientePageState extends State<ClientePage> {
     final vencidos = titulos.where((t) => t.vencido(agora)).toList();
     final totalVencido = vencidos.fold<double>(0, (a, t) => a + t.valor);
     return [
-      Card(
+      Cartao(
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -312,7 +312,7 @@ class _CartaoDados extends StatelessWidget {
         ],
       ),
     );
-    return Card(
+    return Cartao(
       key: const Key('cartao-cliente'),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -506,7 +506,7 @@ class _CartaoTitulosPendentes extends StatelessWidget {
     final total = titulos.fold<double>(0, (a, t) => a + t.valor);
     final proximo = titulos.first; // já vêm por vencimento
     final vencido = proximo.vencido(agora);
-    return Card(
+    return Cartao(
       key: const Key('cartao-titulos'),
       child: Padding(
         padding: const EdgeInsets.all(16),

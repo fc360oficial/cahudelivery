@@ -191,6 +191,9 @@ void main() {
 
     testWidgets('lista de Pedidos: pílulas, número, filtros e vazio por filtro$sufixo', (t) async {
       await montar(t, const Scaffold(body: PedidosPage()), escala: escala);
+      // Celular alto: com a fonte 1,3x os cartões ocupam mais e a lista preguiçosa não montaria as últimas pílulas.
+      t.view.physicalSize = const Size(360, 1500);
+      await t.pump();
       expect(find.byKey(const Key('vazio-pedidos')), findsOneWidget);
       expect(find.text('Nenhum pedido ainda'), findsOneWidget);
 
@@ -208,7 +211,7 @@ void main() {
       for (final f in FiltroPedido.values) {
         if (f.index < 2) expect(find.text(f.rotulo), findsWidgets, reason: 'chip ${f.rotulo}');
       }
-      expect(find.text('Mercado Bom'), findsAtLeastNWidgets(5)); // com fonte 1,3x a 6ª linha fica abaixo da dobra (lista preguiçosa)
+      expect(find.text('Mercado Bom'), findsNWidgets(6));
       expect(find.textContaining('Pedido nº 43'), findsOneWidget);
       expect(find.text('Faturado'), findsOneWidget);
       expect(find.text('Aguardando o ERP'), findsOneWidget);

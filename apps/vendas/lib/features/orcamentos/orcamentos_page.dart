@@ -200,7 +200,7 @@ class LinhaOrcamento extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final itens = orcamento.itens.length;
-    return Card(
+    return Cartao(
       margin: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -238,26 +238,15 @@ class LinhaOrcamento extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Flexible(
-                            child: PilulaOrcamento(
-                              situacaoOrcamentoDe(orcamento),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                moeda(orcamento.total),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: Cores.marinho,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
+                          PilulaOrcamento(situacaoOrcamentoDe(orcamento)),
+                          Text(
+                            moeda(orcamento.total),
+                            style: const TextStyle(fontWeight: FontWeight.w800, color: Cores.marinho, fontSize: 15),
                           ),
                         ],
                       ),

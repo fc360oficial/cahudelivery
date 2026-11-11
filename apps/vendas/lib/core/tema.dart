@@ -21,7 +21,8 @@ class Cores {
   static const ok = Color(0xFF1E8E5A);
 }
 
-ThemeData construirTema() {
+/// [familia] só serve às imagens de teste (a fonte real do SDK no lugar da padrão do flutter_test).
+ThemeData construirTema({String? familia}) {
   final base =
       ColorScheme.fromSeed(
         seedColor: Cores.azul,
@@ -39,9 +40,10 @@ ThemeData construirTema() {
   final campo = BorderRadius.circular(14);
   return ThemeData(
     useMaterial3: true,
+    fontFamily: familia,
     colorScheme: base,
     scaffoldBackgroundColor: Cores.fundo,
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       backgroundColor: Cores.marinho,
       foregroundColor: Colors.white,
       elevation: 0,
@@ -52,12 +54,13 @@ ThemeData construirTema() {
         fontSize: 20,
         fontWeight: FontWeight.w700,
         color: Colors.white,
+        fontFamily: familia,
       ),
     ),
     cardTheme: CardThemeData(
       color: Cores.cartao,
-      elevation: 2,
-      shadowColor: const Color(0x330B1F4B),
+      elevation: 0,
+      shadowColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -68,7 +71,7 @@ ThemeData construirTema() {
         foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(56),
         shape: RoundedRectangleBorder(borderRadius: raio),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, fontFamily: familia),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -77,7 +80,7 @@ ThemeData construirTema() {
         minimumSize: const Size.fromHeight(52),
         side: const BorderSide(color: Cores.azul, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: raio),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        textStyle: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, fontFamily: familia),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(

@@ -191,6 +191,31 @@ class Etiqueta extends StatelessWidget {
   }
 }
 
+/// Cartão branco da referência: cantos de 16, sombra suave azul-marinho (desenhada como BoxShadow, que sai igual
+/// em qualquer aparelho) e o conteúdo recortado nos cantos. Aceita um [shape] para o contorno de "selecionado".
+class Cartao extends StatelessWidget {
+  const Cartao({super.key, required this.child, this.color = Colors.white, this.shape, this.margin, this.clipBehavior = Clip.antiAlias});
+  final Widget child;
+  final Color color;
+  final ShapeBorder? shape;
+  final EdgeInsetsGeometry? margin;
+  final Clip clipBehavior;
+
+  @override
+  Widget build(BuildContext context) {
+    final forma = shape ?? RoundedRectangleBorder(borderRadius: BorderRadius.circular(16));
+    return Container(
+      margin: margin,
+      decoration: ShapeDecoration(
+        color: color,
+        shape: forma,
+        shadows: const [BoxShadow(color: Color(0x140B1F4B), blurRadius: 12, offset: Offset(0, 2))],
+      ),
+      child: Material(type: MaterialType.transparency, shape: forma, clipBehavior: clipBehavior, child: child),
+    );
+  }
+}
+
 /// Ícone azul dentro de um quadrado (ou círculo) azul-claro, como nos cartões da referência.
 class IconeCaixa extends StatelessWidget {
   const IconeCaixa(

@@ -218,7 +218,7 @@ class _CartaoCliente extends StatelessWidget {
         final retirada = cart.tipoEntrega == TipoEntrega.retirada;
         final end = c?.endereco?.resumo ?? '';
         final tabela = cart.tabela?.tabela.nome;
-        return Card(
+        return Cartao(
           key: const Key('cartao-cliente-pedido'),
           child: InkWell(
             borderRadius: BorderRadius.circular(16),
@@ -321,7 +321,7 @@ class GradeProdutos extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              mainAxisExtent: (carrinho == null ? 186 : 202) + 62 * escala,
+              mainAxisExtent: (carrinho == null ? 186 : 182) + 56 * escala,
             ),
             delegate: SliverChildBuilderDelegate(
               (_, i) => CartaoProduto(item: itens[i], carrinho: carrinho),
@@ -363,7 +363,7 @@ class CartaoProduto extends StatelessWidget {
         final temEstoque = p.estoque > 0;
         return Opacity(
           opacity: semPreco ? 0.6 : 1,
-          child: Card(
+          child: Cartao(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
               side: qtd > 0

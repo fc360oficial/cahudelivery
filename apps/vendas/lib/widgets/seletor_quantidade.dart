@@ -156,7 +156,7 @@ class SeletorQuantidadeCompacto extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: f,
         child: SizedBox(
-          width: 40,
+          width: 38,
           height: 48,
           child: Icon(i, size: 20, color: Cores.azul),
         ),
@@ -181,7 +181,7 @@ class SeletorQuantidadeCompacto extends StatelessWidget {
               if (v != null) aoMudar(v);
             },
             child: Container(
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 48),
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 48),
               alignment: Alignment.center,
               child: Text(
                 fmt.quantidade(quantidade),

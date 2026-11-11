@@ -205,7 +205,7 @@ class LinhaCliente extends StatelessWidget {
     final negativo = disp != null && disp < 0;
     final u = c.ultimaCompra?.toLocal();
     const suave = TextStyle(color: Cores.textoSuave, fontSize: 13.5);
-    return Card(
+    return Cartao(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap:

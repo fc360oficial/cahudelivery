@@ -191,10 +191,15 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
                     ),
                   ),
                 ),
+                IconButton(
+                  key: const Key('adicionar-itens'),
+                  tooltip: 'Adicionar itens',
+                  onPressed: widget.aoAdicionarItens,
+                  icon: const Icon(Icons.add_circle_outline_rounded, color: Cores.azul, size: 26),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Card(
+            Cartao(
               clipBehavior: Clip.antiAlias,
               child: Column(
                 children: [
@@ -203,19 +208,6 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
                       const Divider(height: 1, indent: 12, endIndent: 12),
                     _LinhaItem(item: cart.itens[i], carrinho: cart),
                   ],
-                  const Divider(height: 1),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: widget.aoAdicionarItens,
-                      icon: const Icon(Icons.add_rounded),
-                      label: const Text('Adicionar itens'),
-                      style: TextButton.styleFrom(
-                        minimumSize: const Size(48, 48),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                      ),
-                    ),
-                  ),
                   const Divider(height: 1),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -274,7 +266,7 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
               ),
             ),
             const SizedBox(height: 12),
-            Card(
+            Cartao(
               key: const Key('cartao-pagamento'),
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
@@ -342,7 +334,7 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
               ),
             ),
             const SizedBox(height: 12),
-            Card(
+            Cartao(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
                 child: Row(

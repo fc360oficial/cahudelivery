@@ -221,7 +221,7 @@ class LinhaPedido extends StatelessWidget {
     final sit = situacaoDe(pedido);
     final numero = pedido.servidorNumero;
     final quando = dataHoraCurta(pedido.criadoEm.toLocal());
-    return Card(
+    return Cartao(
       margin: EdgeInsets.zero,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -259,22 +259,15 @@ class LinhaPedido extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Flexible(child: PilulaPedido(sit)),
-                          const SizedBox(width: 8),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                moeda(pedido.totalServidor),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: Cores.marinho,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
+                          PilulaPedido(sit),
+                          Text(
+                            moeda(pedido.totalServidor),
+                            style: const TextStyle(fontWeight: FontWeight.w800, color: Cores.marinho, fontSize: 15),
                           ),
                         ],
                       ),

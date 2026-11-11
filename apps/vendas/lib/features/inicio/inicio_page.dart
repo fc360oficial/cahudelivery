@@ -120,6 +120,7 @@ class _InicioPageState extends State<InicioPage> {
         return Column(
           children: [
             _Topo(
+              nome: nome,
               avisos: retidos + fila.recusados,
               aoTocarSino: () => retidos > 0
                   ? abrirPedidos(FiltroPedido.retidos)
@@ -130,23 +131,8 @@ class _InicioPageState extends State<InicioPage> {
                 onRefresh: _sincronizar,
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   children: [
-                    Text(
-                      'Olá, $nome!',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        height: 1.15,
-                        fontWeight: FontWeight.w800,
-                        color: Cores.marinho,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Vamos fazer um ótimo dia de vendas!',
-                      style: TextStyle(fontSize: 15, color: Cores.texto),
-                    ),
-                    const SizedBox(height: 16),
                     if (cart.temRascunho) ...[
                       _CartaoRascunho(
                         cliente: cart.cliente!.nomeFantasia,
@@ -199,7 +185,8 @@ class _InicioPageState extends State<InicioPage> {
                       agora: s.agora,
                       aoSincronizar: _sincronizar,
                     ),
-                    if (sync.ultimoErro != null && !sync.sincronizando)
+                    // Sem internet o cartão acima já diz; o texto vermelho fica para erro do servidor.
+                    if (sync.ultimoErro != null && !sync.sincronizando && sync.online)
                       Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
@@ -263,7 +250,8 @@ class _InicioPageState extends State<InicioPage> {
 
 /// Área branca do alto: a marca no centro e o sino à direita (com o número de avisos).
 class _Topo extends StatelessWidget {
-  const _Topo({required this.avisos, required this.aoTocarSino});
+  const _Topo({required this.nome, required this.avisos, required this.aoTocarSino});
+  final String nome;
   final int avisos;
   final VoidCallback aoTocarSino;
 
@@ -274,8 +262,11 @@ class _Topo extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+          Row(
             children: [
               const SizedBox(width: 48),
               const Expanded(
@@ -329,6 +320,19 @@ class _Topo extends StatelessWidget {
               ),
             ],
           ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Text(
+              'Olá, $nome!',
+              style: const TextStyle(fontSize: 30, height: 1.15, fontWeight: FontWeight.w800, color: Cores.marinho),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(right: 8),
+            child: Text('Vamos fazer um ótimo dia de vendas!', style: TextStyle(fontSize: 15, color: Cores.texto)),
+          ),
+            ],
+          ),
         ),
       ),
     );
@@ -359,9 +363,9 @@ class _CartaoMeta extends StatelessWidget {
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x330B1F4B),
+            color: Color(0x290B1F4B),
             blurRadius: 14,
-            offset: Offset(0, 6),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -478,7 +482,7 @@ class _BotaoGrande extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Cartao(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: aoTocar,
@@ -691,7 +695,7 @@ class _CartaoRascunho extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Cartao(
       key: const Key('cartao-rascunho'),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 8, 6),

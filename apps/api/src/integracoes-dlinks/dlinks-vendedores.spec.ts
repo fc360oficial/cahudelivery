@@ -58,4 +58,22 @@ describe('DlinksVendedoresService', () => {
     expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into cliente_vendedor'))).toBe(false);
     expect(out.processados).toBe(1);
   });
+
+  it('faturamento mensal: upsert por (vendedor, mês) e ignora vendedor desconhecido', async () => {
+    const { query, pool } = montar({}, { '6': 'vend-6' });
+    const out = await rodar(pool, () =>
+      new DlinksVendedoresService().syncFaturamentoMensal([
+        { funcionario_codigo: '6', ano_mes: '2026-10', valor_faturado: 40000 },
+        { funcionario_codigo: '99', ano_mes: '2026-10', valor_faturado: 10 },
+      ]),
+    );
+    const up = query.mock.calls.filter(([sql]) => String(sql).includes('insert into vendedor_faturamento_mensal'));
+    expect(up).toHaveLength(1);
+    expect(String(up[0][0])).toContain('on conflict (vendedor_id, ano_mes) do update');
+    expect(up[0][1]).toEqual(['vend-6', '2026-10', 40000]);
+    expect(out.processados).toBe(1);
+    expect(out.ignorados).toEqual([
+      { item: { funcionario_codigo: '99', ano_mes: '2026-10', valor_faturado: 10 }, motivo: 'funcionario_nao_encontrado' },
+    ]);
+  });
 });

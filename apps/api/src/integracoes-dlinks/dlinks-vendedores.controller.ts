@@ -3,6 +3,7 @@ import { ClienteFuncionarioDto } from './cliente-funcionario.dto';
 import { DlinksVendedoresService } from './dlinks-vendedores.service';
 import { FuncionarioDto } from './funcionario.dto';
 import { ListaOuItemPipe } from './lista-ou-item.pipe';
+import { VendaVendedorDto } from './venda-vendedor.dto';
 
 @Controller('integracoes/dlinks')
 export class DlinksVendedoresController {
@@ -18,5 +19,11 @@ export class DlinksVendedoresController {
   @HttpCode(200)
   carteira(@Body(new ListaOuItemPipe(ClienteFuncionarioDto)) itens: ClienteFuncionarioDto[]) {
     return this.service.syncCarteira(itens);
+  }
+
+  @Post('vendas-vendedores')
+  @HttpCode(200)
+  vendas(@Body(new ListaOuItemPipe(VendaVendedorDto)) itens: VendaVendedorDto[]) {
+    return this.service.syncFaturamentoMensal(itens);
   }
 }

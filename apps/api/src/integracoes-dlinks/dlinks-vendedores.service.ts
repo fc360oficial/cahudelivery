@@ -3,6 +3,7 @@ import { tenantCtx } from '../tenancy/tenant-context';
 import { ClienteFuncionarioDto } from './cliente-funcionario.dto';
 import type { ResultadoSync } from './dlinks-sync.service';
 import { FuncionarioDto } from './funcionario.dto';
+import { VendaVendedorDto } from './venda-vendedor.dto';
 
 @Injectable()
 export class DlinksVendedoresService {
@@ -32,6 +33,32 @@ export class DlinksVendedoresService {
     }
     await this.registrarLog('sync_funcionarios', `${processados} vendedor(es)`, true);
     return { processados, ignorados: [] };
+  }
+
+  /**
+   * Faturado do mês por vendedor (base da meta). Upsert por (vendedor, mês): reenviar o mês corrige o valor.
+   * Vendedor desconhecido é ignorado com `funcionario_nao_encontrado`.
+   */
+  async syncFaturamentoMensal(itens: VendaVendedorDto[]): Promise<ResultadoSync> {
+    const { pool } = tenantCtx();
+    const ignorados: ResultadoSync['ignorados'] = [];
+    let processados = 0;
+    for (const item of itens) {
+      const vend = await pool.query(`select id from vendedores where erp_vendedor_id = $1`, [item.funcionario_codigo]);
+      if (!vend.rowCount) {
+        ignorados.push({ item, motivo: 'funcionario_nao_encontrado' });
+        continue;
+      }
+      await pool.query(
+        `insert into vendedor_faturamento_mensal (vendedor_id, ano_mes, valor)
+         values ($1, $2, $3)
+         on conflict (vendedor_id, ano_mes) do update set valor = excluded.valor, atualizado_em = now()`,
+        [vend.rows[0].id, item.ano_mes, item.valor_faturado],
+      );
+      processados++;
+    }
+    await this.registrarLog('sync_vendas_vendedores', `${processados} mês(es) de vendedor, ${ignorados.length} ignorado(s)`, ignorados.length === 0);
+    return { processados, ignorados };
   }
 
   /**

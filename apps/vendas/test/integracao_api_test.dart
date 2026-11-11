@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fluxo_vendas/data/pedido_local.dart';
+import 'package:fluxo_vendas/data/situacao_pedido.dart';
 import 'package:fluxo_vendas/services/fila_envio_service.dart';
 import 'package:fluxo_vendas/app_servicos.dart';
 import 'package:fluxo_vendas/core/token_store.dart';
@@ -23,6 +24,7 @@ class _Rede implements FonteConectividade {
 /// Pulado por padrão. Para rodar:
 ///   VENDAS_API_INTEGRACAO=http://localhost:3099/v1 flutter test test/integracao_api_test.dart
 /// O 1º teste só chama login, sync e resumo. O 2º cria 1 pedido e 1 orçamento (na cópia descartável).
+/// O 3º cria 3 pedidos (2 retidos por preço) e 1 orçamento: confirmar, cancelar e converter.
 void main() {
   final url = Platform.environment['VENDAS_API_INTEGRACAO'];
   test('login + sync + resumo reais (demo1)', () async {
@@ -86,6 +88,85 @@ void main() {
       clienteId: cliente.id, tabelaId: tabela.tabela.id, itens: itens, total: s.carrinho.total, formaId: s.carrinho.forma!.id));
     expect(o.desfecho, DesfechoEnvio.enviado, reason: o.mensagem);
     expect((await s.orcamentosLocais.porId(o.id))!.estado, EstadoOrcamento.sincronizado);
+
+    await s.sessao.sair();
+    await banco.fechar();
+  }, skip: url == null ? 'defina VENDAS_API_INTEGRACAO para rodar' : false);
+
+  test('retidos e orçamento reais (demo3): confirmar com valores atuais, cancelar retido e converter orçamento', () async {
+    final banco = await bancoEmMemoria();
+    final s = AppServicos.criar(banco: banco, tokens: MemoriaTokenStore(), conectividade: _Rede(), baseUrl: url, tenant: 'cahu');
+    s.sessao.aoLogar = null;
+    await s.sessao.restaurar();
+    await s.sessao.entrar('demo3', 'Senha@12345');
+    expect((await s.sincronizacao.sincronizar()).ok, isTrue);
+
+    final cliente = (await s.clientes.buscar()).firstWhere((c) => !c.bloqueado && c.temCadastroErp && c.endereco != null);
+    final tabelas = await s.tabelas.listar();
+    // forma que não confere crédito: o único motivo de retenção do teste é o preço errado
+    final tabela = tabelas.firstWhere((t) => t.formas.any((f) => !f.exigeCredito), orElse: () => tabelas.firstWhere((t) => t.formas.isNotEmpty));
+    final forma = tabela.formas.firstWhere((f) => !f.exigeCredito, orElse: () => tabela.formas.first);
+    final produtos = await s.produtos.buscar(tabelaId: tabela.tabela.id, somenteComPreco: true, somenteComEstoque: true, limite: 1);
+    final p = produtos.single;
+    final preco = p.preco!;
+
+    Future<ResultadoEnvio> enviar(double precoEnviado, {String? orcamentoId}) {
+      final i = ItemEnvio(produtoId: p.produto.id, quantidade: 1, precoUnit: precoEnviado);
+      return s.fila.enviarPedido(NovoPedido(
+        clienteId: cliente.id,
+        tabelaId: tabela.tabela.id,
+        formaId: forma.id,
+        itens: [i],
+        total: precoEnviado,
+        observacoes: 'Teste de integração (retidos)',
+        orcamentoId: orcamentoId,
+      ));
+    }
+
+    // 1) preço errado: retido por preço; aparece na lista do servidor; confirmar -> RECEBIDO com o preço do servidor
+    final retido = await enviar(preco + 1);
+    expect(retido.desfecho, DesfechoEnvio.retido, reason: retido.mensagem);
+    expect(retido.divergencias.map((d) => d.tipo), contains('preco'));
+    expect(await s.pedidos.reconciliar(), isTrue);
+    var local = (await s.pedidosLocais.porId(retido.id))!;
+    expect(local.estado, EstadoPedido.retido);
+    expect((await s.pedidosLocais.listar()).where((x) => x.id == retido.id).length, 1, reason: 'sem duplicar');
+    final r1 = await s.pedidos.confirmar(local);
+    expect(r1.confirmado, isTrue, reason: r1.mensagem);
+    local = (await s.pedidosLocais.porId(retido.id))!;
+    expect(local.estado, EstadoPedido.enviado);
+    expect(local.statusServidor, 'RECEBIDO');
+    expect(local.totalServidor, preco, reason: 'o servidor confirmou com o preço atual da tabela');
+    expect(local.itens.single.precoUnit, preco);
+    await s.pedidos.reconciliar();
+    expect((await s.pedidosLocais.porId(retido.id))!.statusServidor, 'RECEBIDO');
+
+    // 2) outro retido por preço: cancelar
+    final retido2 = await enviar(preco + 2);
+    expect(retido2.desfecho, DesfechoEnvio.retido, reason: retido2.mensagem);
+    expect(await s.pedidos.cancelarRetido((await s.pedidosLocais.porId(retido2.id))!), isTrue);
+    await s.pedidos.reconciliar();
+    final cancelado = (await s.pedidosLocais.porId(retido2.id))!;
+    expect(cancelado.estado, EstadoPedido.cancelado);
+    expect(cancelado.statusServidor, 'CANCELADO');
+    expect(situacaoDe(cancelado), SituacaoPedido.cancelado);
+
+    // 3) orçamento -> pedido (preço certo): o servidor marca o orçamento como convertido
+    final o = await s.fila.salvarOrcamento(NovoOrcamento(
+        clienteId: cliente.id,
+        tabelaId: tabela.tabela.id,
+        formaId: forma.id,
+        total: preco,
+        itens: [ItemEnvio(produtoId: p.produto.id, quantidade: 1, precoUnit: preco)]));
+    expect(o.desfecho, DesfechoEnvio.enviado, reason: o.mensagem);
+    final convertido = await enviar(preco, orcamentoId: o.id);
+    expect([DesfechoEnvio.enviado, DesfechoEnvio.retido], contains(convertido.desfecho), reason: convertido.mensagem);
+    expect((await s.orcamentosLocais.porId(o.id))!.estado, EstadoOrcamento.convertido);
+    await s.pedidos.reconciliar();
+    final q = (await s.orcamentosLocais.porId(o.id))!;
+    expect(q.estado, EstadoOrcamento.convertido);
+    expect(q.pedidoId, isNotNull);
+    expect((await s.pedidosLocais.porServidorId(q.pedidoId!))!.id, convertido.id);
 
     await s.sessao.sair();
     await banco.fechar();

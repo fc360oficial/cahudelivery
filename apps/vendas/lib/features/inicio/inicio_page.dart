@@ -4,10 +4,12 @@ import '../../app_servicos.dart';
 import '../../core/formatadores.dart';
 import '../../core/tema.dart';
 import '../../data/modelos.dart';
+import '../../data/situacao_pedido.dart';
 import '../../services/carrinho_service.dart';
 import '../../services/sincronizacao_service.dart';
-import '../../widgets/em_construcao.dart';
 import '../../widgets/comuns.dart';
+import '../catalogo/catalogo_page.dart';
+import '../orcamentos/orcamentos_page.dart';
 import '../pedido/iniciar_pedido.dart';
 import '../shell/home_shell.dart';
 
@@ -77,8 +79,7 @@ class _InicioPageState extends State<InicioPage> {
     if (ok == true) await cart.limpar();
   }
 
-  void _abrir(String titulo) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => EmConstrucaoPage(titulo: titulo)));
+  void _abrir(Widget tela) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => tela));
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +111,7 @@ class _InicioPageState extends State<InicioPage> {
               ],
               if (fila.naFila > 0) ...[
                 const SizedBox(height: 12),
-                _IndicadorFila(qtd: fila.naFila),
+                _IndicadorFila(qtd: fila.naFila, aoTocar: () => HomeShell.of(context).irPara(AbaVendas.pedidos, filtro: FiltroPedido.naFila)),
               ],
               if (cart.temRascunho) ...[
                 const SizedBox(height: 12),
@@ -146,7 +147,7 @@ class _InicioPageState extends State<InicioPage> {
               ),
               if (retidos > 0) ...[
                 const SizedBox(height: 12),
-                _CartaoRetidos(qtd: retidos, aoTocar: () => HomeShell.of(context).irPara(AbaVendas.pedidos)),
+                _CartaoRetidos(qtd: retidos, aoTocar: () => HomeShell.of(context).irPara(AbaVendas.pedidos, filtro: FiltroPedido.retidos)),
               ],
               if (fila.recusados > 0) ...[
                 const SizedBox(height: 12),
@@ -173,9 +174,9 @@ class _InicioPageState extends State<InicioPage> {
                     icone: Icons.request_quote_outlined,
                     rotulo: 'Orçamentos',
                     selo: (r?.orcamentosAbertos ?? 0) > 0 ? '${r!.orcamentosAbertos}' : null,
-                    aoTocar: () => _abrir('Orçamentos'),
+                    aoTocar: () => _abrir(const OrcamentosPage()),
                   ),
-                  _BotaoGrande(icone: Icons.inventory_2_outlined, rotulo: 'Catálogo', aoTocar: () => _abrir('Catálogo')),
+                  _BotaoGrande(icone: Icons.inventory_2_outlined, rotulo: 'Catálogo', aoTocar: () => _abrir(const CatalogoPage())),
                 ],
               ),
               const SizedBox(height: 16),
@@ -202,16 +203,23 @@ class _InicioPageState extends State<InicioPage> {
 }
 
 class _IndicadorFila extends StatelessWidget {
-  const _IndicadorFila({required this.qtd});
+  const _IndicadorFila({required this.qtd, required this.aoTocar});
   final int qtd;
+  final VoidCallback aoTocar;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Material(
+      color: const Color(0xFFEAF1FF),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
       key: const Key('indicador-fila'),
+      borderRadius: BorderRadius.circular(16),
+      onTap: aoTocar,
+      child: Container(
+      constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF1FF),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFBFD3FA)),
       ),
@@ -223,8 +231,11 @@ class _IndicadorFila extends StatelessWidget {
             child: Text('Na fila: $qtd', style: const TextStyle(fontWeight: FontWeight.w800, color: Cores.marinho)),
           ),
           const Flexible(child: Text('sobe quando a internet voltar', textAlign: TextAlign.right, style: TextStyle(color: Cores.textoSuave, fontSize: 12))),
+          const Icon(Icons.chevron_right_rounded, color: Cores.textoSuave),
         ],
       ),
+    ),
+    ),
     );
   }
 }

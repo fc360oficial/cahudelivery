@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app_servicos.dart';
+import '../../core/dinheiro.dart';
 import '../../core/formatadores.dart';
 import '../../core/mensagens.dart';
 import '../../core/tema.dart';
@@ -60,6 +61,7 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
       if (orcamento) {
         r = await s.fila.salvarOrcamento(
           NovoOrcamento(clienteId: clienteId, tabelaId: tabelaId, formaId: formaId, itens: itens, total: total, observacoes: obs),
+          id: cart.orcamentoId, // orçamento editado: o MESMO id (PUT)
           aposGravar: cart.limpar,
         );
       } else {
@@ -132,6 +134,14 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
                     CaixaAviso(
                       key: const Key('aviso-precos-antigos'),
                       texto: 'Preços podem estar desatualizados. Última sincronização: ${dataHoraCurta(ultima)}.',
+                    ),
+                  ],
+                  if (cart.totalAnterior != null && arredondar(cart.totalAnterior!) != arredondar(cart.total)) ...[
+                    const SizedBox(height: 12),
+                    CaixaAviso(
+                      key: const Key('aviso-total-mudou'),
+                      texto: 'O total mudou desde o orçamento: era ${moeda(cart.totalAnterior!)} e agora é ${moeda(cart.total)}, '
+                          'com os preços atuais da tabela.',
                     ),
                   ],
                   if (disp != null) ...[
@@ -262,10 +272,15 @@ class _LinhaItem extends StatelessWidget {
             Row(
               children: [
                 SeletorQuantidade(quantidade: item.quantidade, aoMudar: (v) => carrinho.alterarQuantidade(p.id, v)),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Text(moeda(item.total), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Cores.marinho)),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8, left: 8),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text(moeda(item.total), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Cores.marinho)),
+                    ),
+                  ),
                 ),
               ],
             ),

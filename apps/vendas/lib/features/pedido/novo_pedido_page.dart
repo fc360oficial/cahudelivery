@@ -22,7 +22,10 @@ EtapaPedido etapaInicialDo(CarrinhoService c) {
 /// O fluxo do pedido numa tela só: cliente -> tabela -> forma (só se preciso) -> itens -> revisão.
 /// O voltar do aparelho volta um passo; no primeiro passo sai (o rascunho fica guardado).
 class NovoPedidoPage extends StatefulWidget {
-  const NovoPedidoPage({super.key});
+  const NovoPedidoPage({super.key, this.etapaInicial});
+
+  /// Passo em que abre (nulo = o que o rascunho pede: [etapaInicialDo]).
+  final EtapaPedido? etapaInicial;
 
   @override
   State<NovoPedidoPage> createState() => _NovoPedidoPageState();
@@ -38,7 +41,7 @@ class _NovoPedidoPageState extends State<NovoPedidoPage> {
     super.didChangeDependencies();
     if (_etapa == null) {
       final cart = _cart;
-      _etapa = etapaInicialDo(cart);
+      _etapa = widget.etapaInicial ?? etapaInicialDo(cart);
       final aviso = cart.aviso;
       if (aviso != null) {
         cart.limparAviso();

@@ -136,8 +136,8 @@ class _EtapaCatalogoState extends State<EtapaCatalogo> {
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: [
-                    _Chip(rotulo: 'Todos', ativo: _categoria == null, aoTocar: () => _escolherCategoria(null)),
-                    for (final c in _categorias) _Chip(rotulo: c.nome, ativo: _categoria == c.id, aoTocar: () => _escolherCategoria(c.id)),
+                    ChipFiltro(rotulo: 'Todos', ativo: _categoria == null, aoTocar: () => _escolherCategoria(null)),
+                    for (final c in _categorias) ChipFiltro(rotulo: c.nome, ativo: _categoria == c.id, aoTocar: () => _escolherCategoria(c.id)),
                   ],
                 ),
               ),
@@ -177,30 +177,6 @@ class _EtapaCatalogoState extends State<EtapaCatalogo> {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.rotulo, required this.ativo, required this.aoTocar});
-  final String rotulo;
-  final bool ativo;
-  final VoidCallback aoTocar;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: Center(
-        child: ChoiceChip(
-          label: Text(rotulo),
-          selected: ativo,
-          onSelected: (_) => aoTocar(),
-          selectedColor: Cores.amarelo,
-          labelStyle: TextStyle(fontWeight: FontWeight.w700, color: ativo ? Cores.marinho : Cores.textoSuave),
-          materialTapTargetSize: MaterialTapTargetSize.padded,
-        ),
-      ),
-    );
-  }
-}
-
 /// "Mercado Bom · Entrega · Boleto" no alto do catálogo.
 class _ResumoPedido extends StatelessWidget {
   const _ResumoPedido({required this.cart});
@@ -234,18 +210,21 @@ class _ResumoPedido extends StatelessWidget {
 
 /// Cartão de produto do catálogo: foto, nome, estoque, preço da tabela e quantidade.
 class CartaoProduto extends StatelessWidget {
-  const CartaoProduto({super.key, required this.item, required this.carrinho});
+  const CartaoProduto({super.key, required this.item, this.carrinho});
   final ProdutoComPreco item;
-  final CarrinhoService carrinho;
+
+  /// Nulo = somente leitura (Catálogo avulso): sem quantidade nem botão de adicionar.
+  final CarrinhoService? carrinho;
 
   @override
   Widget build(BuildContext context) {
     final p = item.produto;
     final semPreco = item.semPreco;
     return ListenableBuilder(
-      listenable: carrinho,
+      listenable: carrinho ?? _SemMudanca(),
       builder: (context, _) {
-        final qtd = carrinho.quantidadeDe(p.id);
+        final carrinho = this.carrinho;
+        final qtd = carrinho?.quantidadeDe(p.id) ?? 0;
         final acima = qtd > p.estoque;
         return Opacity(
           opacity: semPreco ? 0.55 : 1,
@@ -260,7 +239,7 @@ class CartaoProduto extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _Foto(url: p.imagemUrl),
+                  FotoProduto(url: p.imagemUrl),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -285,7 +264,7 @@ class CartaoProduto extends StatelessWidget {
                             padding: EdgeInsets.only(top: 2),
                             child: Text('acima do estoque', style: TextStyle(color: Color(0xFFB26A00), fontWeight: FontWeight.w800, fontSize: 12)),
                           ),
-                        if (!semPreco)
+                        if (!semPreco && carrinho != null)
                           Align(
                             alignment: Alignment.centerRight,
                             child: qtd == 0
@@ -310,8 +289,14 @@ class CartaoProduto extends StatelessWidget {
   }
 }
 
-class _Foto extends StatelessWidget {
-  const _Foto({this.url});
+/// Notificador que nunca avisa (cartão somente leitura).
+class _SemMudanca extends ChangeNotifier {
+  _SemMudanca();
+}
+
+/// Foto do produto (cache em disco; ícone quando não há foto ou ela não carrega).
+class FotoProduto extends StatelessWidget {
+  const FotoProduto({super.key, this.url});
   final String? url;
 
   @override

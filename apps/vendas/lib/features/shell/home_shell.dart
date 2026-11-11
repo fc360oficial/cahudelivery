@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../widgets/em_construcao.dart';
+import '../../app_servicos.dart';
+import '../../data/situacao_pedido.dart';
 import '../clientes/clientes_page.dart';
 import '../../widgets/marca.dart';
 import '../inicio/inicio_page.dart';
 import '../mais/mais_page.dart';
+import '../pedidos/pedidos_page.dart';
 
-/// Abas da barra inferior. As telas das próximas tarefas entram trocando o
-/// `EmConstrucaoPage` correspondente em [_abas].
+/// Abas da barra inferior.
 enum AbaVendas { inicio, clientes, pedidos, mais }
 
 class HomeShell extends StatefulWidget {
@@ -41,14 +42,18 @@ class HomeShellState extends State<HomeShell> {
     super.dispose();
   }
 
-  void irPara(AbaVendas aba) => setState(() => _aba = aba);
+  /// Troca de aba. Para Pedidos, [filtro] escolhe o chip (Retidos, Na fila...).
+  void irPara(AbaVendas aba, {FiltroPedido? filtro}) {
+    if (filtro != null) Servicos.of(context).pedidos.filtro.value = filtro;
+    setState(() => _aba = aba);
+  }
 
   @override
   Widget build(BuildContext context) {
     final abas = <AbaVendas, Widget>{
       AbaVendas.inicio: const InicioPage(),
       AbaVendas.clientes: const ClientesPage(),
-      AbaVendas.pedidos: const EmConstrucaoPage(titulo: 'Pedidos', comAppBar: false),
+      AbaVendas.pedidos: const PedidosPage(),
       AbaVendas.mais: const MaisPage(),
     };
     return Scaffold(

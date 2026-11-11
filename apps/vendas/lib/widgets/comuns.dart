@@ -193,3 +193,52 @@ class LinhaInfo extends StatelessWidget {
     );
   }
 }
+
+/// Chip de filtro (categorias do catálogo, situação dos pedidos). Alvo de toque de 48 dp.
+class ChipFiltro extends StatelessWidget {
+  const ChipFiltro({super.key, required this.rotulo, required this.ativo, required this.aoTocar});
+  final String rotulo;
+  final bool ativo;
+  final VoidCallback aoTocar;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Center(
+        child: ChoiceChip(
+          label: Text(rotulo),
+          selected: ativo,
+          onSelected: (_) => aoTocar(),
+          selectedColor: Cores.amarelo,
+          labelStyle: TextStyle(fontWeight: FontWeight.w700, color: ativo ? Cores.marinho : Cores.textoSuave),
+          materialTapTargetSize: MaterialTapTargetSize.padded,
+        ),
+      ),
+    );
+  }
+}
+
+/// Lista com puxar-para-atualizar que também funciona quando está vazia ([vazio] ocupa a tela).
+class ListaAtualizavel extends StatelessWidget {
+  const ListaAtualizavel({super.key, required this.aoAtualizar, required this.itens, this.vazio, this.padding = const EdgeInsets.all(16)});
+  final Future<void> Function() aoAtualizar;
+  final List<Widget> itens;
+  final Widget? vazio;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return RefreshIndicator(
+      onRefresh: aoAtualizar,
+      child: itens.isEmpty && vazio != null
+          ? LayoutBuilder(
+              builder: (_, c) => ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [SizedBox(height: c.maxHeight, child: vazio)],
+              ),
+            )
+          : ListView(physics: const AlwaysScrollableScrollPhysics(), padding: padding, children: itens),
+    );
+  }
+}

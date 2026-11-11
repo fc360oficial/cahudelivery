@@ -9,6 +9,7 @@ interface Painel {
   periodo: string;
   indicadores: {
     pedidos: number;
+    pedidosFaturados: number;
     vendido: number;
     ticketMedio: number;
     variacaoPedidosPct: number | null;
@@ -16,10 +17,11 @@ interface Painel {
     positivacao: { clientesCarteira: number; clientesPositivados: number; pct: number };
     retidos: number;
     orcamentosAbertos: { qtd: number; total: number };
+    meta: { percentual: number; metaMes: number | null; vendidoMes: number; atingidoPct: number | null };
   };
   evolucao: { dia: string; vendido: number; pedidos: number }[];
   recentes: { id: string; numero: number; cliente: string; vendedor: string | null; tabela: string | null; total: number; status: string; criadoEm: string }[];
-  ranking: { vendedorId: string; nome: string; vendido: number; pedidos: number }[];
+  ranking: { vendedorId: string; nome: string; vendido: number; pedidos: number; pedidosFaturados: number; vendidoMes: number; metaMes: number | null; atingidoPct: number | null }[];
   categorias: { nome: string; vendido: number; pct: number }[];
 }
 
@@ -57,14 +59,27 @@ function Indicador({ icone, fundo, cor, rotulo, valor, nota }: { icone: React.Re
   );
 }
 
+/** Barra fina de progresso da meta: amarela até 100%, verde a partir de 100%. O texto ao lado diz o mesmo (não depende da cor). */
+function BarraMeta({ pct, meta }: { pct: number; meta: number }) {
+  const batida = pct >= 100;
+  return (
+    <div className="rank-meta">
+      <div className="barra-meta" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(Math.round(pct), 100)} aria-label={`${pct1(pct)} da meta de ${formatarReais(meta)} faturada no mês`}>
+        <i className={batida ? 'batida' : ''} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      <span className="sub">{pct1(pct)} da meta de {formatarReais(meta)}{batida ? ' · meta batida' : ''}</span>
+    </div>
+  );
+}
+
 function Grafico({ evolucao }: { evolucao: Painel['evolucao'] }) {
   const total = evolucao.reduce((s, d) => s + d.vendido, 0);
-  if (!evolucao.length || total <= 0) return <Vazio mensagem="Nenhuma venda no período." />;
+  if (!evolucao.length || total <= 0) return <Vazio mensagem="Nenhum faturamento no período." />;
   const max = Math.max(...evolucao.map((d) => d.vendido));
   const melhor = evolucao.reduce((a, d) => (d.vendido > a.vendido ? d : a), evolucao[0]);
   const sete = evolucao.length <= 7;
   const hoje = hojeRecife();
-  const resumo = `Vendas nos últimos ${evolucao.length} dias: total de ${formatarReais(total)}. Melhor dia: ${diaCurto(melhor.dia)}, com ${formatarReais(melhor.vendido)}.`;
+  const resumo = `Faturamento nos últimos ${evolucao.length} dias: total de ${formatarReais(total)}. Melhor dia: ${diaCurto(melhor.dia)}, com ${formatarReais(melhor.vendido)}.`;
   const marcas = !sete
     ? [0, 0.25, 0.5, 0.75, 1].map((f) => evolucao[Math.round((evolucao.length - 1) * f)]).filter((d, i, a) => a.findIndex((x) => x.dia === d.dia) === i)
     : [];
@@ -94,7 +109,7 @@ function Rosca({ categorias, total }: { categorias: Painel['categorias']; total:
     const fim = soma > 0 ? (acc / soma) * 100 : 0;
     return `${CORES_ROSCA[i % CORES_ROSCA.length]} ${ini}% ${fim}%`;
   });
-  const resumo = `Vendas por categoria: ${categorias.map((c) => `${c.nome} ${pct1(c.pct)}`).join(', ')}.`;
+  const resumo = `Faturado por categoria: ${categorias.map((c) => `${c.nome} ${pct1(c.pct)}`).join(', ')}.`;
   return (
     <div className="rosca-wrap">
       <div className="rosca" role="img" aria-label={resumo} style={{ background: `conic-gradient(${partes.join(', ')})` }}>
@@ -172,8 +187,15 @@ export function VendasInicio() {
               icone={<Icone><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></Icone>}
             />
             <Indicador
-              fundo="#0B1F4B" cor="#fff" rotulo="Vendas" valor={formatarReais(ind.vendido)} nota={<NotaVariacao v={ind.variacaoVendidoPct} />}
+              fundo="#0B1F4B" cor="#fff" rotulo="Faturado" valor={formatarReais(ind.vendido)} nota={<NotaVariacao v={ind.variacaoVendidoPct} />}
               icone={<Icone><path d="M12 1v22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></Icone>}
+            />
+            <Indicador
+              fundo="#F29F3D" cor="#0B1F4B" rotulo="Meta do mês" valor={ind.meta.atingidoPct == null ? '—' : pct1(ind.meta.atingidoPct)}
+              nota={ind.meta.metaMes == null
+                ? <div className="nota">Sem meta: nenhum vendedor faturou no mês anterior</div>
+                : <div className="nota">{formatarReais(ind.meta.vendidoMes)} faturado de {formatarReais(ind.meta.metaMes)} · {pct1(ind.meta.percentual)} sobre o mês anterior</div>}
+              icone={<Icone><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Icone>}
             />
             <Indicador
               fundo="#FFC20E" cor="#0B1F4B" rotulo="Positivação no mês" valor={pct1(ind.positivacao.pct)}
@@ -190,7 +212,7 @@ export function VendasInicio() {
           <div className="grade-inicio">
             <Cartao>
               <div className="titulo-cartao">
-                <h2>Evolução das vendas</h2>
+                <h2>Evolução do faturamento</h2>
                 <div className="troca-dias" role="group" aria-label="Intervalo do gráfico">
                   {[7, 30, 90].map((d) => (
                     <button key={d} type="button" className={dias === d ? 'ativo' : ''} aria-pressed={dias === d} onClick={() => setDias(d)}>{d} dias</button>
@@ -225,22 +247,25 @@ export function VendasInicio() {
 
           <div className="grade-inicio tres" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
             <Cartao>
-              <div className="titulo-cartao"><h2>Ranking de vendas</h2></div>
-              {ranking.length === 0 ? <Vazio mensagem="Nenhum vendedor no período." /> : (
+              <div className="titulo-cartao"><h2>Ranking de faturamento</h2></div>
+              {ranking.length === 0 ? <Vazio mensagem="Nenhum vendedor ativo." /> : (
                 <ul className="lista-inicio">
                   {ranking.map((r, i) => (
                     <li key={r.vendedorId} className="rank">
                       <span className={`medalha${i < 3 && r.vendido > 0 ? ` m${i + 1}` : ''}`}>{i + 1}</span>
                       <span className="rank-nome">{r.nome}</span>
                       <span className="rank-val"><strong>{formatarReais(r.vendido)}</strong><span className="sub">{r.pedidos} {r.pedidos === 1 ? 'pedido' : 'pedidos'}</span></span>
+                      {r.atingidoPct != null && r.metaMes != null
+                        ? <BarraMeta pct={r.atingidoPct} meta={r.metaMes} />
+                        : <div className="rank-meta"><span className="sub sem-meta">sem meta neste mês</span></div>}
                     </li>
                   ))}
                 </ul>
               )}
             </Cartao>
             <Cartao>
-              <div className="titulo-cartao"><h2>Vendas por categoria</h2></div>
-              {painel.categorias.length === 0 ? <Vazio mensagem="Nenhuma venda por categoria no período." /> : <Rosca categorias={painel.categorias} total={totalCategorias} />}
+              <div className="titulo-cartao"><h2>Faturado por categoria</h2></div>
+              {painel.categorias.length === 0 ? <Vazio mensagem="Nenhum faturamento por categoria no período." /> : <Rosca categorias={painel.categorias} total={totalCategorias} />}
             </Cartao>
           </div>
         </>

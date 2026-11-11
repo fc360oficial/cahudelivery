@@ -53,7 +53,12 @@
 .area-vendas .rec-nome { font-weight: 700; }
 .area-vendas .rec-dir { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .area-vendas .rec-dir strong { font-variant-numeric: tabular-nums; }
-.area-vendas .rank { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.area-vendas .rank { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 9px 0; }
+.area-vendas .rank .rank-meta { flex: 0 0 100%; padding-left: 40px; box-sizing: border-box; }
+.area-vendas .rank .rank-meta .sub.sem-meta { color: #6b7488; }
+.area-vendas .barra-meta { height: 6px; border-radius: 999px; background: #e3e8f2; overflow: hidden; margin-bottom: 3px; }
+.area-vendas .barra-meta i { display: block; height: 100%; background: #FFC20E; border-radius: 999px; }
+.area-vendas .barra-meta i.batida { background: #1f9d55; }
 .area-vendas .medalha { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; flex-shrink: 0; background: #C9D2E3; color: var(--av-marinho); }
 .area-vendas .medalha.m1 { background: #FFC20E; color: var(--av-marinho); }
 .area-vendas .medalha.m2 { background: #1D5BE0; color: #fff; }

@@ -79,8 +79,8 @@ void main() {
 
     // reenvio do MESMO corpo (rede perdeu a resposta): o servidor devolve o mesmo pedido
     final local = (await s.pedidosLocais.porId(r.id))!;
-    final de_novo = await s.api.post('/vendas/pedidos', body: local.corpo) as Map<String, dynamic>;
-    expect((de_novo['numero'] as num).toInt(), r.numero);
+    final reenvio = await s.api.post('/vendas/pedidos', body: local.corpo) as Map<String, dynamic>;
+    expect((reenvio['numero'] as num).toInt(), r.numero);
 
     final o = await s.fila.salvarOrcamento(NovoOrcamento(
       clienteId: cliente.id, tabelaId: tabela.tabela.id, itens: itens, total: s.carrinho.total, formaId: s.carrinho.forma!.id));

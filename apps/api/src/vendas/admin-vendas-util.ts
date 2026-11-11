@@ -55,3 +55,60 @@ export function addDias(data: string, dias: number): string {
 export function diasEntre(ini: string, fim: string): number {
   return Math.round((Date.parse(`${fim}T00:00:00Z`) - Date.parse(`${ini}T00:00:00Z`)) / 86400000);
 }
+
+/** Percentual padrão da meta: 5% sobre o que o vendedor vendeu no mês anterior. */
+export const META_PERCENTUAL_PADRAO = 5;
+
+/** Lê `configuracoes.valor_json` de `vendas_meta_percentual` (aceita `{valor: 5}` ou o número puro); ausente ou inválido = 5. */
+export function lerPercentualMeta(valorJson: unknown): number {
+  const bruto =
+    valorJson !== null && typeof valorJson === 'object'
+      ? (valorJson as { valor?: unknown }).valor
+      : valorJson;
+  const v = bruto === null || bruto === undefined || bruto === '' ? NaN : Number(bruto);
+  return Number.isFinite(v) && v >= 0 ? v : META_PERCENTUAL_PADRAO;
+}
+
+/** Meta do mês = vendido no mês anterior × (1 + percentual/100). Sem venda no mês anterior não há meta (null), nunca zero. */
+export function calcularMeta(vendidoMesAnterior: number, vendidoMes: number, percentual: number) {
+  const metaMes = vendidoMesAnterior > 0 ? dinheiro(vendidoMesAnterior * (1 + percentual / 100)) : null;
+  return {
+    metaMes,
+    atingidoPct: metaMes ? pct1((vendidoMes / metaMes) * 100) : null,
+    faltam: metaMes ? dinheiro(Math.max(metaMes - vendidoMes, 0)) : null,
+  };
+}
+
+/** Status em que o ERP já faturou o pedido do vendedor: só esses contam como "vendido". */
+export const SQL_STATUS_FATURADO = `p.status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`;
+
+/**
+ * CTE única de "vendas faturadas" (pedido de vendedor que o ERP faturou), usada por meta, ranking, resumo e painel.
+ * Colunas: pedido_id, vendedor_id, valor, data.
+ *  - valor = total faturado enviado pelo ERP (pedido_faturamentos.total) ou, na falta, o total do pedido;
+ *  - data  = pedido_faturamentos.faturado_em, ou o 1º evento FATURADO, ou (último recurso) criado_em. O dia/mês é
+ *            sempre lido no fuso de Recife pelo chamador.
+ * Uso: `with ${cteVendasFaturadas()} select ... from vf`. `extraWhere` (ex.: "p.vendedor_id = $1") entra no where.
+ */
+export function cteVendasFaturadas(nome = 'vf', extraWhere = ''): string {
+  return `${nome} as (
+       select p.id as pedido_id, p.vendedor_id,
+              coalesce(f.total, p.total) as valor,
+              coalesce(f.faturado_em, ev.em, p.criado_em) as data
+         from pedidos p
+         left join pedido_faturamentos f on f.pedido_id = p.id
+         left join lateral (select min(e.criado_em) as em from pedido_eventos e
+                             where e.pedido_id = p.id and e.status = 'FATURADO') ev on true
+        where p.origem = 'vendedor' and ${SQL_STATUS_FATURADO}${extraWhere ? ` and ${extraWhere}` : ''}
+     )`;
+}
+
+/** Base da meta: o faturamento do mês anterior que o ERP mandou (se houver linha) ou, senão, o nosso próprio faturado. */
+export function escolherBaseMeta(
+  erp: unknown,
+  proprio: number,
+): { valor: number; origem: 'erp' | 'pedidos' | null } {
+  const valor = erp !== null && erp !== undefined ? dinheiro(n(erp)) : dinheiro(proprio);
+  const origem = erp !== null && erp !== undefined ? 'erp' : 'pedidos';
+  return { valor, origem: valor > 0 ? origem : null };
+}

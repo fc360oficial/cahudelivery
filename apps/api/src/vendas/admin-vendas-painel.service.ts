@@ -2,10 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import {
   addDias,
+  calcularMeta,
+  cteVendasFaturadas,
   dinheiro,
   diasEntre,
   escolher,
+  escolherBaseMeta,
   iso,
+  lerPercentualMeta,
   n,
   pct1,
   SQL_STATUS_VENDA,
@@ -25,7 +29,9 @@ const dia = (p: number) =>
   `(($${p}::date)::timestamp at time zone 'America/Recife')`;
 
 /**
- * Painel da retaguarda de Vendas. Só pedidos de vendedor; venda = fora de cancelado/retido/aguardando pagamento.
+ * Painel da retaguarda de Vendas. Só pedidos de vendedor.
+ * VENDIDO = FATURADO pelo ERP (cteVendasFaturadas: valor faturado, data do faturamento). `pedidos` continua sendo
+ * os pedidos feitos e liberados no período (fora de cancelado/retido/aguardando pagamento); `pedidosFaturados`, os faturados.
  * Períodos (dias do calendário de Recife): hoje = o dia; semana = os últimos 7 dias incluindo hoje; mes = do dia 1 até hoje.
  * O período anterior tem o mesmo número de dias e termina um dia antes do início do atual.
  */
@@ -53,22 +59,32 @@ export class AdminVendasPainelService {
     const fim = addDias(hoje, 1);
     const antIni = addDias(ini, -(diasEntre(ini, hoje) + 1));
     const mesIni = `${hoje.slice(0, 8)}01`;
+    const mesAntIni = `${addDias(mesIni, -1).slice(0, 8)}01`;
+    const anoMesAnt = mesAntIni.slice(0, 7);
     const evoIni = addDias(hoje, -(dias - 1));
 
     const filtroVend = (p: number, col: string) =>
       `($${p}::uuid is null or ${col} = $${p}::uuid)`;
     const base = `p.origem = 'vendedor' and ${SQL_STATUS_VENDA}`;
 
-    const [ind, ext, evo, rec, rnk, cat] = await Promise.all([
+    const [ind, fat, ext, evo, rec, rnk, cat, met] = await Promise.all([
       pool.query(
         `/* indicadores */
          select (count(*) filter (where p.criado_em >= ${dia(1)} and p.criado_em < ${dia(2)}))::int as pedidos,
-                coalesce(sum(p.total) filter (where p.criado_em >= ${dia(1)} and p.criado_em < ${dia(2)}), 0) as vendido,
-                (count(*) filter (where p.criado_em >= ${dia(3)} and p.criado_em < ${dia(1)}))::int as pedidos_ant,
-                coalesce(sum(p.total) filter (where p.criado_em >= ${dia(3)} and p.criado_em < ${dia(1)}), 0) as vendido_ant
+                (count(*) filter (where p.criado_em >= ${dia(3)} and p.criado_em < ${dia(1)}))::int as pedidos_ant
            from pedidos p
           where ${base} and ${filtroVend(4, 'p.vendedor_id')}
             and p.criado_em >= ${dia(3)} and p.criado_em < ${dia(2)}`,
+        [ini, fim, antIni, vendedorId],
+      ),
+      pool.query(
+        `/* faturado */
+         with ${cteVendasFaturadas('vf', filtroVend(4, 'p.vendedor_id'))}
+         select coalesce(sum(valor) filter (where data >= ${dia(1)} and data < ${dia(2)}), 0) as vendido,
+                (count(*) filter (where data >= ${dia(1)} and data < ${dia(2)}))::int as pedidos_faturados,
+                coalesce(sum(valor) filter (where data >= ${dia(3)} and data < ${dia(1)}), 0) as vendido_ant
+           from vf
+          where data >= ${dia(3)} and data < ${dia(2)}`,
         [ini, fim, antIni, vendedorId],
       ),
       pool.query(
@@ -86,12 +102,12 @@ export class AdminVendasPainelService {
       ),
       pool.query(
         `/* evolucao */
-         select to_char(d.dia, 'YYYY-MM-DD') as dia, coalesce(sum(v.total), 0) as vendido, count(v.id)::int as pedidos
+         with ${cteVendasFaturadas('vf', filtroVend(4, 'p.vendedor_id'))}
+         select to_char(d.dia, 'YYYY-MM-DD') as dia, coalesce(sum(v.valor), 0) as vendido, count(v.pedido_id)::int as pedidos
            from generate_series($1::date::timestamp, $2::date::timestamp, interval '1 day') as d(dia)
-           left join (select p.id, p.total, (p.criado_em at time zone 'America/Recife')::date as dia
-                        from pedidos p
-                       where ${base} and ${filtroVend(4, 'p.vendedor_id')}
-                         and p.criado_em >= ${dia(1)} and p.criado_em < ${dia(3)}) v on v.dia = d.dia::date
+           left join (select pedido_id, valor, (data at time zone 'America/Recife')::date as dia
+                        from vf
+                       where data >= ${dia(1)} and data < ${dia(3)}) v on v.dia = d.dia::date
           group by d.dia
           order by d.dia`,
         [evoIni, hoje, fim, vendedorId],
@@ -110,47 +126,88 @@ export class AdminVendasPainelService {
       ),
       pool.query(
         `/* ranking */
-         select vd.id, vd.nome, coalesce(sum(p.total), 0) as vendido, count(p.id)::int as pedidos
-           from vendedores vd
-           left join pedidos p on p.vendedor_id = vd.id and ${base}
-                and p.criado_em >= ${dia(1)} and p.criado_em < ${dia(2)}
-          where vd.ativo
-          group by vd.id, vd.nome
-          order by coalesce(sum(p.total), 0) desc, vd.nome`,
+         with ${cteVendasFaturadas()}
+         select * from (
+           select vd.id, vd.nome,
+                  (select coalesce(sum(f.valor), 0) from vf f
+                    where f.vendedor_id = vd.id and f.data >= ${dia(1)} and f.data < ${dia(2)}) as vendido,
+                  (select count(*)::int from vf f
+                    where f.vendedor_id = vd.id and f.data >= ${dia(1)} and f.data < ${dia(2)}) as pedidos_faturados,
+                  (select count(*)::int from pedidos p
+                    where p.vendedor_id = vd.id and ${base}
+                      and p.criado_em >= ${dia(1)} and p.criado_em < ${dia(2)}) as pedidos
+             from vendedores vd
+            where vd.ativo
+         ) r
+         order by r.vendido desc, r.nome`,
         [ini, fim],
       ),
       pool.query(
         `/* categorias */
+         with ${cteVendasFaturadas('vf', filtroVend(3, 'p.vendedor_id'))}
          select coalesce(cat.nome, 'Sem categoria') as nome, sum(i.total) as vendido
-           from pedidos p
-           join pedido_itens i on i.pedido_id = p.id
+           from vf
+           join pedido_itens i on i.pedido_id = vf.pedido_id
            join produtos pr on pr.id = i.produto_id
            left join categorias cat on cat.id = pr.categoria_id
-          where ${base} and ${filtroVend(3, 'p.vendedor_id')}
-            and p.criado_em >= ${dia(1)} and p.criado_em < ${dia(2)}
+          where vf.data >= ${dia(1)} and vf.data < ${dia(2)}
           group by coalesce(cat.nome, 'Sem categoria')
           order by sum(i.total) desc`,
         [ini, fim, vendedorId],
       ),
+      // Metas: SEMPRE do mês corrente (e a base do mês anterior), qualquer que seja o filtro `periodo`.
+      pool.query(
+        `/* meta */
+         with ${cteVendasFaturadas()}
+         select vd.id,
+                (select coalesce(sum(f.valor), 0) from vf f
+                  where f.vendedor_id = vd.id and f.data >= ${dia(2)} and f.data < ${dia(3)}) as vendido_mes,
+                (select coalesce(sum(f.valor), 0) from vf f
+                  where f.vendedor_id = vd.id and f.data >= ${dia(1)} and f.data < ${dia(2)}) as vendido_ant,
+                (select m.valor from vendedor_faturamento_mensal m
+                  where m.vendedor_id = vd.id and m.ano_mes = $4) as erp_ant,
+                (select valor_json from configuracoes where chave = 'vendas_meta_percentual') as percentual
+           from vendedores vd
+          where vd.ativo and ${filtroVend(5, 'vd.id')}`,
+        [mesAntIni, mesIni, fim, anoMesAnt, vendedorId],
+      ),
     ]);
 
     const a = ind.rows[0];
+    const f = fat.rows[0];
     const e = ext.rows[0];
     const pedidos = n(a.pedidos);
-    const vendido = dinheiro(n(a.vendido));
+    const vendido = dinheiro(n(f.vendido));
+    const pedidosFaturados = n(f.pedidos_faturados);
     const variacao = (atual: number, anterior: number) =>
       anterior === 0 ? null : pct1(((atual - anterior) / anterior) * 100);
     const carteira = n(e.carteira);
     const positivados = n(e.positivados);
 
+    const percentual = lerPercentualMeta(met.rows[0]?.percentual);
+    const metaPorVendedor = new Map(
+      met.rows.map((r) => {
+        const vendidoMes = dinheiro(n(r.vendido_mes));
+        const base = escolherBaseMeta(r.erp_ant, n(r.vendido_ant));
+        const m = calcularMeta(base.valor, vendidoMes, percentual);
+        return [String(r.id), { vendidoMes, metaMes: m.metaMes, atingidoPct: m.atingidoPct }] as const;
+      }),
+    );
+    const metas = [...metaPorVendedor.values()];
+    const vendidoTime = dinheiro(metas.reduce((s, m) => s + m.vendidoMes, 0));
+    const metaTime = metas.some((m) => m.metaMes !== null)
+      ? dinheiro(metas.reduce((s, m) => s + (m.metaMes ?? 0), 0))
+      : null;
+
     return {
       periodo,
       indicadores: {
         pedidos,
+        pedidosFaturados,
         vendido,
-        ticketMedio: pedidos ? dinheiro(vendido / pedidos) : 0,
+        ticketMedio: pedidosFaturados ? dinheiro(vendido / pedidosFaturados) : 0,
         variacaoPedidosPct: variacao(pedidos, n(a.pedidos_ant)),
-        variacaoVendidoPct: variacao(vendido, dinheiro(n(a.vendido_ant))),
+        variacaoVendidoPct: variacao(vendido, dinheiro(n(f.vendido_ant))),
         positivacao: {
           clientesCarteira: carteira,
           clientesPositivados: positivados,
@@ -160,6 +217,14 @@ export class AdminVendasPainelService {
         orcamentosAbertos: {
           qtd: n(e.orc_qtd),
           total: dinheiro(n(e.orc_total)),
+        },
+        // Meta do mês corrente (não depende de `periodo`): soma das metas dos vendedores que têm meta;
+        // vendidoMes = faturado no mês por todos os vendedores do escopo (com ou sem meta).
+        meta: {
+          percentual,
+          metaMes: metaTime,
+          vendidoMes: vendidoTime,
+          atingidoPct: metaTime ? pct1((vendidoTime / metaTime) * 100) : null,
         },
       },
       evolucao: evo.rows.map((r) => ({
@@ -182,6 +247,11 @@ export class AdminVendasPainelService {
         nome: r.nome,
         vendido: dinheiro(n(r.vendido)),
         pedidos: n(r.pedidos),
+        pedidosFaturados: n(r.pedidos_faturados),
+        // Sempre do mês corrente, qualquer que seja o `periodo` (vendido/pedidos acima seguem o período).
+        vendidoMes: metaPorVendedor.get(String(r.id))?.vendidoMes ?? 0,
+        metaMes: metaPorVendedor.get(String(r.id))?.metaMes ?? null,
+        atingidoPct: metaPorVendedor.get(String(r.id))?.atingidoPct ?? null,
       })),
       categorias: categoriasComOutros(
         cat.rows.map((r) => ({ nome: String(r.nome), vendido: n(r.vendido) })),

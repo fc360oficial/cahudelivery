@@ -40,6 +40,7 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
   AppServicos? _s;
   _Dados? _dados;
   bool _carregando = true;
+  String? _erro;
   bool _ocupado = false;
   int _geracao = 0;
   String? _sucesso;
@@ -67,6 +68,19 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
   }
 
   Future<void> _carregar() async {
+    try {
+      await _ler();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+          _erro = 'Não foi possível ler este pedido neste aparelho.';
+        });
+      }
+    }
+  }
+
+  Future<void> _ler() async {
     final minha = ++_geracao;
     final s = _s!;
     final p = await s.pedidosLocais.porId(widget.pedidoId);
@@ -97,6 +111,7 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
     if (!mounted || minha != _geracao) return;
     setState(() {
       _carregando = false;
+      _erro = null;
       _dados = _Dados(
         pedido: p,
         cliente: cliente?.nomeFantasia ?? 'Cliente fora da carteira',
@@ -236,6 +251,7 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
         listenable: s.sincronizacao,
         builder: (context, _) {
           if (_carregando) return const Center(child: CircularProgressIndicator());
+          if (_erro != null) return EstadoErro(mensagem: _erro!, aoTentarDeNovo: _carregar);
           final d = _dados;
           if (d == null) {
             return const EstadoVazio(icone: Icons.receipt_long_outlined, titulo: 'Pedido não encontrado', texto: 'Ele pode ter sido descartado.');

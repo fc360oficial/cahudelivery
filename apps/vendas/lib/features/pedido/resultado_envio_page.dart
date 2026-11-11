@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/formatadores.dart';
 import '../../core/tema.dart';
+import '../../data/situacao_pedido.dart';
 import '../../services/fila_envio_service.dart';
 import '../../widgets/comuns.dart';
 import '../shell/home_shell.dart';
@@ -14,9 +15,9 @@ class ResultadoEnvioPage extends StatelessWidget {
   final ResultadoEnvio resultado;
   final String cliente;
 
-  void _inicio(BuildContext context, [AbaVendas aba = AbaVendas.inicio]) {
+  void _inicio(BuildContext context, [AbaVendas aba = AbaVendas.inicio, FiltroPedido? filtro]) {
     Navigator.of(context).popUntil((r) => r.isFirst);
-    HomeShell.ativo?.irPara(aba);
+    HomeShell.ativo?.irPara(aba, filtro: filtro);
   }
 
   @override
@@ -60,7 +61,7 @@ class ResultadoEnvioPage extends StatelessWidget {
                     if (r.desfecho == DesfechoEnvio.retido)
                       FilledButton(
                         key: const Key('ver-retidos'),
-                        onPressed: () => _inicio(context, AbaVendas.pedidos),
+                        onPressed: () => _inicio(context, AbaVendas.pedidos, FiltroPedido.retidos),
                         child: const Text('Ver pedidos retidos'),
                       )
                     else

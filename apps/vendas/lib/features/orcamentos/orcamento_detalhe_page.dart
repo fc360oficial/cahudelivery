@@ -38,6 +38,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
   AppServicos? _s;
   _Dados? _dados;
   bool _carregando = true;
+  String? _erro;
   bool _ocupado = false;
   int _geracao = 0;
 
@@ -63,6 +64,19 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
   }
 
   Future<void> _carregar() async {
+    try {
+      await _ler();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _carregando = false;
+          _erro = 'Não foi possível ler este orçamento neste aparelho.';
+        });
+      }
+    }
+  }
+
+  Future<void> _ler() async {
     final minha = ++_geracao;
     final s = _s!;
     final o = await s.orcamentosLocais.porId(widget.orcamentoId);
@@ -88,6 +102,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
     if (!mounted || minha != _geracao) return;
     setState(() {
       _carregando = false;
+      _erro = null;
       _dados = _Dados(
         orcamento: o,
         cliente: cliente?.nomeFantasia ?? 'Cliente fora da carteira',
@@ -195,6 +210,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
         listenable: s.sincronizacao,
         builder: (context, _) {
           if (_carregando) return const Center(child: CircularProgressIndicator());
+          if (_erro != null) return EstadoErro(mensagem: _erro!, aoTentarDeNovo: _carregar);
           final d = _dados;
           if (d == null) {
             return const EstadoVazio(icone: Icons.request_quote_outlined, titulo: 'Orçamento não encontrado', texto: 'Ele pode ter sido descartado.');

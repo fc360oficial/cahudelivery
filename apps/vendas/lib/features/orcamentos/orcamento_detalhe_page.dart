@@ -9,6 +9,7 @@ import '../../core/tema.dart';
 import '../../data/modelos.dart';
 import '../../data/pedido_local.dart';
 import '../../data/situacao_pedido.dart';
+import '../../widgets/barra_navegacao.dart';
 import '../../widgets/comuns.dart';
 import '../../widgets/pilulas.dart';
 import '../pedido/iniciar_pedido.dart';
@@ -206,6 +207,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
     final s = Servicos.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Orçamento')),
+      bottomNavigationBar: const BarraNavegacaoEmpilhada(atual: AbaVendas.pedidos),
       body: ListenableBuilder(
         listenable: s.sincronizacao,
         builder: (context, _) {
@@ -242,6 +244,8 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const IconeCaixa(Icons.request_quote_rounded, tamanho: 42),
+                    const SizedBox(width: 10),
                     Expanded(child: Text(d.cliente, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Cores.marinho))),
                     const SizedBox(width: 8),
                     Flexible(child: PilulaOrcamento(sit)),
@@ -323,7 +327,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
           ),
         ],
         const SizedBox(height: 16),
-        const TituloSecao('ITENS'),
+        const TituloSecao('Itens'),
         if (d.itens.isEmpty)
           const Text('Este orçamento não tem itens.', style: TextStyle(color: Cores.textoSuave))
         else
@@ -355,7 +359,7 @@ class _OrcamentoDetalhePageState extends State<OrcamentoDetalhePage> {
           ],
         if ((o.observacoes ?? '').isNotEmpty) ...[
           const SizedBox(height: 8),
-          const TituloSecao('OBSERVAÇÃO'),
+          const TituloSecao('Observação'),
           Text(o.observacoes!),
         ],
         const SizedBox(height: 16),

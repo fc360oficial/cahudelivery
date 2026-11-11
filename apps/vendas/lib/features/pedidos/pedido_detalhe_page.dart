@@ -9,6 +9,7 @@ import '../../core/tema.dart';
 import '../../data/modelos.dart';
 import '../../data/pedido_local.dart';
 import '../../data/situacao_pedido.dart';
+import '../../widgets/barra_navegacao.dart';
 import '../../widgets/comuns.dart';
 import '../../widgets/pilulas.dart';
 import '../pedido/iniciar_pedido.dart';
@@ -247,6 +248,7 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
     final s = Servicos.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Pedido')),
+      bottomNavigationBar: const BarraNavegacaoEmpilhada(atual: AbaVendas.pedidos),
       body: ListenableBuilder(
         listenable: s.sincronizacao,
         builder: (context, _) {
@@ -282,6 +284,8 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const IconeCaixa(Icons.receipt_long_rounded, tamanho: 42),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(d.cliente, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Cores.marinho)),
                     ),
@@ -366,18 +370,18 @@ class _PedidoDetalhePageState extends State<PedidoDetalhePage> {
           ),
         ],
         const SizedBox(height: 16),
-        const TituloSecao('ITENS'),
+        const TituloSecao('Itens'),
         if (d.itens.isEmpty)
           const Text('Os itens deste pedido não estão neste aparelho.', style: TextStyle(color: Cores.textoSuave))
         else
           for (final i in d.itens) ...[_LinhaItem(i), const SizedBox(height: 8)],
         if ((p.observacoes ?? '').isNotEmpty) ...[
           const SizedBox(height: 8),
-          const TituloSecao('OBSERVAÇÃO'),
+          const TituloSecao('Observação'),
           Text(p.observacoes!),
         ],
         const SizedBox(height: 16),
-        const TituloSecao('LINHA DO TEMPO'),
+        const TituloSecao('Linha do tempo'),
         for (final e in _linhaDoTempo(p)) _Evento(e),
         const SizedBox(height: 16),
       ],

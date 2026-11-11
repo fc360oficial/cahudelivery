@@ -106,10 +106,10 @@ void main() {
     // uma forma só: pulou a escolha e abriu o catálogo
     expect(find.text('Forma de pagamento'), findsNothing);
     expect(find.text('Arroz 5kg'), findsOneWidget);
-    expect(find.text('Adicionar'), findsNWidgets(3));
+    expect(find.byTooltip('Adicionar'), findsNWidgets(3));
     expect(find.text('Nenhum item'), findsOneWidget);
 
-    await t.tap(find.text('Adicionar').first);
+    await t.tap(find.byTooltip('Adicionar').first);
     await assentar(t);
     expect(find.text('1 item'), findsOneWidget);
     await t.tap(find.byTooltip('Aumentar').first);
@@ -120,11 +120,12 @@ void main() {
     await t.tap(find.byKey(const Key('revisar')));
     await assentar(t);
 
-    expect(find.text('Revisar pedido'), findsOneWidget);
+    expect(find.byKey(const Key('revisao-total')), findsOneWidget);
     expect(find.text('única forma desta tabela'), findsOneWidget);
     expect(find.byKey(const Key('aviso-credito')), findsOneWidget);
     expect(find.textContaining('passa do limite'), findsNothing); // 30,23 < 700
 
+    await t.ensureVisible(find.byKey(const Key('enviar-pedido')));
     await t.tap(find.byKey(const Key('enviar-pedido')));
     await esperar(t, find.text('Pedido nº 321'));
     await assentar(t);
@@ -153,28 +154,33 @@ void main() {
     await t.tap(find.byKey(const Key('revisar')));
     await assentar(t);
     expect(find.textContaining('Este pedido passa do limite disponível. Ele pode ficar retido para você confirmar.'), findsOneWidget);
+    await t.scrollUntilVisible(find.text('Salvar como orçamento'), 300, scrollable: find.byType(Scrollable).last);
     expect(find.text('Salvar como orçamento'), findsOneWidget);
   });
 
   testWidgets('revisão com fonte grande (1,3x) não estoura a tela', (t) async {
     await montar(t, const NovoPedidoPage(), escala: 1.3);
+    await t.scrollUntilVisible(find.text('Mercado Bom'), 200, scrollable: find.byType(Scrollable).last); // a fonte grande empurra o 2º cliente para baixo
     await t.tap(find.text('Mercado Bom'));
     await assentar(t);
+    await t.drag(find.byType(Scrollable).last, const Offset(0, -300)); // com a fonte grande a 3ª tabela fica sob a barra de navegação
+    await t.pump(const Duration(milliseconds: 100));
     await t.tap(find.text('Retirada 7 dias'));
     await assentar(t);
     await t.tap(find.text('PIX'));
     await assentar(t);
-    await t.tap(find.text('Adicionar').first);
+    await t.tap(find.byTooltip('Adicionar').first);
     await assentar(t);
     await t.tap(find.byKey(const Key('revisar')));
     await assentar(t);
+    await t.scrollUntilVisible(find.byKey(const Key('enviar-pedido')), 300, scrollable: find.byType(Scrollable).last);
     expect(find.byKey(const Key('enviar-pedido')), findsOneWidget);
   });
 
-  testWidgets('Clientes: lista com busca e detalhe com as três seções', (t) async {
+  testWidgets('Clientes: lista com busca, filtros e detalhe com Histórico e Financeiro', (t) async {
     await montar(t, const Scaffold(body: ClientesPage()));
     expect(find.text('Mercado Bom'), findsOneWidget);
-    expect(find.textContaining('Crédito disponível: R\$ 700,00'), findsWidgets);
+    expect(find.textContaining('Disponível: R\$ 700,00'), findsWidgets);
     expect(find.text('Sem compras'), findsWidgets);
     await t.enterText(find.byKey(const Key('busca-clientes')), 'bloq');
     await t.pump(const Duration(milliseconds: 300));
@@ -183,7 +189,8 @@ void main() {
     expect(find.text('Mercado Bloqueado'), findsOneWidget);
     await t.tap(find.text('Mercado Bloqueado'));
     await assentar(t);
-    expect(find.text('Dados'), findsOneWidget);
+    expect(find.byKey(const Key('cartao-cliente')), findsOneWidget);
+    expect(find.text('Bloqueado'), findsWidgets);
     expect(find.textContaining('Cliente bloqueado. Não é possível fazer pedido'), findsOneWidget);
     expect(t.widget<FilledButton>(find.byKey(const Key('novo-pedido-cliente'))).onPressed, isNull);
     await t.tap(find.text('Financeiro'));

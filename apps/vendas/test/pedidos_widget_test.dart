@@ -118,6 +118,16 @@ void main() {
     }
   }
 
+  /// Rola a lista do Início até o [alvo] ficar acima da barra de navegação (a lista é preguiçosa e o ensureVisible
+  /// não alcança o que ainda está abaixo da dobra).
+  Future<void> rolarInicioAte(WidgetTester t, Finder alvo) async {
+    for (var i = 0; i < 8; i++) {
+      if (alvo.evaluate().isNotEmpty && t.getRect(alvo).bottom <= 670) return;
+      await t.drag(find.byType(Scrollable).first, const Offset(0, -150));
+      await t.pump(const Duration(milliseconds: 100));
+    }
+  }
+
   var seq = 0;
   PedidoLocal pedidoLocal(
     String estado, {
@@ -198,7 +208,7 @@ void main() {
       for (final f in FiltroPedido.values) {
         if (f.index < 2) expect(find.text(f.rotulo), findsWidgets, reason: 'chip ${f.rotulo}');
       }
-      expect(find.text('Mercado Bom'), findsNWidgets(6));
+      expect(find.text('Mercado Bom'), findsAtLeastNWidgets(5)); // com fonte 1,3x a 6ª linha fica abaixo da dobra (lista preguiçosa)
       expect(find.textContaining('Pedido nº 43'), findsOneWidget);
       expect(find.text('Faturado'), findsOneWidget);
       expect(find.text('Aguardando o ERP'), findsOneWidget);
@@ -393,8 +403,8 @@ void main() {
     await t.tap(find.byKey(const Key('editar-reenviar')));
     await assentar(t);
 
-    expect(find.text('Revisar pedido'), findsOneWidget);
-    await rolar(t, -900, lista: find.byType(ListView).last);
+    expect(find.byKey(const Key('revisao-total')), findsOneWidget);
+    await rolar(t, -900, lista: find.byType(SingleChildScrollView).last);
     expect(find.text('Arroz 5kg'), findsOneWidget);
     expect(s.carrinho.itens.single.quantidade, 3);
     expect(s.carrinho.cliente!.id, Ids.clienteOk);
@@ -466,7 +476,9 @@ void main() {
 
       await t.tap(find.text('Mercado Bom'));
       await assentar(t);
+      await trazer(t, find.text('Feijão 1kg'));
       expect(find.text('Feijão 1kg'), findsOneWidget);
+      await rolar(t, 900);
       expect(find.byKey(const Key('transformar-pedido')), findsOneWidget);
       expect(find.byKey(const Key('editar-orcamento')), findsOneWidget);
       await trazer(t, find.byKey(const Key('cancelar-orcamento')));
@@ -484,7 +496,7 @@ void main() {
     await trazer(t, find.byKey(const Key('transformar-pedido')));
     await t.tap(find.byKey(const Key('transformar-pedido')));
     await assentar(t);
-    expect(find.text('Revisar pedido'), findsOneWidget);
+    expect(find.byKey(const Key('revisao-total')), findsOneWidget);
     expect(find.byKey(const Key('aviso-total-mudou')), findsOneWidget);
     expect(find.textContaining('era R\$ 8,00 e agora é R\$ 11,00'), findsWidgets);
     expect(s.carrinho.orcamentoId, 'orc-1');
@@ -503,10 +515,11 @@ void main() {
     await trazer(t, find.byKey(const Key('editar-orcamento')));
     await t.tap(find.byKey(const Key('editar-orcamento')));
     await assentar(t);
-    expect(find.text('Itens do pedido'), findsOneWidget);
+    expect(find.byKey(const Key('barra-total')), findsOneWidget);
     expect(s.carrinho.orcamentoId, 'orc-1');
     await t.tap(find.byKey(const Key('revisar')));
     await assentar(t);
+    await t.ensureVisible(find.byKey(const Key('salvar-orcamento')));
     await t.tap(find.byKey(const Key('salvar-orcamento')));
     for (var i = 0; i < 40 && srv.contar('PUT', '/vendas/orcamentos/orc-1') == 0; i++) {
       await t.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
@@ -658,6 +671,7 @@ void main() {
     await t.runAsync(() => s.pedidos.reconciliar());
     await t.runAsync(() => s.fila.atualizarContadores());
     await assentar(t);
+    await rolarInicioAte(t, find.byKey(const Key('indicador-fila')));
     expect(find.byKey(const Key('cartao-retidos')), findsOneWidget);
     expect(find.byKey(const Key('indicador-fila')), findsOneWidget);
 
@@ -672,7 +686,7 @@ void main() {
     // volta ao Início: o cartão de retidos abre em "Retidos"
     await t.tap(find.text('Início'));
     await assentar(t);
-    await t.ensureVisible(find.byKey(const Key('cartao-retidos')));
+    await rolarInicioAte(t, find.byKey(const Key('cartao-retidos')));
     await t.tap(find.byKey(const Key('cartao-retidos')));
     await assentar(t);
     expect(s.pedidos.filtro.value, FiltroPedido.retidos);

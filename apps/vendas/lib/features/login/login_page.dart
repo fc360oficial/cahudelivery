@@ -59,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Cores.marinho,
+      backgroundColor: Cores.fundo,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -70,11 +70,14 @@ class _LoginPageState extends State<LoginPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Center(child: MarcaFluxoVendas(altura: 56)),
-                  const SizedBox(height: 8),
-                  const Text('Seu pedido na rua, sem complicação.',
-                      textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 15)),
-                  const SizedBox(height: 32),
+                  const Center(child: MarcaFluxoVendas(altura: 64)),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Seu pedido na rua, sem complicação.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Cores.textoSuave, fontSize: 15),
+                  ),
+                  const SizedBox(height: 28),
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(20),
@@ -83,7 +86,14 @@ class _LoginPageState extends State<LoginPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text('Entrar', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+                            Text(
+                              'Entrar',
+                              style: Theme.of(context).textTheme.headlineSmall
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: Cores.marinho,
+                                  ),
+                            ),
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _login,
@@ -91,8 +101,13 @@ class _LoginPageState extends State<LoginPage> {
                               autofillHints: const [AutofillHints.username],
                               textInputAction: TextInputAction.next,
                               autocorrect: false,
-                              decoration: const InputDecoration(labelText: 'Login', prefixIcon: Icon(Icons.person_outline)),
-                              validator: (v) => (v == null || v.trim().isEmpty) ? 'Informe o login' : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Login',
+                                prefixIcon: Icon(Icons.person_outline),
+                              ),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Informe o login'
+                                  : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
@@ -106,12 +121,20 @@ class _LoginPageState extends State<LoginPage> {
                                 labelText: 'Senha',
                                 prefixIcon: const Icon(Icons.lock_outline),
                                 suffixIcon: IconButton(
-                                  tooltip: _ver ? 'Ocultar senha' : 'Mostrar senha',
-                                  icon: Icon(_ver ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                                  tooltip: _ver
+                                      ? 'Ocultar senha'
+                                      : 'Mostrar senha',
+                                  icon: Icon(
+                                    _ver
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                  ),
                                   onPressed: () => setState(() => _ver = !_ver),
                                 ),
                               ),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Informe a senha' : null,
+                              validator: (v) => (v == null || v.isEmpty)
+                                  ? 'Informe a senha'
+                                  : null,
                             ),
                             if (_erro != null) ...[
                               const SizedBox(height: 12),
@@ -124,9 +147,21 @@ class _LoginPageState extends State<LoginPage> {
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Icon(Icons.error_outline, color: Cores.erro, size: 20),
+                                    const Icon(
+                                      Icons.error_outline,
+                                      color: Cores.erro,
+                                      size: 20,
+                                    ),
                                     const SizedBox(width: 8),
-                                    Expanded(child: Text(_erro!, key: const Key('login-erro'), style: const TextStyle(color: Cores.erro))),
+                                    Expanded(
+                                      child: Text(
+                                        _erro!,
+                                        key: const Key('login-erro'),
+                                        style: const TextStyle(
+                                          color: Cores.erro,
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -135,7 +170,14 @@ class _LoginPageState extends State<LoginPage> {
                             FilledButton(
                               onPressed: _entrando ? null : _entrar,
                               child: _entrando
-                                  ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
+                                  ? const SizedBox(
+                                      height: 22,
+                                      width: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
                                   : const Text('Entrar'),
                             ),
                           ],

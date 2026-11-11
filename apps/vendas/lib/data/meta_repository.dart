@@ -11,6 +11,11 @@ class MetaRepository {
   final BancoLocal _banco;
   Database get _db => _banco.db;
 
+  static const chaveLogo = 'logo_cliente_url';
+
+  /// URL da logo da distribuidora (nula = não cadastrada ou ainda não baixada).
+  Future<String?> logoCliente() => ler(chaveLogo);
+
   Future<String?> ler(String chave) async {
     final r = await _db.query('meta', where: 'chave = ?', whereArgs: [chave]);
     return r.isEmpty ? null : r.first['valor'] as String?;

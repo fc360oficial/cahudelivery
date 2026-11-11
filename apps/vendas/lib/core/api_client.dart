@@ -69,8 +69,8 @@ class ApiClient {
     await tokens.limpar();
   }
 
-  Future<dynamic> get(String path, {Duration? timeout, Map<String, String>? headers}) =>
-      _enviar('GET', path, timeout: timeout, headers: headers);
+  Future<dynamic> get(String path, {Duration? timeout, Map<String, String>? headers, bool autenticado = true}) =>
+      _enviar('GET', path, timeout: timeout, headers: headers, autenticado: autenticado);
 
   Future<dynamic> post(String path, {Object? body, bool autenticado = true, Duration? timeout}) =>
       _enviar('POST', path, body: body, autenticado: autenticado, timeout: timeout);

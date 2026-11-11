@@ -68,6 +68,39 @@ void main() {
     expect((await MetaRepository(banco).resumo())!.pedidosHoje, 7);
   });
 
+  test('logo do cliente: lê /config sem token, guarda a URL e some quando deixa de existir', () async {
+    var logo = '/uploads/logo.png';
+    srv = ServidorFalso((c) async {
+      if (c.caminho == '/vendas/sync') return (200, fixtureJson('sync'));
+      if (c.caminho == '/vendas/resumo') return (200, fixtureJson('resumo'));
+      if (c.caminho == '/config') {
+        return (200, {'tema': {'logo_url': logo}});
+      }
+      return (404, {});
+    });
+    final api = ApiClient(
+        tokens: MemoriaTokenStore(const Tokens('AT', 'RT')), client: srv.cliente, baseUrl: 'http://x/v1', tenant: 'cahu');
+    final s2 = SincronizacaoService(
+        api: api, carga: CargaRepository(banco), meta: MetaRepository(banco), conectividade: rede, agora: () => relogio);
+    addTearDown(s2.dispose);
+    await s2.sincronizar();
+    final cfg = srv.chamadas.firstWhere((x) => x.caminho == '/config');
+    expect(cfg.cabecalhos.containsKey('Authorization'), isFalse);
+    expect(await MetaRepository(banco).logoCliente(), 'http://x/uploads/logo.png');
+    logo = '';
+    await s2.sincronizar();
+    expect(await MetaRepository(banco).logoCliente(), isNull);
+  });
+
+  test('urlDaLogo: absoluta fica, relativa resolve na origem, vazia ou ausente é nula', () {
+    String? f(Object? tema) => SincronizacaoService.urlDaLogo({'tema': tema}, 'https://api.exemplo.com/v1');
+    expect(f({'logo_url': 'https://cdn.exemplo.com/a.png'}), 'https://cdn.exemplo.com/a.png');
+    expect(f({'logo_url': '/uploads/a.png'}), 'https://api.exemplo.com/uploads/a.png');
+    expect(f({'logo_url': '  '}), isNull);
+    expect(f({'logo_url': null}), isNull);
+    expect(f(null), isNull);
+  });
+
   test('duas chamadas simultâneas compartilham uma sincronização', () async {
     final a = sync.sincronizar();
     final b = sync.sincronizar();

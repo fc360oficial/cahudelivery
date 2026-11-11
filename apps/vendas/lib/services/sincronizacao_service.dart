@@ -138,6 +138,28 @@ class SincronizacaoService extends ChangeNotifier {
     _timer = Timer.periodic(intervalo, (_) => unawaited(sincronizar()));
   }
 
+  /// Logo da distribuidora (cliente): GET /v1/config é público (sem token; com token de vendedor a API
+  /// recusa) e traz `tema.logo_url`. Melhor esforço: falha não atrapalha a sincronização.
+  Future<void> _atualizarLogo() async {
+    try {
+      final cfg = await _api.get('/config', autenticado: false, timeout: const Duration(seconds: 8));
+      if (cfg is! Map<String, dynamic>) return;
+      final url = urlDaLogo(cfg, _api.baseUrl);
+      await _meta.gravar(MetaRepository.chaveLogo, url);
+    } catch (_) {}
+  }
+
+  /// Extrai a URL absoluta de `tema.logo_url` da resposta de /config (nulo se não houver logo).
+  static String? urlDaLogo(Map<String, dynamic> cfg, String baseUrl) {
+    final tema = cfg['tema'];
+    final bruto = tema is Map ? tema['logo_url'] : null;
+    if (bruto is! String || bruto.trim().isEmpty) return null;
+    final u = Uri.tryParse(bruto.trim());
+    if (u == null) return null;
+    final abs = u.hasScheme ? u : Uri.tryParse(baseUrl)?.resolveUri(u);
+    return abs?.toString();
+  }
+
   /// Baixa carga + resumo e troca o espelho. Nunca lança: devolve o resultado.
   Future<ResultadoSincronizacao> sincronizar() {
     return _emAndamento ??= _executar().whenComplete(() => _emAndamento = null);
@@ -176,6 +198,7 @@ class SincronizacaoService extends ChangeNotifier {
 
       final agora = _agora();
       await _carga.substituir(carga, agora: agora, resumo: resumo);
+      await _atualizarLogo();
       _ultima = agora;
       _servidorOk = true;
       _rede = true;

@@ -56,4 +56,35 @@ void main() {
     expect(r.orcamentosAbertos, 3);
     expect(ResumoVendedor.fromJson(r.toJson()).vendidoMes, r.vendidoMes);
   });
+
+  test('resumo de API antiga (sem meta nem pedidosMes) continua valendo', () {
+    final r = ResumoVendedor.fromJson(fixtureJson('resumo'));
+    expect(r.meta, isNull);
+    expect(r.pedidosMes, 0);
+    expect(r.pedidosFaturadosMes, 0);
+  });
+
+  test('resumo com meta do mês: lê, guarda e devolve igual', () {
+    final r = ResumoVendedor.fromJson(fixtureJson('resumo_meta'));
+    expect(r.pedidosMes, 20);
+    expect(r.pedidosFaturadosMes, 3);
+    expect(r.meta!.temMeta, isTrue);
+    expect(r.meta!.metaMes, 10500);
+    expect(r.meta!.atingidoPct, 74.4);
+    expect(r.meta!.faltam, 2682.96);
+    expect(r.meta!.vendidoMesAnterior, 10000);
+    expect(r.meta!.origemBase, 'erp');
+    final volta = ResumoVendedor.fromJson(r.toJson());
+    expect(volta.meta!.atingidoPct, 74.4);
+    expect(volta.pedidosMes, 20);
+  });
+
+  test('sem meta no mês: metaMes, atingidoPct e faltam nulos', () {
+    final r = ResumoVendedor.fromJson({
+      ...fixtureJson('resumo_meta'),
+      'meta': {'percentual': 5, 'vendidoMesAnterior': 0, 'origemBase': 'erp', 'metaMes': null, 'atingidoPct': null, 'faltam': null},
+    });
+    expect(r.meta!.temMeta, isFalse);
+    expect(r.meta!.atingidoPct, isNull);
+  });
 }

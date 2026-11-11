@@ -365,29 +365,70 @@ class VendedorInfo {
 }
 
 /// Resposta de `GET /v1/vendas/resumo`. A API não traz a contagem de pedidos do mês, só o valor.
+/// Meta do mês do vendedor (`meta` do `GET /vendas/resumo`). `metaMes`, `atingidoPct` e `faltam` são
+/// nulos quando o vendedor não tem meta neste mês. O que conta como vendido é só o que o ERP faturou.
+class MetaVendas {
+  const MetaVendas({this.percentual, this.vendidoMesAnterior, this.origemBase, this.metaMes, this.atingidoPct, this.faltam});
+  final double? percentual, vendidoMesAnterior, metaMes, atingidoPct, faltam;
+  final String? origemBase;
+
+  bool get temMeta => metaMes != null && atingidoPct != null;
+
+  static double? _n(Object? v) => v is num ? v.toDouble() : null;
+
+  factory MetaVendas.fromJson(Map<String, dynamic> j) => MetaVendas(
+        percentual: _n(j['percentual']),
+        vendidoMesAnterior: _n(j['vendidoMesAnterior']),
+        origemBase: j['origemBase'] as String?,
+        metaMes: _n(j['metaMes']),
+        atingidoPct: _n(j['atingidoPct']),
+        faltam: _n(j['faltam']),
+      );
+
+  Map<String, Object?> toJson() => {
+        'percentual': percentual,
+        'vendidoMesAnterior': vendidoMesAnterior,
+        'origemBase': origemBase,
+        'metaMes': metaMes,
+        'atingidoPct': atingidoPct,
+        'faltam': faltam,
+      };
+}
+
 class ResumoVendedor {
   const ResumoVendedor({
     required this.vendidoHoje,
     required this.pedidosHoje,
     required this.ticketMedioHoje,
     required this.vendidoMes,
+    this.pedidosMes = 0,
+    this.pedidosFaturadosMes = 0,
     required this.clientesCarteira,
     required this.clientesPositivadosMes,
     required this.pedidosRetidos,
     required this.orcamentosAbertos,
+    this.meta,
   });
+
+  /// `vendidoHoje` e `vendidoMes` são o que o ERP FATUROU (regra do dono: só o faturado é "vendido").
   final double vendidoHoje, ticketMedioHoje, vendidoMes;
-  final int pedidosHoje, clientesCarteira, clientesPositivadosMes, pedidosRetidos, orcamentosAbertos;
+  final int pedidosHoje, pedidosMes, pedidosFaturadosMes, clientesCarteira, clientesPositivadosMes, pedidosRetidos, orcamentosAbertos;
+
+  /// Nulo em API antiga (sem o campo `meta`).
+  final MetaVendas? meta;
 
   factory ResumoVendedor.fromJson(Map<String, dynamic> j) => ResumoVendedor(
         vendidoHoje: _d(j['vendidoHoje']),
         pedidosHoje: (j['pedidosHoje'] as num? ?? 0).toInt(),
         ticketMedioHoje: _d(j['ticketMedioHoje']),
         vendidoMes: _d(j['vendidoMes']),
+        pedidosMes: (j['pedidosMes'] as num? ?? 0).toInt(),
+        pedidosFaturadosMes: (j['pedidosFaturadosMes'] as num? ?? 0).toInt(),
         clientesCarteira: (j['clientesCarteira'] as num? ?? 0).toInt(),
         clientesPositivadosMes: (j['clientesPositivadosMes'] as num? ?? 0).toInt(),
         pedidosRetidos: (j['pedidosRetidos'] as num? ?? 0).toInt(),
         orcamentosAbertos: (j['orcamentosAbertos'] as num? ?? 0).toInt(),
+        meta: j['meta'] is Map<String, dynamic> ? MetaVendas.fromJson(j['meta'] as Map<String, dynamic>) : null,
       );
 
   Map<String, Object?> toJson() => {
@@ -395,10 +436,13 @@ class ResumoVendedor {
         'pedidosHoje': pedidosHoje,
         'ticketMedioHoje': ticketMedioHoje,
         'vendidoMes': vendidoMes,
+        'pedidosMes': pedidosMes,
+        'pedidosFaturadosMes': pedidosFaturadosMes,
         'clientesCarteira': clientesCarteira,
         'clientesPositivadosMes': clientesPositivadosMes,
         'pedidosRetidos': pedidosRetidos,
         'orcamentosAbertos': orcamentosAbertos,
+        'meta': meta?.toJson(),
       };
 }
 

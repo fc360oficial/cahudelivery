@@ -1,10 +1,13 @@
 /// Erro HTTP do backend (RFC 7807 simplificado): [codigo] é o código de negócio
 /// da API (ex.: `CLIENTE_BLOQUEADO`), quando existir.
 class ApiException implements Exception {
-  ApiException(this.statusCode, this.message, {this.codigo});
+  ApiException(this.statusCode, this.message, {this.codigo, this.corpo});
   final int statusCode;
   final String message;
   final String? codigo;
+
+  /// Corpo JSON da resposta de erro (ex.: `divergencias` do 409 `AINDA_DIVERGENTE`).
+  final Object? corpo;
 
   /// Sessão não vale mais (refresh recusado ou vendedor desativado).
   bool get sessaoExpirada => statusCode == 401;

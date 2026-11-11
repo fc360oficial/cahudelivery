@@ -12,6 +12,7 @@ import 'data/repositorios.dart';
 import 'services/carrinho_service.dart';
 import 'services/conectividade.dart';
 import 'services/fila_envio_service.dart';
+import 'services/pedidos_service.dart';
 import 'services/sessao_service.dart';
 import 'services/sincronizacao_service.dart';
 
@@ -33,6 +34,7 @@ class AppServicos {
     required this.orcamentosLocais,
     required this.carrinho,
     required this.fila,
+    required this.pedidos,
     required this.agora,
   });
 
@@ -50,6 +52,7 @@ class AppServicos {
   final OrcamentosLocaisRepository orcamentosLocais;
   final CarrinhoService carrinho;
   final FilaEnvioService fila;
+  final PedidosService pedidos;
   final DateTime Function() agora;
 
   /// Monta tudo e liga a sincronização ao login/logout.
@@ -84,6 +87,9 @@ class AppServicos {
     final fila = FilaEnvioService(api: api, pedidos: pedidosLocais, orcamentos: orcamentosLocais, agora: relogio);
     final carrinho = CarrinhoService(
         produtos: produtos, tabelas: tabelas, clientes: clientes, rascunhos: RascunhoRepository(banco, meta), agora: relogio);
+    final pedidos = PedidosService(api: api, pedidos: pedidosLocais, orcamentos: orcamentosLocais, fila: fila, agora: relogio);
+    // Depois de cada carga gravada, confere os pedidos e orçamentos com o servidor (status, outros aparelhos).
+    sync.cargaVersao.addListener(() => pedidos.reconciliar());
     // Sincronizar = enviar a fila primeiro e só depois baixar a carga.
     sync.enviarFila = fila.enviarFila;
     sessao.aoLogar = () async {
@@ -114,6 +120,7 @@ class AppServicos {
       orcamentosLocais: orcamentosLocais,
       carrinho: carrinho,
       fila: fila,
+      pedidos: pedidos,
       agora: relogio,
     );
   }

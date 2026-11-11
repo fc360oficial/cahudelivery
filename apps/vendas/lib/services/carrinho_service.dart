@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/dinheiro.dart';
+import '../core/formatadores.dart';
 import '../data/modelos.dart';
 import '../data/pedido_local.dart';
 import '../data/rascunho.dart';
@@ -77,6 +78,7 @@ class CarrinhoService extends ChangeNotifier {
   String _observacoes = '';
   String? _orcamentoId;
   String? _aviso;
+  double? _totalAnterior;
   Future<void> _gravando = Future.value();
 
   Cliente? get cliente => _cliente;
@@ -87,6 +89,9 @@ class CarrinhoService extends ChangeNotifier {
 
   /// Orçamento de origem (quando o pedido nasce da conversão de um orçamento).
   String? get orcamentoId => _orcamentoId;
+
+  /// Total do orçamento (ou pedido) de origem, quando o rascunho veio de um: a revisão avisa se mudou.
+  double? get totalAnterior => _totalAnterior;
 
   /// Aviso de uma única exibição (ex.: itens que saíram do rascunho restaurado).
   String? get aviso => _aviso;
@@ -139,6 +144,7 @@ class CarrinhoService extends ChangeNotifier {
     _observacoes = '';
     _orcamentoId = null;
     _aviso = null;
+    _totalAnterior = null;
     _mudou();
   }
 
@@ -232,6 +238,53 @@ class CarrinhoService extends ChangeNotifier {
     _mudou();
   }
 
+  /// Monta o rascunho a partir de um orçamento ou pedido recusado: preços SEMPRE os atuais da tabela
+  /// (pelo espelho), item sem preço ou fora do catálogo sai e vira aviso, e [totalAnterior] guarda o
+  /// total de antes para a revisão avisar quando mudou. [orcamentoId] liga o rascunho ao orçamento:
+  /// salvar de novo usa o MESMO id (PUT) e enviar como pedido converte esse orçamento.
+  Future<void> carregar({
+    required Cliente cliente,
+    required TabelaComFormas tabela,
+    String? formaId,
+    required List<ItemEnvio> itens,
+    String? observacoes,
+    String? orcamentoId,
+    double? totalAnterior,
+    String? avisoInicial,
+  }) async {
+    final achados = await _produtos.buscarPorIds(itens.map((i) => i.produtoId).toList(), tabelaId: tabela.tabela.id);
+    final porId = {for (final p in achados) p.produto.id: p};
+    final novos = <ItemCarrinho>[];
+    for (final i in itens) {
+      final p = porId[i.produtoId];
+      if (p != null && p.preco != null) novos.add(ItemCarrinho(produto: p.produto, precoUnit: p.preco!, quantidade: i.quantidade));
+    }
+    final partes = <String>[?avisoInicial];
+    final fora = itens.length - novos.length;
+    if (fora > 0) {
+      partes.add(fora == 1
+          ? '1 item saiu porque não tem mais preço nesta tabela.'
+          : '$fora itens saíram porque não têm mais preço nesta tabela.');
+    }
+    final novoTotal = somarLinhas(novos.map((i) => i.total));
+    if (totalAnterior != null && arredondar(totalAnterior) != arredondar(novoTotal)) {
+      partes.add('O total mudou: era ${moeda(totalAnterior)} e agora é ${moeda(novoTotal)} (preços atuais da tabela).');
+    }
+    _cliente = cliente;
+    _tabela = tabela;
+    _forma = null;
+    for (final f in tabela.formas) {
+      if (f.id == formaId) _forma = f;
+    }
+    _itens = novos;
+    _observacoes = (observacoes ?? '').length > 500 ? observacoes!.substring(0, 500) : (observacoes ?? '');
+    _orcamentoId = orcamentoId;
+    _totalAnterior = totalAnterior;
+    _aviso = partes.isEmpty ? null : partes.join(' ');
+    _ajustarForma();
+    _mudou();
+  }
+
   /// Orçamento de origem (usado pela conversão em pedido).
   void definirOrcamentoOrigem(String? id) {
     _orcamentoId = id;
@@ -247,6 +300,7 @@ class CarrinhoService extends ChangeNotifier {
     _observacoes = '';
     _orcamentoId = null;
     _aviso = null;
+    _totalAnterior = null;
     notifyListeners();
     final g = _gravando.then((_) => _rascunhos.apagar());
     _gravando = g.catchError((_) {});
@@ -262,6 +316,7 @@ class CarrinhoService extends ChangeNotifier {
     _observacoes = '';
     _orcamentoId = null;
     _aviso = null;
+    _totalAnterior = null;
     notifyListeners();
   }
 

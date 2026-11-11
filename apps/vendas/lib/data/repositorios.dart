@@ -206,4 +206,10 @@ class HistoricoRepository {
         limit: limite);
     return rows.map(PedidoHistorico.fromRow).toList();
   }
+
+  /// Pedido do histórico pelo id do servidor (itens de pedidos feitos em outro aparelho).
+  Future<PedidoHistorico?> porPedidoId(String pedidoId) async {
+    final rows = await _banco.db.query('historico', where: 'pedido_id = ?', whereArgs: [pedidoId]);
+    return rows.isEmpty ? null : PedidoHistorico.fromRow(rows.first);
+  }
 }

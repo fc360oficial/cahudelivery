@@ -42,6 +42,16 @@ class PedidosLocaisRepository {
     return r.map(PedidoLocal.fromRow).toList();
   }
 
+  /// Pedido pelo id que o servidor deu (`resposta_json.id`).
+  Future<PedidoLocal?> porServidorId(String servidorId) async {
+    for (final p in await listar()) {
+      if (p.servidorId == servidorId) return p;
+    }
+    return null;
+  }
+
+  Future<void> remover(String id) => _db.delete('pedidos_locais', where: 'id = ?', whereArgs: [id]);
+
   /// Fila de envio: `aguardando_envio` na ordem de criação.
   Future<List<PedidoLocal>> aguardandoEnvio() =>
       listar(estados: [EstadoPedido.aguardandoEnvio], maisAntigoPrimeiro: true);
@@ -100,6 +110,8 @@ class OrcamentosLocaisRepository {
         limit: limite);
     return r.map(OrcamentoLocal.fromRow).toList();
   }
+
+  Future<void> remover(String id) => _db.delete('orcamentos_locais', where: 'id = ?', whereArgs: [id]);
 
   /// Fila de envio: `local` na ordem de criação.
   Future<List<OrcamentoLocal>> aguardandoEnvio() =>

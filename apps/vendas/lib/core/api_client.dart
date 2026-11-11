@@ -145,7 +145,7 @@ class ApiClient {
       }
     }
     if (res.statusCode >= 400) {
-      throw ApiException(res.statusCode, _mensagem(corpo, res.statusCode), codigo: corpo is Map ? corpo['codigo'] as String? : null);
+      throw ApiException(res.statusCode, _mensagem(corpo, res.statusCode), codigo: corpo is Map ? corpo['codigo'] as String? : null, corpo: corpo);
     }
     return corpo;
   }

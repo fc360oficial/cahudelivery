@@ -186,6 +186,15 @@ class PedidoLocal {
   /// Id do pedido no servidor (para confirmar/cancelar o retido).
   String? get servidorId => resposta?['id'] as String?;
 
+  /// `status` do servidor (RECEBIDO, FATURADO...) quando ele já respondeu.
+  String? get statusServidor => resposta?['status'] as String?;
+
+  /// Pedido que só existe no servidor (feito em outro aparelho): vem sem itens do `GET /vendas/pedidos`.
+  bool get doServidor => corpo['doServidor'] == true;
+
+  /// Orçamento de origem, quando o pedido nasceu da conversão de um orçamento.
+  String? get orcamentoId => corpo['orcamentoId'] as String?;
+
   /// Total que vale agora: o do servidor quando ele respondeu, senão o do aparelho.
   double get totalServidor => resposta?['total'] == null ? total : _d(resposta!['total']);
 
@@ -260,6 +269,9 @@ class OrcamentoLocal {
   List<ItemEnvio> get itens =>
       ((corpo['itens'] as List?) ?? const []).map((e) => ItemEnvio.fromJson(Map<String, dynamic>.from(e as Map))).toList();
   String? get observacoes => corpo['observacoes'] as String?;
+
+  /// Id do pedido no servidor, quando o orçamento já virou pedido.
+  String? get pedidoId => resposta?['pedidoId'] as String?;
 
   Map<String, Object?> toRow() => {
         'id': id,

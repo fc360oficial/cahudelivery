@@ -111,6 +111,28 @@ class FilaEnvioService extends ChangeNotifier {
     }
   }
 
+  /// Quantos pedidos e orçamentos ainda não subiram (aviso antes de sair do app).
+  Future<({int pedidos, int orcamentos})> pendentes() async => (
+        pedidos: await _pedidos.contar(EstadoPedido.aguardandoEnvio) + await _pedidos.contar(EstadoPedido.enviando),
+        orcamentos: await _orcamentos.contar(EstadoOrcamento.local),
+      );
+
+  /// "Cancelar envio": tira da fila um pedido que ainda NÃO subiu. Roda na mesma trava do envio,
+  /// então nunca briga com um envio em andamento. Falso quando o pedido já saiu (ou não existe).
+  Future<bool> cancelarEnvio(String id) {
+    final f = _trava.then((_) async {
+      final p = await _pedidos.porId(id);
+      if (p == null || p.estado != EstadoPedido.aguardandoEnvio) return false;
+      await _pedidos.atualizar(id, {'estado': EstadoPedido.cancelado, 'motivo': 'Envio cancelado por você'}, _agora());
+      await atualizarContadores();
+      return true;
+    });
+    _trava = f.then((_) {}, onError: (Object e) {
+      debugPrint('cancelar envio: $e');
+    });
+    return f;
+  }
+
   /// Ao abrir o app: o que ficou `enviando` (app morto no meio do envio) volta para a fila.
   Future<void> recuperarInterrompidos() async {
     await _pedidos.recolocarInterrompidos(_agora());
@@ -216,6 +238,7 @@ class FilaEnvioService extends ChangeNotifier {
             'codigo_erro': null,
           },
           _agora());
+      await _marcarOrcamentoConvertido(p, resp['id'] as String?);
       return true;
     } on SemConexao {
       await _voltarParaFila(p.id);
@@ -232,6 +255,25 @@ class FilaEnvioService extends ChangeNotifier {
       debugPrint('enviar pedido ${p.id}: $e');
       await _voltarParaFila(p.id);
       return false;
+    }
+  }
+
+  /// Pedido que nasceu de um orçamento: o servidor já o marcou como convertido; o aparelho acompanha.
+  Future<void> _marcarOrcamentoConvertido(PedidoLocal p, String? pedidoServidorId) async {
+    final oid = p.orcamentoId;
+    if (oid == null) return;
+    try {
+      final o = await _orcamentos.porId(oid);
+      if (o == null || o.estado == EstadoOrcamento.cancelado) return;
+      await _orcamentos.atualizar(
+          oid,
+          {
+            'estado': EstadoOrcamento.convertido,
+            'resposta_json': _json({...?o.resposta, 'status': 'convertido', 'pedidoId': pedidoServidorId}),
+          },
+          _agora());
+    } catch (e) {
+      debugPrint('orçamento convertido: $e');
     }
   }
 

@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import estilos from './Trilho.module.css';
 
 /** Fileira de produtos da vitrine: rola com o dedo no celular e ganha setas no computador. */
-export function Trilho({ children, rotulo }: { children: ReactNode; rotulo: string }) {
+export function Trilho({ children, rotulo, porLinha }: { children: ReactNode; rotulo: string; porLinha?: number }) {
   const trilho = useRef<HTMLDivElement>(null);
   const [inicio, setInicio] = useState(true);
   const [fim, setFim] = useState(false);
@@ -28,7 +28,7 @@ export function Trilho({ children, rotulo }: { children: ReactNode; rotulo: stri
   };
 
   return (
-    <div className={estilos.moldura}>
+    <div className={estilos.moldura} style={porLinha ? ({ '--por-linha': porLinha } as CSSProperties) : undefined}>
       <div ref={trilho} className={estilos.trilho} onScroll={medir}>{children}</div>
       {!inicio && (
         <button type="button" className={`${estilos.seta} ${estilos.anterior}`} aria-label={`Voltar em ${rotulo}`} onClick={() => rolar(-1)}>

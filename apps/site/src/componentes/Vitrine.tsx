@@ -4,9 +4,11 @@ import { CartaoProduto } from './CartaoProduto';
 import { Trilho } from './Trilho';
 import estilos from './Vitrine.module.css';
 
-function Fileira({ produtos, limiteEstoqueBaixo, rotulo }: { produtos: Produto[]; limiteEstoqueBaixo: number; rotulo: string }) {
+function Fileira({ produtos, limiteEstoqueBaixo, rotulo, porLinha }: {
+  produtos: Produto[]; limiteEstoqueBaixo: number; rotulo: string; porLinha?: number;
+}) {
   return (
-    <Trilho rotulo={rotulo}>
+    <Trilho rotulo={rotulo} porLinha={porLinha}>
       {produtos.map((p) => (
         <div key={p.id}>
           <CartaoProduto produto={p} limiteEstoqueBaixo={limiteEstoqueBaixo} />
@@ -30,18 +32,26 @@ export function Vitrine({ titulo, produtos, verTodos, limiteEstoqueBaixo }: {
   );
 }
 
+/** Vitrine de marca: no computador o banner do fornecedor fica à esquerda e os produtos ao lado;
+ *  no celular o banner sobe e os produtos rolam embaixo. */
 export function VitrinePatrocinada({ patrocinador, limiteEstoqueBaixo }: { patrocinador: Patrocinador; limiteEstoqueBaixo: number }) {
   return (
-    <section className={estilos.vitrine} aria-label={`Produtos ${patrocinador.nome}`}>
-      {patrocinador.bannerUrl && <img src={patrocinador.bannerUrl} alt="" loading="lazy" className={estilos.bannerPatrocinio} />}
-      <div className={estilos.topo}>
+    <section className={estilos.patrocinada} aria-label={`Produtos ${patrocinador.nome}`}>
+      <div className={estilos.apresentacao}>
+        {patrocinador.bannerUrl && (
+          <div className={estilos.bannerPatrocinio}>
+            <img src={patrocinador.bannerUrl} alt="" loading="lazy" decoding="async" />
+          </div>
+        )}
         <div className={estilos.marca}>
           {patrocinador.logoUrl && <img src={patrocinador.logoUrl} alt="" loading="lazy" />}
-          <h2>{patrocinador.nome}</h2>
+          <div>
+            <h2>{patrocinador.nome}</h2>
+            <span className={estilos.patrocinado}>Marca em destaque</span>
+          </div>
         </div>
-        <span className={estilos.patrocinado}>Patrocinado</span>
       </div>
-      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} />
+      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} porLinha={4} />
     </section>
   );
 }

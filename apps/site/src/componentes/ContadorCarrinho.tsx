@@ -3,8 +3,8 @@
 import { useCarrinho } from './CarrinhoProvider';
 
 export function ContadorCarrinho() {
-  const { totalVolumes } = useCarrinho();
-  if (totalVolumes === 0) return null;
+  const { totalVolumes, carregado } = useCarrinho();
+  if (!carregado || totalVolumes === 0) return null;
   return (
     <span data-testid="contador-carrinho" aria-label={`${totalVolumes} volumes no carrinho`}
       style={{

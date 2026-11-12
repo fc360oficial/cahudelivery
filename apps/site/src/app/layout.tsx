@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Manrope } from 'next/font/google';
 import type { CSSProperties, ReactNode } from 'react';
 import { CarrinhoProvider } from '@/componentes/CarrinhoProvider';
-import { Cabecalho }from '@/componentes/Cabecalho';
+import { Cabecalho } from '@/componentes/Cabecalho';
 import { Rodape } from '@/componentes/Rodape';
 import { buscarCategorias, buscarConfig } from '@/lib/api/catalogo';
 import { indexavel, siteUrl } from '@/lib/site';

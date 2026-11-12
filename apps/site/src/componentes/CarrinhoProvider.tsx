@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Carrinho } from '@/lib/api/tipos';
+import { deveAplicarLeitura, interpretarRespostaMutacao } from '@/lib/sessao/estado-carrinho';
 
 interface ValorCarrinho {
   carrinho: Carrinho;
@@ -9,6 +10,9 @@ interface ValorCarrinho {
   quantidadeDe: (produtoId: string) => number;
   definir: (produtoId: string, quantidade: number) => Promise<void>;
   ocupado: boolean;
+  carregado: boolean;
+  erro: string | null;
+  recarregar: () => void;
 }
 
 const VAZIO: Carrinho = { itens: [], subtotal: 0 };
@@ -18,13 +22,28 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
   const [carrinho, setCarrinho] = useState<Carrinho>(VAZIO);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [carregado, setCarregado] = useState(false);
+  const sequencia = useRef(0); // sobe a cada mutação concluída
 
-  useEffect(() => {
+  const recarregar = useCallback(() => {
+    const inicio = sequencia.current;
+    setErro(null);
     fetch('/api/carrinho')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((c: Carrinho | null) => { if (c) setCarrinho(c); })
-      .catch(() => { /* sem carrinho por enquanto; o próximo clique tenta de novo */ });
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('falha'))))
+      .then((c: Carrinho) => {
+        if (!deveAplicarLeitura(inicio, sequencia.current)) {
+          // Uma mutação já trouxe um carrinho mais novo (e portanto já carregou).
+          return;
+        }
+        setCarrinho(c);
+        setCarregado(true);
+      })
+      .catch(() => {
+        if (deveAplicarLeitura(inicio, sequencia.current)) setErro('Não foi possível carregar seu carrinho.');
+      });
   }, []);
+
+  useEffect(() => { recarregar(); }, [recarregar]);
 
   const definir = useCallback(async (produtoId: string, quantidade: number) => {
     setOcupado(true);
@@ -35,9 +54,14 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ produtoId, quantidade }),
       });
-      const corpo = await r.json();
-      if (r.ok) setCarrinho(corpo as Carrinho);
-      else setErro((corpo as { mensagem?: string }).mensagem ?? 'Não foi possível atualizar o carrinho.');
+      const resultado = interpretarRespostaMutacao(r.ok, await r.text());
+      if ('carrinho' in resultado) {
+        sequencia.current += 1;
+        setCarrinho(resultado.carrinho);
+        setCarregado(true);
+      } else {
+        setErro(resultado.erro);
+      }
     } catch {
       setErro('Sem conexão. Tente novamente.');
     } finally {
@@ -51,7 +75,10 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     quantidadeDe: (id) => carrinho.itens.find((i) => i.produtoId === id)?.quantidade ?? 0,
     definir,
     ocupado,
-  }), [carrinho, definir, ocupado]);
+    carregado,
+    erro,
+    recarregar,
+  }), [carrinho, definir, ocupado, carregado, erro, recarregar]);
 
   return (
     <Contexto.Provider value={valor}>

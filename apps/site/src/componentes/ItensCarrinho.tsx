@@ -8,7 +8,21 @@ import { useCarrinho } from './CarrinhoProvider';
 import estilos from '@/app/carrinho/carrinho.module.css';
 
 export function ItensCarrinho({ appNome }: { appNome: string }) {
-  const { carrinho } = useCarrinho();
+  const { carrinho, carregado, erro, recarregar } = useCarrinho();
+  if (!carregado) {
+    return (
+      <div className={estilos.vazio}>
+        {erro ? (
+          <>
+            <p>{erro}</p>
+            <button type="button" className={estilos.botao} onClick={recarregar}>Tentar de novo</button>
+          </>
+        ) : (
+          <p>Carregando seu carrinho…</p>
+        )}
+      </div>
+    );
+  }
   if (carrinho.itens.length === 0) {
     return (
       <div className={estilos.vazio}>

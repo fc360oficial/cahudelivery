@@ -1,0 +1,30 @@
+.faixa { border-bottom: 1px solid var(--linha); font-size: 13px; color: var(--tinta-suave); padding-block: 10px; }
+.faixaLinha { display: flex; flex-wrap: wrap; gap: 6px 24px; justify-content: space-between; }
+.principal { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px; padding-block: 20px; }
+.marca { display: flex; align-items: center; text-decoration: none; min-height: 44px; }
+.logo { height: 44px; width: auto; }
+.nome { font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.02em; }
+.busca {
+  flex: 999 1 280px; min-width: 0; display: flex; align-items: center; gap: 8px;
+  height: 48px; padding: 0 6px 0 20px; background: var(--fundo-suave); border-radius: var(--raio-pilula);
+}
+.busca input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; }
+.busca button {
+  width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent;
+  color: var(--tinta-suave); cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.busca:focus-within { outline: 2px solid var(--tinta); outline-offset: 2px; }
+.carrinho {
+  display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px;
+  border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff;
+  font-weight: 500; text-decoration: none;
+}
+.nav { border-block: 1px solid var(--linha); }
+.navLinha { display: flex; flex-wrap: wrap; gap: 0 36px; font-weight: 500; }
+.navLinha a { padding-block: 16px; text-decoration: none; }
+.navLinha a:hover { text-decoration: underline; }
+.ofertas { margin-left: auto; font-weight: 600; }
+@media (max-width: 640px) {
+  .ofertas { margin-left: 0; }
+  .navLinha { gap: 0 20px; }
+}

@@ -1,0 +1,18 @@
+.vitrine { display: flex; flex-direction: column; gap: 24px; }
+.topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+.topo h2 { font-size: 28px; }
+.topo a { font-weight: 600; }
+.trilho {
+  display: flex; gap: 24px; overflow-x: auto; scroll-snap-type: x proximity;
+  padding-bottom: 12px; scrollbar-width: thin;
+}
+.vaga { flex: 0 0 260px; scroll-snap-align: start; display: flex; }
+.vaga > * { flex: 1; }
+.marca { display: flex; align-items: center; gap: 12px; }
+.marca img { height: 40px; width: auto; }
+.patrocinado { font-size: 13px; color: var(--tinta-suave); }
+.bannerPatrocinio { width: 100%; border-radius: var(--raio-m); }
+@media (max-width: 640px) {
+  .vaga { flex-basis: 200px; }
+  .topo h2 { font-size: 22px; }
+}

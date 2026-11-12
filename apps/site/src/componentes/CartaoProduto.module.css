@@ -1,0 +1,19 @@
+.cartao { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.foto {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  aspect-ratio: 4 / 3; background: var(--fundo-suave); border-radius: var(--raio-m); overflow: hidden; text-decoration: none;
+}
+.foto img { width: 100%; height: 100%; object-fit: contain; padding: 12px; }
+.semFoto { font-size: 12px; color: var(--tinta-suave); }
+.selos { position: absolute; top: 10px; left: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.selo { padding: 4px 10px; border-radius: var(--raio-pilula); font-size: 12px; font-weight: 600; background: #ffffff; color: var(--tinta); }
+.oferta { background: var(--destaque); color: var(--sobre-destaque); }
+.estoque { color: var(--alerta); }
+.validade { color: var(--perigo); }
+.quantidade { color: var(--positivo); }
+.texto { display: flex; flex-direction: column; gap: 4px; }
+.suave { display: block; font-size: 13px; color: var(--tinta-suave); }
+.nome { font-weight: 600; font-size: 16px; line-height: 1.35; text-decoration: none; }
+.nome:hover { text-decoration: underline; }
+.rodape { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.preco { display: block; font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.02em; line-height: 1.2; }

@@ -21,7 +21,7 @@ describe('VendasResumoService.resumo', () => {
     });
     const out = await rodar();
     expect(out).toEqual({
-      vendidoHoje: 9840, pedidosHoje: 6, ticketMedioHoje: 1968, vendidoMes: 46200, pedidosMes: 31, pedidosFaturadosMes: 22,
+      vendidoHoje: 9840, pedidosHoje: 6, ticketMedioHoje: 1968, vendidoMes: 46200, faturadoMes: 46200, devolvidoMes: 0, pedidosMes: 31, pedidosFaturadosMes: 22,
       clientesCarteira: 38, clientesPositivadosMes: 28, pedidosRetidos: 1, orcamentosAbertos: 2,
       meta: { percentual: 5, vendidoMesAnterior: 0, origemBase: null, metaMes: null, atingidoPct: null, faltam: null },
     });
@@ -94,5 +94,24 @@ describe('VendasResumoService.resumo', () => {
     expect(sql).toContain("interval '1 month'");
     expect(sql).toContain("'America/Recife'");
     expect(sql).toContain('vendas_meta_percentual');
+  });
+
+  it('venda do mês é líquida: faturado menos as devoluções que entraram no mês', async () => {
+    const { query, rodar } = montar({ ...BASE, vendido_mes: '1000.00', devolvido_mes: '500.00' }, { vendido_anterior: '2000', devolvido_anterior: '0' });
+    const out = await rodar();
+    expect(out).toMatchObject({ vendidoMes: 500, faturadoMes: 1000, devolvidoMes: 500 });
+    // meta 2100; atingido mede o líquido
+    expect(out.meta).toMatchObject({ metaMes: 2100, atingidoPct: 23.8, faltam: 1600 });
+    const sql = String(query.mock.calls.find(([s]) => String(s).includes('vendido_hoje'))![0]);
+    expect(sql).toContain('devolucoes_venda');
+    expect(sql).toContain('not d.cancelada');
+    expect(sql).toContain('d.vendedor_id = $1');
+  });
+
+  it('sem devolução, líquido = faturado; a base própria da meta desconta a devolução do mês anterior', async () => {
+    const semDev = await montar({ ...BASE, vendido_mes: '1000.00' }).rodar();
+    expect(semDev).toMatchObject({ vendidoMes: 1000, faturadoMes: 1000, devolvidoMes: 0 });
+    const out = await montar(BASE, { vendido_anterior: '40000', devolvido_anterior: '10000' }).rodar();
+    expect(out.meta).toMatchObject({ vendidoMesAnterior: 30000, metaMes: 31500 });
   });
 });

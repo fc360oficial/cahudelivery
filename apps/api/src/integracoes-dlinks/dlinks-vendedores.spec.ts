@@ -76,4 +76,66 @@ describe('DlinksVendedoresService', () => {
       { item: { funcionario_codigo: '99', ano_mes: '2026-10', valor_faturado: 10 }, motivo: 'funcionario_nao_encontrado' },
     ]);
   });
+
+  describe('devoluções', () => {
+    const PED = '22222222-2222-4222-8222-222222222222';
+    const PED_DELIVERY = '33333333-3333-4333-8333-333333333333';
+    function montarDev() {
+      const query = jest.fn(async (sql: string, params: unknown[] = []) => {
+        if (sql.includes('from pedidos where id')) {
+          if (params[0] === PED) return { rows: [{ id: PED, vendedor_id: 'vend-6', cliente_id: 'cli-1' }], rowCount: 1 };
+          if (params[0] === PED_DELIVERY) return { rows: [{ id: PED_DELIVERY, vendedor_id: null, cliente_id: 'cli-2' }], rowCount: 1 };
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('from vendedores where erp_vendedor_id'))
+          return params[0] === '7' ? { rows: [{ id: 'vend-7' }], rowCount: 1 } : { rows: [], rowCount: 0 };
+        if (sql.includes('from clientes where erp_cliente_id'))
+          return params[0] === 'C9' ? { rows: [{ id: 'cli-9' }], rowCount: 1 } : { rows: [], rowCount: 0 };
+        return { rows: [], rowCount: 0 };
+      });
+      return { query, pool: { query } };
+    }
+    const base = { numero_nota: '900', data: '2026-11-12', valor: 500 };
+
+    it('devolução com pedido usa o vendedor e o cliente do pedido; upsert pela nota', async () => {
+      const { query, pool } = montarDev();
+      const out = await rodar(pool, () =>
+        new DlinksVendedoresService().syncDevolucoes([{ ...base, pedido_codigo: PED, nota_venda_numero: '1234' }] as never),
+      );
+      const ins = query.mock.calls.filter(([sql]) => String(sql).includes('insert into devolucoes_venda'));
+      expect(ins).toHaveLength(1);
+      expect(String(ins[0][0])).toContain('on conflict (numero_nota, serie) do update');
+      expect(String(ins[0][0])).toContain("($8::date)::timestamp at time zone 'America/Recife'");
+      expect(ins[0][1]).toEqual(['900', '', 'vend-6', PED, 'cli-1', '1234', 500, '2026-11-12', null]);
+      expect(out).toEqual({ processados: 1, ignorados: [] });
+    });
+
+    it('sem pedido, usa funcionario_codigo e cliente_codigo (venda que não nasceu no aplicativo)', async () => {
+      const { query, pool } = montarDev();
+      const out = await rodar(pool, () =>
+        new DlinksVendedoresService().syncDevolucoes([{ ...base, serie: '1', funcionario_codigo: '7', cliente_codigo: 'C9', cancelada: true }] as never),
+      );
+      const ins = query.mock.calls.find(([sql]) => String(sql).includes('insert into devolucoes_venda'));
+      expect(ins![1]).toEqual(['900', '1', 'vend-7', null, 'cli-9', null, 500, '2026-11-12', true]);
+      expect(out.processados).toBe(1);
+    });
+
+    it('ignora o que não dá para atribuir a um vendedor, dizendo o motivo', async () => {
+      const { query, pool } = montarDev();
+      const out = await rodar(pool, () =>
+        new DlinksVendedoresService().syncDevolucoes([
+          { ...base, numero_nota: '1', pedido_codigo: '44444444-4444-4444-8444-444444444444' },
+          { ...base, numero_nota: '2', pedido_codigo: 'nao-e-uuid' },
+          { ...base, numero_nota: '3', pedido_codigo: PED_DELIVERY },
+          { ...base, numero_nota: '4' },
+          { ...base, numero_nota: '5', funcionario_codigo: '99' },
+        ] as never),
+      );
+      expect(query.mock.calls.some(([sql]) => String(sql).includes('insert into devolucoes_venda'))).toBe(false);
+      expect(out.processados).toBe(0);
+      expect(out.ignorados.map((i) => i.motivo)).toEqual([
+        'pedido_nao_encontrado', 'pedido_nao_encontrado', 'pedido_sem_vendedor', 'sem_pedido_nem_funcionario', 'funcionario_nao_encontrado',
+      ]);
+    });
+  });
 });

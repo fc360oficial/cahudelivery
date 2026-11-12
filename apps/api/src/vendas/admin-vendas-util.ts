@@ -103,6 +103,19 @@ export function cteVendasFaturadas(nome = 'vf', extraWhere = ''): string {
      )`;
 }
 
+/**
+ * CTE de devoluções de venda (o que o cliente devolveu e o ERP deu entrada). Colunas: vendedor_id, valor, data.
+ * A devolução abate a venda do vendedor no período em que ENTROU (data = devolvido_em), não no da venda.
+ * Devolução cancelada não conta. `extraWhere` (ex.: "d.vendedor_id = $1") entra no where.
+ */
+export function cteDevolucoes(nome = 'dv', extraWhere = ''): string {
+  return `${nome} as (
+       select d.vendedor_id, d.valor, d.devolvido_em as data
+         from devolucoes_venda d
+        where not d.cancelada${extraWhere ? ` and ${extraWhere}` : ''}
+     )`;
+}
+
 /** Base da meta: o faturamento do mês anterior que o ERP mandou (se houver linha) ou, senão, o nosso próprio faturado. */
 export function escolherBaseMeta(
   erp: unknown,

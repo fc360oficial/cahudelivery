@@ -1,5 +1,6 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ClienteFuncionarioDto } from './cliente-funcionario.dto';
+import { DevolucaoDto } from './devolucao.dto';
 import { DlinksVendedoresService } from './dlinks-vendedores.service';
 import { FuncionarioDto } from './funcionario.dto';
 import { ListaOuItemPipe } from './lista-ou-item.pipe';
@@ -25,5 +26,11 @@ export class DlinksVendedoresController {
   @HttpCode(200)
   vendas(@Body(new ListaOuItemPipe(VendaVendedorDto)) itens: VendaVendedorDto[]) {
     return this.service.syncFaturamentoMensal(itens);
+  }
+
+  @Post('devolucoes')
+  @HttpCode(200)
+  devolucoes(@Body(new ListaOuItemPipe(DevolucaoDto)) itens: DevolucaoDto[]) {
+    return this.service.syncDevolucoes(itens);
   }
 }

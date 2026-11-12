@@ -48,9 +48,9 @@ const SELECT_PRODUTO = `${SELECT_PRODUTO_BASE}${COM_ESTOQUE}`;
 /** Ordenações aceitas na listagem. A chave vem da query string; o SQL sai sempre desta tabela fixa. */
 const PRECO_FINAL = 'coalesce(promo.preco_promocional, pr.preco)';
 const ORDENACOES: Record<string, string> = {
-  nome: 'p.nome',
-  preco_asc: `${PRECO_FINAL} asc nulls last, p.nome`,
-  preco_desc: `${PRECO_FINAL} desc nulls last, p.nome`,
+  nome: 'p.nome, p.id',
+  preco_asc: `${PRECO_FINAL} asc nulls last, p.nome, p.id`,
+  preco_desc: `${PRECO_FINAL} desc nulls last, p.nome, p.id`,
 };
 
 @Injectable()

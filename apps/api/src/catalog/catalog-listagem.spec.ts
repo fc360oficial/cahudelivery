@@ -34,14 +34,20 @@ describe('CatalogService.produtos: listagem do site', () => {
   it('ordem preco_asc ordena pelo preço final', async () => {
     const { svc, query, rodar } = montar();
     await rodar(() => svc.produtos({ pagina: 1, limite: 2, ordem: 'preco_asc' }));
-    expect(listagem(query).sql).toContain('order by coalesce(promo.preco_promocional, pr.preco) asc nulls last, p.nome');
+    expect(listagem(query).sql).toContain('order by coalesce(promo.preco_promocional, pr.preco) asc nulls last, p.nome, p.id limit');
+  });
+
+  it('ordem preco_desc ordena pelo preço final decrescente com desempate por id', async () => {
+    const { svc, query, rodar } = montar();
+    await rodar(() => svc.produtos({ pagina: 1, limite: 2, ordem: 'preco_desc' }));
+    expect(listagem(query).sql).toContain('order by coalesce(promo.preco_promocional, pr.preco) desc nulls last, p.nome, p.id limit');
   });
 
   it('ordem desconhecida cai em nome', async () => {
     for (const ordem of ['qualquer; drop table', 'constructor', 'toString']) {
       const { svc, query, rodar } = montar();
       await rodar(() => svc.produtos({ pagina: 1, limite: 2, ordem }));
-      expect(listagem(query).sql).toContain('order by p.nome limit');
+      expect(listagem(query).sql).toContain('order by p.nome, p.id limit');
     }
   });
 

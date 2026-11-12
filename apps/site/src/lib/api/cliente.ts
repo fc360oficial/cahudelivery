@@ -1,3 +1,5 @@
+import 'server-only';
+
 export class ErroApi extends Error {
   constructor(public readonly status: number, mensagem: string) {
     super(mensagem);

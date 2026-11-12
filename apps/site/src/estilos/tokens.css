@@ -55,3 +55,8 @@ button, input, select { font: inherit; color: inherit; }
   max-width: calc(100% - 32px); padding: 14px 20px; border-radius: var(--raio-p);
   background: var(--tinta); color: #ffffff; font-size: 14px;
 }
+
+.aviso-flutuante button {
+  margin-left: 12px; padding: 4px 12px; border: 1px solid #ffffff; border-radius: var(--raio-pilula);
+  background: transparent; color: #ffffff; font: inherit; cursor: pointer;
+}

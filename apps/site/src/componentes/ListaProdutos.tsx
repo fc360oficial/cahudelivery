@@ -36,7 +36,7 @@ export function ListaProdutos({ titulo, base, fixos = {}, filtros, pagina, marca
           <details className={estilos.marcas} open={filtros.marca != null}>
             <summary>Marcas</summary>
             <nav aria-label="Marcas" className={estilos.grupo}>
-              <Link href={link({ marca: null })} className={chip(!filtros.marca)}>Todas</Link>
+              <Link href={link({ marca: null })} className={chip(!filtros.marca)} aria-current={!filtros.marca ? 'true' : undefined}>Todas</Link>
               {marcas.map((m) => (
                 <Link key={m.id} href={link({ marca: m.id })} className={chip(filtros.marca === m.id)} aria-current={filtros.marca === m.id ? 'true' : undefined}>{m.nome}</Link>
               ))}

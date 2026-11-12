@@ -8,6 +8,7 @@ import { Vitrine } from '@/componentes/Vitrine';
 import { buscarConfig, buscarProduto, buscarRelacionados } from '@/lib/api/catalogo';
 import { ErroApi } from '@/lib/api/cliente';
 import type { Produto } from '@/lib/api/tipos';
+import { emOferta as emOfertaProduto } from '@/lib/catalogo/oferta';
 import { selosDoProduto } from '@/lib/catalogo/selos';
 import { caminhoCategoria, caminhoProduto, idDoSegmento } from '@/lib/formato/caminhos';
 import { nomeEmbalagem, rotuloEmbalagem } from '@/lib/formato/embalagem';
@@ -53,7 +54,7 @@ export default async function PaginaProduto({ params }: Props) {
   const unidade = produto.preco != null ? precoPorUnidade(produto.preco, produto.qtdPorEmbalagem) : null;
   const selos = selosDoProduto(produto, config.limiteEstoqueBaixo);
   const disponivel = produto.preco != null && produto.estoque > 0;
-  const emOferta = produto.precoPromocional != null && produto.precoTabela != null && produto.precoTabela > (produto.preco ?? 0);
+  const emOferta = emOfertaProduto(produto);
 
   return (
     <div className={`conteudo ${estilos.pagina}`}>

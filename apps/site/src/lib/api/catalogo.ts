@@ -41,8 +41,9 @@ export async function buscarProdutos(f: FiltroBusca): Promise<PaginaProdutos> {
   if (f.marca) q.set('marca', f.marca);
   if (f.busca) q.set('busca', f.busca);
   if (f.promocao) q.set('promocao', 'true');
-  const r = await chamarApi<{ dados: Bruto[]; pagina: number; temMais?: boolean }>(`/produtos?${q}`, { revalidar: REVALIDAR });
-  return { dados: r.dados.map(normalizarProduto), pagina: r.pagina, temMais: r.temMais === true };
+  // Busca livre sem cache: cada termo × página × ordem criaria uma entrada que nunca sai do disco.
+  const r = await chamarApi<{ dados?: Bruto[]; pagina: number; temMais?: boolean }>(`/produtos?${q}`, f.busca ? {} : { revalidar: REVALIDAR });
+  return { dados: (r.dados ?? []).map(normalizarProduto), pagina: r.pagina, temMais: r.temMais === true };
 }
 
 export async function buscarProduto(id: string): Promise<Produto> {

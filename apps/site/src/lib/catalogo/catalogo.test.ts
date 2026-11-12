@@ -45,7 +45,7 @@ describe('montarSecoesHome', () => {
 
   it('segue a ordem do app', () => {
     expect(montarSecoesHome(base).map((s) => s.chave)).toEqual([
-      'pat-topo', 'ofertas', 'pat-ofertas', 'mais-vendidos', 'vencimento', 'cat-c1', 'pat-meio',
+      'pat-topo-topo', 'ofertas', 'pat-ofertas-ofertas', 'mais-vendidos', 'vencimento', 'cat-c1', 'pat-prat-meio',
     ]);
   });
   it('ofertas e categoria têm "ver todos"; as outras não', () => {
@@ -57,6 +57,16 @@ describe('montarSecoesHome', () => {
   });
   it('pula seção sem produto', () => {
     const s = montarSecoesHome({ ...base, promocoes: [], vencimentoProximo: [], patrocinadoresTopo: [] });
-    expect(s.map((x) => x.chave)).toEqual(['pat-ofertas', 'mais-vendidos', 'cat-c1', 'pat-meio']);
+    expect(s.map((x) => x.chave)).toEqual(['pat-ofertas-ofertas', 'mais-vendidos', 'cat-c1', 'pat-prat-meio']);
+  });
+  it('o mesmo patrocinador em vários espaços gera chaves únicas', () => {
+    const s = montarSecoesHome({
+      ...base,
+      patrocinadoresTopo: [pat('x')], patrocinadoresOfertas: [pat('x')],
+      prateleiras: [pat('x')],
+    });
+    const chaves = s.map((x) => x.chave);
+    expect(chaves.filter((c) => c.startsWith('pat-'))).toHaveLength(3);
+    expect(new Set(chaves).size).toBe(chaves.length);
   });
 });

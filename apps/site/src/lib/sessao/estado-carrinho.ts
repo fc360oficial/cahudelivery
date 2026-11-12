@@ -16,7 +16,10 @@ export function interpretarRespostaMutacao(ok: boolean, texto: string): { carrin
   } catch {
     return { erro: ERRO_SERVIDOR };
   }
-  if (ok) return { carrinho: corpo as Carrinho };
+  if (ok) {
+    const itens = (corpo as { itens?: unknown } | null)?.itens;
+    return Array.isArray(itens) ? { carrinho: corpo as Carrinho } : { erro: ERRO_SERVIDOR };
+  }
   const mensagem = (corpo as { mensagem?: unknown } | null)?.mensagem;
   return { erro: typeof mensagem === 'string' && mensagem ? mensagem : ERRO_PADRAO };
 }

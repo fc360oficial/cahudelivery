@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Carrinho } from '@/lib/api/tipos';
 import { deveAplicarLeitura, interpretarRespostaMutacao } from '@/lib/sessao/estado-carrinho';
@@ -23,6 +24,7 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [carregado, setCarregado] = useState(false);
+  const caminho = usePathname();
   const sequencia = useRef(0); // sobe a cada mutação concluída
 
   const recarregar = useCallback(() => {
@@ -83,7 +85,13 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
   return (
     <Contexto.Provider value={valor}>
       {children}
-      {erro && <div role="alert" className="aviso-flutuante">{erro}</div>}
+      {/* Em /carrinho, a falha de carregamento já aparece na própria página (com o botão). */}
+      {erro && !(caminho === '/carrinho' && !carregado) && (
+        <div role="alert" className="aviso-flutuante">
+          {erro}
+          {!carregado && <> <button type="button" onClick={recarregar}>Tentar de novo</button></>}
+        </div>
+      )}
     </Contexto.Provider>
   );
 }

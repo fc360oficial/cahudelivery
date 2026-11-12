@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Produto } from '@/lib/api/tipos';
+import { emOferta as emOfertaProduto } from '@/lib/catalogo/oferta';
 import { selosDoProduto } from '@/lib/catalogo/selos';
 import { caminhoProduto } from '@/lib/formato/caminhos';
 import { rotuloEmbalagem } from '@/lib/formato/embalagem';
@@ -12,7 +13,7 @@ export function CartaoProduto({ produto, limiteEstoqueBaixo }: { produto: Produt
   const foto = produto.imagens[0];
   const unidade = produto.preco != null ? precoPorUnidade(produto.preco, produto.qtdPorEmbalagem) : null;
   const selos = selosDoProduto(produto, limiteEstoqueBaixo);
-  const emOferta = produto.precoPromocional != null && produto.precoTabela != null && produto.precoTabela > (produto.preco ?? 0);
+  const emOferta = emOfertaProduto(produto);
 
   return (
     <article className={estilos.cartao} data-testid="cartao-produto">

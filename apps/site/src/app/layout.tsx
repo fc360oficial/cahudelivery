@@ -5,6 +5,7 @@ import { CarrinhoProvider } from '@/componentes/CarrinhoProvider';
 import { Cabecalho } from '@/componentes/Cabecalho';
 import { Rodape } from '@/componentes/Rodape';
 import { buscarCategorias, buscarConfig } from '@/lib/api/catalogo';
+import type { Categoria } from '@/lib/api/tipos';
 import { indexavel, siteUrl } from '@/lib/site';
 import '@/estilos/tokens.css';
 
@@ -22,7 +23,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Layout({ children }: { children: ReactNode }) {
-  const [config, categorias] = await Promise.all([buscarConfig(), buscarCategorias()]);
+  // Sem a config a página não existe (falha alto, cai no global-error); sem as categorias só some o menu.
+  const [config, categorias] = await Promise.all([buscarConfig(), buscarCategorias().catch((): Categoria[] => [])]);
   // Cor de destaque do tenant (white label). Sem cor cadastrada, vale a do tokens.css.
   const tema = (config.corPrimaria ? { '--destaque': config.corPrimaria } : {}) as CSSProperties;
   return (

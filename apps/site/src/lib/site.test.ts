@@ -1,4 +1,4 @@
-﻿import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { indexavel, linkWhatsapp, siteUrl } from './site';
 
 afterEach(() => {
@@ -8,6 +8,7 @@ afterEach(() => {
 
 describe('site', () => {
   it('siteUrl sem barra no fim, com padrão local', () => {
+    delete process.env.SITE_URL;
     expect(siteUrl()).toBe('http://localhost:3010');
     process.env.SITE_URL = 'https://loja.exemplo.com.br/';
     expect(siteUrl()).toBe('https://loja.exemplo.com.br');

@@ -25,3 +25,4 @@ apps/api/uploads-privado/
 apps/site/next-env.d.ts
 apps/site/test-results/
 apps/site/playwright-report/
+apps/site/*.tsbuildinfo

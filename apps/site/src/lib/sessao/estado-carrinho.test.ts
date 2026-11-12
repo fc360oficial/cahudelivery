@@ -25,6 +25,10 @@ describe('interpretarRespostaMutacao', () => {
   it('OK com corpo inválido devolve erro genérico', () => {
     expect(interpretarRespostaMutacao(true, '<html>')).toEqual({ erro: 'O servidor não respondeu direito. Tente novamente.' });
   });
+  it('OK com corpo null ou sem lista de itens devolve erro de servidor', () => {
+    expect(interpretarRespostaMutacao(true, 'null')).toEqual({ erro: 'O servidor não respondeu direito. Tente novamente.' });
+    expect(interpretarRespostaMutacao(true, '{}')).toEqual({ erro: 'O servidor não respondeu direito. Tente novamente.' });
+  });
   it('erro JSON sem mensagem devolve texto padrão', () => {
     expect(interpretarRespostaMutacao(false, '{}')).toEqual({ erro: 'Não foi possível atualizar o carrinho.' });
   });

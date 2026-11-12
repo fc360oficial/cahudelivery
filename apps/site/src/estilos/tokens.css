@@ -49,3 +49,9 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 640px) {
   :root { --margem: 16px; }
 }
+
+.aviso-flutuante {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50;
+  max-width: calc(100% - 32px); padding: 14px 20px; border-radius: var(--raio-p);
+  background: var(--tinta); color: #ffffff; font-size: 14px;
+}

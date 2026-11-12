@@ -1,0 +1,16 @@
+.pagina { padding-block: 48px; display: flex; flex-direction: column; gap: 32px; }
+.pagina h1 { font-size: 40px; }
+.grade { display: flex; flex-wrap: wrap; gap: 40px 56px; align-items: flex-start; }
+.lista { flex: 999 1 520px; min-width: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--linha); }
+.item { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; padding-block: 24px; border-bottom: 1px solid var(--linha); }
+.foto { width: 88px; height: 88px; flex-shrink: 0; border-radius: var(--raio-p); background: var(--fundo-suave); overflow: hidden; }
+.foto img { width: 100%; height: 100%; object-fit: contain; }
+.info { flex: 999 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.info span { font-size: 13px; color: var(--tinta-suave); }
+.subtotalItem { min-width: 110px; text-align: right; font-family: var(--fonte-titulo), sans-serif; font-size: 18px; }
+.resumo { flex: 1 1 320px; min-width: 0; background: var(--fundo-suave); border-radius: var(--raio-g); padding: 32px; display: flex; flex-direction: column; gap: 16px; }
+.resumo p { margin: 0; color: var(--tinta-suave); }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.total strong { font-family: var(--fonte-titulo), sans-serif; font-size: 28px; }
+.vazio { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; color: var(--tinta-suave); }
+.botao { display: inline-flex; align-items: center; height: 52px; padding: 0 28px; border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff; font-weight: 600; text-decoration: none; }

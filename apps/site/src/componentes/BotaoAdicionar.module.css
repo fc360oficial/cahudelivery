@@ -1,0 +1,15 @@
+.adicionar {
+  width: 48px; height: 48px; flex-shrink: 0; border: 0; border-radius: 50%;
+  background: var(--tinta); color: #ffffff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.adicionar:disabled, .stepper button:disabled { opacity: 0.5; cursor: default; }
+.stepper {
+  display: flex; align-items: center; gap: 2px; flex-shrink: 0;
+  background: var(--destaque); color: var(--sobre-destaque); border-radius: var(--raio-pilula); padding: 2px;
+}
+.stepper button {
+  width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent;
+  font-size: 20px; line-height: 1; cursor: pointer;
+}
+.stepper span { min-width: 28px; text-align: center; font-weight: 600; }

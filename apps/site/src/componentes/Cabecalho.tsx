@@ -2,6 +2,7 @@ import Link from 'next/link';
 import type { Categoria, ConfigLoja } from '@/lib/api/tipos';
 import { caminhoCategoria } from '@/lib/formato/caminhos';
 import { linkWhatsapp } from '@/lib/site';
+import { ContadorCarrinho } from './ContadorCarrinho';
 import estilos from './Cabecalho.module.css';
 
 export function Cabecalho({ config, categorias }: { config: ConfigLoja; categorias: Categoria[] }) {
@@ -37,6 +38,7 @@ export function Cabecalho({ config, categorias }: { config: ConfigLoja; categori
             <path d="M3 4h2l2.4 11h10.2L20 7H6.2" /><circle cx="9" cy="19" r="1.5" /><circle cx="17" cy="19" r="1.5" />
           </svg>
           <span>Carrinho</span>
+          <ContadorCarrinho />
         </Link>
       </div>
       <nav aria-label="Categorias" className={estilos.nav}>

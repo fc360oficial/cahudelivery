@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Inter, Manrope } from 'next/font/google';
 import type { CSSProperties, ReactNode } from 'react';
-import { Cabecalho } from '@/componentes/Cabecalho';
+import { CarrinhoProvider } from '@/componentes/CarrinhoProvider';
+import { Cabecalho }from '@/componentes/Cabecalho';
 import { Rodape } from '@/componentes/Rodape';
 import { buscarCategorias, buscarConfig } from '@/lib/api/catalogo';
 import { indexavel, siteUrl } from '@/lib/site';
@@ -27,9 +28,11 @@ export default async function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={`${fonteTexto.variable} ${fonteTitulo.variable}`}>
       <body style={tema}>
-        <Cabecalho config={config} categorias={categorias} />
-        <main>{children}</main>
-        <Rodape config={config} />
+        <CarrinhoProvider>
+          <Cabecalho config={config} categorias={categorias} />
+          <main>{children}</main>
+          <Rodape config={config} />
+        </CarrinhoProvider>
       </body>
     </html>
   );

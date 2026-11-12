@@ -197,8 +197,10 @@ Cada bloco é publicável e testável sozinho.
 
 ## 8. Desempenho
 
-- Fotos pelo componente de imagem do Next (redimensionamento e formato leve), com o host de
-  `/uploads` liberado na configuração.
+- Fotos com `<img loading="lazy">` usando a miniatura que a API já gera (`url_miniatura`) nos
+  cartões e a foto cheia só na página do produto. O componente de imagem do Next foi descartado
+  (12/11/2026): ele baixaria a foto pelo endereço público a partir do próprio servidor, o que
+  depende do roteador da CAHU permitir essa volta, e bloqueia hosts locais por padrão.
 - Meta: página de produto com LCP abaixo de 2 s em 4G (Lighthouse móvel), medida ao fim do
   Bloco 1.
 

@@ -25,6 +25,11 @@ export class CatalogController {
     return this.catalog.categorias();
   }
 
+  @Get('marcas')
+  marcas(@Query('categoria', new ParseUUIDPipe({ optional: true })) categoria?: string) {
+    return this.catalog.marcas(categoria);
+  }
+
   @Get('produtos')
   produtos(
     @Req() req: ReqCliente,
@@ -32,6 +37,7 @@ export class CatalogController {
     @Query('marca') marca?: string,
     @Query('busca') busca?: string,
     @Query('promocao') promocao?: string,
+    @Query('ordem') ordem?: string,
     @Query('pagina') pagina = '1',
     @Query('limite') limite = '20',
   ) {
@@ -40,6 +46,7 @@ export class CatalogController {
         categoria,
         marca,
         busca,
+        ordem,
         promocao: promocao === 'true',
         pagina: Math.max(1, Number(pagina) || 1),
         limite: Math.min(50, Math.max(1, Number(limite) || 20)),

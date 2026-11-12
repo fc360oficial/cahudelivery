@@ -7,6 +7,7 @@ export interface FiltroProdutos {
   marca?: string;
   busca?: string;
   promocao?: boolean;
+  ordem?: string;
   pagina: number;
   limite: number;
 }
@@ -14,7 +15,7 @@ export interface FiltroProdutos {
 /** Colunas + preço resolvido (promoção vigente vence a tabela) + estoque. Sem filtro de estoque (usado no detalhe). */
 const SELECT_PRODUTO_BASE = `
   select p.id, p.sku, p.ean, p.nome, p.descricao, p.unidade_venda, p.qtd_por_embalagem,
-         p.qtd_minima, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade, m.nome as marca, c.nome as categoria, c.id as categoria_id,
+         p.qtd_minima, p.desconto_qtd_minima, p.desconto_qtd_preco, p.data_validade, m.nome as marca, p.marca_id, c.nome as categoria, c.id as categoria_id,
          coalesce(e.quantidade, 0) as estoque,
          pr.preco as preco_tabela,
          promo.preco_promocional,
@@ -43,6 +44,14 @@ const SELECT_PRODUTO_BASE = `
 /** Só produtos com estoque > 0: é o que o app lista (home, categorias, busca, promoções). */
 const COM_ESTOQUE = ` and coalesce(e.quantidade, 0) > 0`;
 const SELECT_PRODUTO = `${SELECT_PRODUTO_BASE}${COM_ESTOQUE}`;
+
+/** Ordenações aceitas na listagem. A chave vem da query string; o SQL sai sempre desta tabela fixa. */
+const PRECO_FINAL = 'coalesce(promo.preco_promocional, pr.preco)';
+const ORDENACOES: Record<string, string> = {
+  nome: 'p.nome',
+  preco_asc: `${PRECO_FINAL} asc nulls last, p.nome`,
+  preco_desc: `${PRECO_FINAL} desc nulls last, p.nome`,
+};
 
 @Injectable()
 export class CatalogService {
@@ -247,6 +256,23 @@ export class CatalogService {
     return rows;
   }
 
+  /** Marcas com produto ativo e em estoque; com categoria, só as daquela categoria (ou das filhas). */
+  async marcas(categoriaId?: string) {
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select m.id, m.nome, count(*)::int as produtos
+         from marcas m
+         join produtos p on p.marca_id = m.id and p.ativo
+         join estoques e on e.produto_id = p.id and e.quantidade > 0
+         left join categorias c on c.id = p.categoria_id
+        where m.ativo and ($1::uuid is null or p.categoria_id = $1::uuid or c.pai_id = $1::uuid)
+        group by m.id, m.nome
+        order by m.nome`,
+      [categoriaId ?? null],
+    );
+    return rows;
+  }
+
   async produtos(f: FiltroProdutos, clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
@@ -268,13 +294,17 @@ export class CatalogService {
     }
     if (f.promocao) cond.push(`promo.preco_promocional is not null`);
     const where = cond.length ? ` and ${cond.join(' and ')}` : '';
-    params.push(f.limite, (f.pagina - 1) * f.limite);
+    // hasOwn: chave como "constructor" ou "toString" não pode cair numa propriedade herdada do objeto.
+    const ordem = f.ordem && Object.hasOwn(ORDENACOES, f.ordem) ? ORDENACOES[f.ordem] : ORDENACOES.nome;
+    // Um item a mais que o limite: diz se existe próxima página sem um count(*) separado.
+    params.push(f.limite + 1, (f.pagina - 1) * f.limite);
     const { rows } = await pool.query(
       // Lista de promoções ("Ver todos" das Ofertas) agrupada por categoria, como a vitrine da Home.
-      `${SELECT_PRODUTO}${where} order by ${f.promocao ? 'c.ordem, c.nome, ' : ''}p.nome limit $${params.length - 1} offset $${params.length}`,
+      `${SELECT_PRODUTO}${where} order by ${f.promocao ? 'c.ordem, c.nome, ' : ''}${ordem} limit $${params.length - 1} offset $${params.length}`,
       params,
     );
-    return { dados: rows, pagina: f.pagina };
+    const temMais = rows.length > f.limite;
+    return { dados: temMais ? rows.slice(0, f.limite) : rows, pagina: f.pagina, temMais };
   }
 
   async produto(id: string, clienteId?: string) {

@@ -21,6 +21,7 @@ interface Cenario {
   semCadastroErp?: boolean;
   limite?: string;
   titulosAbertos?: string;
+  titulosVencidos?: number;
   emTransito?: string;
   cancelRowCount?: number;
   precoAtual?: number;
@@ -55,6 +56,7 @@ function montar(c: Cenario = {}) {
       return { rows: [{ id: 'p1', nome: 'Margarina', preco: String(c.precoAtual ?? 86.4), estoque: String(c.estoque ?? 100) }] };
     }
     if (sql.includes('select limite_credito from clientes')) return { rows: [{ limite_credito: c.limite ?? '20000.00' }] };
+    if (sql.includes('/* titulos_vencidos */')) return { rows: [{ qtd: String(c.titulosVencidos ?? 0) }] };
     if (sql.includes('from titulos_cliente')) return { rows: [{ total: c.titulosAbertos ?? '0' }] };
     if (sql.includes('/* em_transito */')) return { rows: [{ total: c.emTransito ?? '0' }] };
     if (sql.includes('insert into pedidos')) return { rows: [{ id: 'ped-novo', numero: '8' }] };
@@ -114,6 +116,23 @@ describe('VendasPedidosService.receber', () => {
     const { servico, rodar, chamou } = montar({ statusCliente: 'bloqueado' });
     await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toBeInstanceOf(BadRequestException);
     expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('cliente com título vencido não tem pedido novo no boleto', async () => {
+    const { servico, rodar, chamou } = montar({ titulosVencidos: 1 });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({ response: { codigo: 'CLIENTE_COM_TITULO_VENCIDO' } });
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('cliente com título vencido também não compra no PIX (bloqueio em tudo)', async () => {
+    const { servico, rodar, chamou } = montar({ titulosVencidos: 1, forma: 'PIX' });
+    await expect(rodar(() => servico.receber('v1', dto as never))).rejects.toMatchObject({ response: { codigo: 'CLIENTE_COM_TITULO_VENCIDO' } });
+    expect(chamou('insert into pedidos')).toBe(false);
+  });
+
+  it('pedido retido de cliente que ficou com título vencido não pode ser confirmado', async () => {
+    const { servico, rodar } = montar({ titulosVencidos: 1, retido: { precoItem: 84 } });
+    await expect(rodar(() => servico.confirmar('v1', 'ped-retido'))).rejects.toMatchObject({ response: { codigo: 'CLIENTE_COM_TITULO_VENCIDO' } });
   });
 
   it('crédito desconta pedidos a prazo já aceitos e ainda não faturados', async () => {

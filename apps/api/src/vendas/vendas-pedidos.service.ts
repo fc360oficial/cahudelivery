@@ -101,6 +101,22 @@ export class VendasPedidosService {
     if (carteira.rows[0].status === 'bloqueado' || carteira.rows[0].status === 'excluido') {
       throw new BadRequestException({ statusCode: 400, message: 'Cliente bloqueado para novos pedidos', codigo: 'CLIENTE_BLOQUEADO' });
     }
+    await this.conferirTitulosVencidos(q, clienteId);
+  }
+
+  /** Regra do dono: cliente com título VENCIDO não tem pedido novo, em nenhuma tabela ou forma de pagamento. */
+  private async conferirTitulosVencidos(q: Consulta, clienteId: string): Promise<void> {
+    const { rows } = await q.query(
+      `/* titulos_vencidos */
+       select count(*) as qtd from titulos_cliente
+        where cliente_id = $1 and status = 'ABERTO' and vencimento < (now() at time zone 'America/Recife')::date`,
+      [clienteId],
+    );
+    if (Number(rows[0]?.qtd ?? 0) > 0) {
+      throw new BadRequestException({
+        statusCode: 400, message: 'Cliente com título vencido: sem pedido novo até regularizar', codigo: 'CLIENTE_COM_TITULO_VENCIDO',
+      });
+    }
   }
 
   private async dadosAtuais(q: Consulta, clienteId: string, tabelaId: string, produtoIds: string[], exigeCredito: boolean): Promise<DadosAtuais> {

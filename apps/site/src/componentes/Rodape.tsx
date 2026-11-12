@@ -14,7 +14,8 @@ export function Rodape({ config, categorias }: { config: ConfigLoja; categorias:
       <div className={`conteudo ${estilos.colunas}`}>
         <div className={estilos.sobre}>
           <img src={config.logoUrl ?? LOGO_PADRAO} alt={config.distribuidora} className={estilos.logo} width={132} height={34} loading="lazy" />
-          <p>Atacado para o seu comércio, com preço por caixa e por unidade.</p>
+          <p className={estilos.lema}>A gente abastece.<br /><span>Você vende.</span></p>
+          <p>Do nosso estoque para a sua prateleira, com preço de atacado.</p>
         </div>
         {raizes.length > 0 && (
           <nav aria-label="Departamentos">

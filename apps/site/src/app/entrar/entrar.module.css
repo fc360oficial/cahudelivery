@@ -1,0 +1,56 @@
+.pagina { padding-block: 56px 72px; display: flex; justify-content: center; }
+.cartao {
+  width: 100%; max-width: 440px; padding: 40px; display: flex; flex-direction: column; gap: 24px;
+  background: var(--fundo); border: 1px solid var(--linha); border-radius: var(--raio-g);
+  box-shadow: 0 12px 32px rgba(20, 20, 20, 0.06);
+}
+.cartao h1 { font-size: 32px; }
+.explicacao { margin: 0; color: var(--tinta-suave); }
+
+.formulario { display: flex; flex-direction: column; gap: 18px; }
+.campo { display: flex; flex-direction: column; gap: 6px; }
+.campo label { font-weight: 600; font-size: 14px; }
+.campo input {
+  width: 100%; height: 50px; padding: 0 16px; border: 1px solid var(--linha-forte); border-radius: var(--raio-p);
+  background: #ffffff; font-size: 16px;
+}
+.campo input:focus { outline: 2px solid var(--tinta); outline-offset: 1px; border-color: var(--tinta); }
+.senha { position: relative; display: flex; }
+.senha input { padding-right: 92px; }
+.mostrar {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%); height: 38px; padding: 0 12px;
+  border: 0; border-radius: 8px; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.mostrar:hover { background: var(--fundo-suave); }
+
+.primario {
+  height: 52px; border: 0; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque);
+  font-weight: 700; font-size: 16px; cursor: pointer; transition: transform 0.2s;
+}
+.primario:hover:not(:disabled) { transform: translateY(-1px); }
+.primario:disabled { opacity: 0.7; cursor: progress; }
+
+.link {
+  align-self: flex-start; padding: 0; border: 0; background: none; font-size: 14px; font-weight: 600;
+  text-decoration: underline; cursor: pointer;
+}
+.erro {
+  margin: 0; padding: 12px 14px; border-radius: var(--raio-p); background: #fdecea; color: var(--perigo); font-size: 14px;
+}
+.aviso {
+  margin: 0; padding: 14px 16px; border-radius: var(--raio-p); background: var(--fundo-suave); font-size: 14px;
+  border-left: 4px solid var(--destaque);
+}
+.aviso strong { display: block; margin-bottom: 4px; }
+
+.ajuda {
+  display: flex; flex-direction: column; gap: 6px; padding-top: 20px; border-top: 1px solid var(--linha);
+  font-size: 14px; color: var(--tinta-suave);
+}
+.ajuda p { margin: 0; }
+.ajuda a { color: var(--tinta); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .pagina { padding-block: 32px 48px; }
+  .cartao { padding: 28px 20px; border-radius: var(--raio-m); }
+}

@@ -5,10 +5,12 @@ import { rotuloEmbalagem } from '@/lib/formato/embalagem';
 import { formatarPreco } from '@/lib/formato/preco';
 import { BotaoAdicionar } from './BotaoAdicionar';
 import { useCarrinho } from './CarrinhoProvider';
+import { useSessao } from './SessaoProvider';
 import estilos from '@/app/carrinho/carrinho.module.css';
 
 export function ItensCarrinho({ appNome }: { appNome: string }) {
   const { carrinho, carregado, erro, recarregar } = useCarrinho();
+  const sessao = useSessao();
   if (!carregado) {
     return (
       <div className={estilos.vazio}>
@@ -50,7 +52,11 @@ export function ItensCarrinho({ appNome }: { appNome: string }) {
       </ul>
       <aside className={estilos.resumo}>
         <div className={estilos.total}><span>Subtotal</span><strong>{formatarPreco(carrinho.subtotal)}</strong></div>
-        <p>O fechamento do pedido pelo site está chegando. Por enquanto, finalize pelo app {appNome}.</p>
+        {sessao.carregado && (sessao.logado ? (
+          <p>Fechamento do pedido pelo site em breve. Por enquanto finalize pelo app {appNome}: seu carrinho já está lá.</p>
+        ) : (
+          <Link href="/entrar?voltar=/carrinho" className={estilos.botaoDestaque}>Entrar para finalizar</Link>
+        ))}
       </aside>
     </div>
   );

@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { CarrinhoProvider } from '@/componentes/CarrinhoProvider';
 import { Cabecalho } from '@/componentes/Cabecalho';
 import { Rodape } from '@/componentes/Rodape';
+import { SessaoProvider } from '@/componentes/SessaoProvider';
 import { buscarCategorias, buscarConfig } from '@/lib/api/catalogo';
 import type { Categoria } from '@/lib/api/tipos';
 import { indexavel, siteUrl } from '@/lib/site';
@@ -31,9 +32,11 @@ export default async function Layout({ children }: { children: ReactNode }) {
     <html lang="pt-BR" className={`${fonteTexto.variable} ${fonteTitulo.variable}`}>
       <body style={tema}>
         <CarrinhoProvider>
-          <Cabecalho config={config} categorias={categorias} />
-          <main>{children}</main>
-          <Rodape config={config} categorias={categorias} />
+          <SessaoProvider>
+            <Cabecalho config={config} categorias={categorias} />
+            <main>{children}</main>
+            <Rodape config={config} categorias={categorias} />
+          </SessaoProvider>
         </CarrinhoProvider>
       </body>
     </html>

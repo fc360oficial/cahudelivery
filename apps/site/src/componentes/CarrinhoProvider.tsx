@@ -17,6 +17,10 @@ interface ValorCarrinho {
 }
 
 const VAZIO: Carrinho = { itens: [], subtotal: 0 };
+
+/** O servidor já apagou a sessão; o SessaoProvider (mais para dentro) escuta e volta a "Entrar". */
+export const EVENTO_SESSAO_EXPIROU = 'fc:sessao-expirou';
+const avisarSessaoExpirou = () => window.dispatchEvent(new Event(EVENTO_SESSAO_EXPIROU));
 const Contexto = createContext<ValorCarrinho | null>(null);
 
 export function CarrinhoProvider({ children }: { children: ReactNode }) {
@@ -31,7 +35,10 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
     const inicio = sequencia.current;
     setErro(null);
     fetch('/api/carrinho')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('falha'))))
+      .then((r) => {
+        if (r.status === 401) avisarSessaoExpirou();
+        return r.ok ? r.json() : Promise.reject(new Error('falha'));
+      })
       .then((c: Carrinho) => {
         if (!deveAplicarLeitura(inicio, sequencia.current)) {
           // Uma mutação já trouxe um carrinho mais novo (e portanto já carregou).
@@ -56,6 +63,7 @@ export function CarrinhoProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ produtoId, quantidade }),
       });
+      if (r.status === 401) avisarSessaoExpirou();
       const resultado = interpretarRespostaMutacao(r.ok, await r.text());
       if ('carrinho' in resultado) {
         sequencia.current += 1;

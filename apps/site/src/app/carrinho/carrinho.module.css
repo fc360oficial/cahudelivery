@@ -13,4 +13,5 @@
 .total { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
 .total strong { font-family: var(--fonte-titulo), sans-serif; font-size: 28px; }
 .vazio { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; color: var(--tinta-suave); }
-.botao { display: inline-flex; align-items: center; height: 52px; padding: 0 28px; border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff; font-weight: 600; text-decoration: none; }
+.botaoDestaque { display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 28px; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque); font-weight: 700; text-decoration: none; }
+.botao {display: inline-flex; align-items: center; height: 52px; padding: 0 28px; border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff; font-weight: 600; text-decoration: none; }

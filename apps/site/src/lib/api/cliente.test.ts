@@ -35,6 +35,34 @@ describe('chamarApi', () => {
     expect(h['Content-Type']).toBe('application/json');
   });
 
+  it('com token manda Authorization Bearer; com ipCliente manda X-Forwarded-For', async () => {
+    const fetchFalso = vi.fn(async () => resposta(200, {}));
+    vi.stubGlobal('fetch', fetchFalso);
+    await chamarApi('/perfil', { token: 'tok.en.x', ipCliente: '200.1.2.3' });
+    const [, init] = fetchFalso.mock.calls[0] as unknown as [string, RequestInit];
+    const h = init.headers as Record<string, string>;
+    expect(h.Authorization).toBe('Bearer tok.en.x');
+    expect(h['X-Forwarded-For']).toBe('200.1.2.3');
+  });
+
+  it('sem token nem ipCliente não manda esses cabeçalhos', async () => {
+    const fetchFalso = vi.fn(async () => resposta(200, {}));
+    vi.stubGlobal('fetch', fetchFalso);
+    await chamarApi('/carrinho', { deviceId: 'dev-1' });
+    const [, init] = fetchFalso.mock.calls[0] as unknown as [string, RequestInit];
+    const h = init.headers as Record<string, string>;
+    expect(h).not.toHaveProperty('Authorization');
+    expect(h).not.toHaveProperty('X-Forwarded-For');
+  });
+
+  it('erro da API guarda o codigo quando vem (p.ex. PRIMEIRO_ACESSO_PENDENTE)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => resposta(401, { message: 'Crie sua senha', codigo: 'PRIMEIRO_ACESSO_PENDENTE' })));
+    await expect(chamarApi('/auth/login')).rejects.toMatchObject({ status: 401, codigo: 'PRIMEIRO_ACESSO_PENDENTE' });
+    vi.stubGlobal('fetch', vi.fn(async () => resposta(401, { message: 'x', codigo: 42 })));
+    const erro = (await chamarApi('/auth/login').catch((e: unknown) => e)) as ErroApi;
+    expect(erro.codigo).toBeUndefined();
+  });
+
   it('erro da API vira ErroApi com a mensagem dela', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => resposta(404, { message: 'Produto não encontrado' })));
     await expect(chamarApi('/produtos/x')).rejects.toMatchObject({ status: 404, message: 'Produto não encontrado' });

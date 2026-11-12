@@ -1,0 +1,23 @@
+.pagina { padding-block: 48px; display: flex; flex-direction: column; gap: 32px; }
+.pagina h1 { font-size: 40px; }
+.filtros { display: flex; flex-direction: column; gap: 16px; }
+.grupo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rotulo { font-size: 13px; color: var(--tinta-suave); margin-right: 4px; }
+.chip {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px;
+  border: 1px solid var(--linha-forte); border-radius: var(--raio-pilula); text-decoration: none; font-size: 14px; font-weight: 500;
+}
+.chip:hover { border-color: var(--tinta); }
+.ativo { background: var(--tinta); border-color: var(--tinta); color: #ffffff; }
+.marcas summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 40px 24px; }
+.vazio { color: var(--tinta-suave); font-size: 17px; }
+.paginas { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--tinta-suave); }
+.botao {
+  display: inline-flex; align-items: center; height: 48px; padding: 0 24px; border-radius: var(--raio-pilula);
+  background: var(--tinta); color: #ffffff; font-weight: 600; text-decoration: none;
+}
+@media (max-width: 640px) {
+  .pagina h1 { font-size: 30px; }
+  .grade { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 12px; }
+}

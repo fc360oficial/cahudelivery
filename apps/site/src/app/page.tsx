@@ -1,3 +1,4 @@
+import { AvisoDesatualizado } from '@/componentes/AvisoDesatualizado';
 import { Banners } from '@/componentes/Banners';
 import { Vitrine, VitrinePatrocinada } from '@/componentes/Vitrine';
 import { buscarConfig, buscarHome } from '@/lib/api/catalogo';
@@ -10,6 +11,7 @@ export default async function PaginaInicial() {
   const secoes = montarSecoesHome(home);
   return (
     <>
+      <AvisoDesatualizado geradoEm={Date.now()} />
       <Banners banners={home.banners} />
       <div className="conteudo" style={{ display: 'flex', flexDirection: 'column', gap: 72, paddingBlock: 56 }}>
         {secoes.length === 0 && <p>Nenhum produto disponível no momento.</p>}

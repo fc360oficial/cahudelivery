@@ -1,0 +1,8 @@
+.estado { padding-block: 96px; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
+.estado h1 { font-size: 40px; }
+.estado p { margin: 0; color: var(--tinta-suave); font-size: 17px; max-width: 520px; }
+.acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; }
+.botao {
+  display: inline-flex; align-items: center; height: 52px; padding: 0 28px; border: 0; border-radius: var(--raio-pilula);
+  background: var(--tinta); color: #ffffff; font-weight: 600; text-decoration: none; cursor: pointer;
+}

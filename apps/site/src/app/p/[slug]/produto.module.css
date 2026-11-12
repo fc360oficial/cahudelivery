@@ -6,20 +6,20 @@
 
 .galeria { display: flex; flex-direction: column; gap: 16px; }
 .fotoGrande {
-  aspect-ratio: 1 / 1; background: var(--fundo-suave); border-radius: var(--raio-g); overflow: hidden;
+  aspect-ratio: 1 / 1; background: #ffffff; border: 1px solid var(--linha); border-radius: var(--raio-g); overflow: hidden;
   display: flex; align-items: center; justify-content: center; color: var(--tinta-suave); font-size: 13px;
 }
 .fotoGrande img { width: 100%; height: 100%; object-fit: contain; padding: 24px; }
 .miniaturas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
 .miniatura, .miniaturaAtiva {
-  aspect-ratio: 1 / 1; padding: 6px; background: var(--fundo-suave); border: 2px solid transparent;
+  aspect-ratio: 1 / 1; padding: 6px; background: #ffffff; border: 2px solid var(--linha);
   border-radius: var(--raio-p); cursor: pointer; overflow: hidden;
 }
-.miniaturaAtiva { border-color: var(--tinta); }
+.miniaturaAtiva { border-color: var(--destaque); }
 .miniatura img, .miniaturaAtiva img { width: 100%; height: 100%; object-fit: contain; }
 
 .cabeca { display: flex; flex-direction: column; gap: 10px; }
-.cabeca h1 { font-size: 40px; }
+.cabeca h1 { font-size: 34px; }
 .sobre { font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-suave); }
 .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--tinta-suave); }
 .emEstoque { color: var(--positivo); font-weight: 500; }
@@ -33,7 +33,8 @@
 
 .precos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
 .precoPrincipal, .precoSecundario { border-radius: var(--raio-m); padding: 20px; display: flex; flex-direction: column; gap: 4px; }
-.precoPrincipal { border: 2px solid var(--tinta); }
+.precoPrincipal { background: var(--destaque); color: var(--sobre-destaque); }
+.precos .precoPrincipal span, .precos .precoPrincipal s { color: var(--sobre-destaque); opacity: 0.78; }
 .precoSecundario { border: 1px solid var(--linha); }
 .precos span, .precos s { font-size: 13px; color: var(--tinta-suave); }
 .precos strong { font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 34px; letter-spacing: -0.02em; line-height: 1.1; }
@@ -48,8 +49,8 @@
 .totalCompra span { display: block; font-size: 13px; color: var(--tinta-suave); }
 .totalCompra strong { font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 24px; }
 .botaoComprar {
-  height: 60px; border: 0; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque);
-  font-size: 17px; font-weight: 600; cursor: pointer;
+  height: 60px; border: 0; border-radius: var(--raio-pilula); background: var(--tinta); color: var(--destaque);
+  font-size: 17px; font-weight: 700; cursor: pointer;
 }
 .botaoComprar:disabled { opacity: 0.6; cursor: default; }
 .nota { margin: 0; font-size: 14px; color: var(--tinta-suave); }

@@ -92,6 +92,8 @@ export function normalizarCategoria(b: Bruto): Categoria {
 export function normalizarConfig(b: Bruto): ConfigLoja {
   const tema = (b.tema ?? {}) as Bruto;
   const cfg = (b.configuracoes ?? {}) as Bruto;
+  const minimo = (cfg.pedido_minimo ?? {}) as Bruto;
+  const horario = (cfg.horario_atendimento ?? {}) as Bruto;
   return {
     appNome: String(b.appNome ?? ''),
     distribuidora: String(b.distribuidora ?? ''),
@@ -99,6 +101,9 @@ export function normalizarConfig(b: Bruto): ConfigLoja {
     logoUrl: txt(tema.logo_url),
     limiteEstoqueBaixo: num(cfg.limite_estoque_baixo),
     contatoWhatsapp: txt(cfg.contato_whatsapp),
+    pedidoMinimo: minimo.tipo === 'valor' && num(minimo.valor) > 0 ? num(minimo.valor) : null,
+    horarioSemana: txt(horario.seg_sex),
+    horarioSabado: txt(horario.sab),
   };
 }
 

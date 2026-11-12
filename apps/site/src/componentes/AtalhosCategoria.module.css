@@ -1,0 +1,24 @@
+.secao { margin-top: 32px; }
+.lista {
+  list-style: none; margin: 0; padding: 4px 0 8px; display: flex; gap: 12px; justify-content: space-between;
+  overflow-x: auto; scrollbar-width: none;
+}
+.lista::-webkit-scrollbar { display: none; }
+.lista li { flex: 1 0 104px; display: flex; justify-content: center; }
+.atalho { display: flex; flex-direction: column; align-items: center; gap: 10px; text-decoration: none; text-align: center; }
+.foto {
+  width: 104px; height: 104px; border-radius: 50%; overflow: hidden; background: var(--fundo-suave);
+  border: 3px solid transparent; display: flex; align-items: center; justify-content: center;
+  font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 34px; color: var(--tinta-suave);
+  transition: border-color 0.2s, transform 0.2s;
+}
+.foto img { width: 100%; height: 100%; object-fit: cover; }
+.fotoOferta { background: var(--tinta); color: var(--destaque); }
+.atalho:hover .foto { border-color: var(--destaque); transform: translateY(-3px); }
+.nome { font-weight: 600; font-size: 14px; line-height: 1.25; }
+@media (max-width: 720px) {
+  .lista { justify-content: flex-start; }
+  .lista li { flex: 0 0 84px; }
+  .foto { width: 76px; height: 76px; }
+  .nome { font-size: 13px; }
+}

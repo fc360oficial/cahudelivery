@@ -33,7 +33,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
         <CarrinhoProvider>
           <Cabecalho config={config} categorias={categorias} />
           <main>{children}</main>
-          <Rodape config={config} />
+          <Rodape config={config} categorias={categorias} />
         </CarrinhoProvider>
       </body>
     </html>

@@ -1,4 +1,4 @@
-import { chamarApi } from './cliente';
+import { chamarApi, ErroApi } from './cliente';
 import { normalizarCategoria, normalizarConfig, normalizarHome, normalizarProduto } from './normalizar';
 import type { Categoria, ConfigLoja, Home, Marca, PaginaProdutos, Produto, Relacionados } from './tipos';
 
@@ -22,7 +22,11 @@ export async function buscarCategorias(): Promise<Categoria[]> {
 
 export async function buscarMarcas(categoriaId?: string): Promise<Marca[]> {
   const q = categoriaId ? `?categoria=${categoriaId}` : '';
-  const linhas = await chamarApi<Bruto[]>(`/marcas${q}`, { revalidar: REVALIDAR });
+  // Uma API ainda sem a rota de marcas (publicada antes do site) não derruba a listagem: só some o filtro.
+  const linhas = await chamarApi<Bruto[]>(`/marcas${q}`, { revalidar: REVALIDAR }).catch((e: unknown) => {
+    if (e instanceof ErroApi && e.status === 404) return [] as Bruto[];
+    throw e;
+  });
   return linhas.map((m) => ({ id: String(m.id), nome: String(m.nome ?? ''), produtos: Number(m.produtos) || 0 }));
 }
 

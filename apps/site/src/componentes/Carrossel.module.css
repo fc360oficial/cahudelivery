@@ -1,0 +1,30 @@
+.carrossel { position: relative; margin-top: 20px; }
+.trilho {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  border-radius: var(--raio-m); background: var(--destaque);
+}
+.trilho::-webkit-scrollbar { display: none; }
+.vaga { flex: 0 0 100%; scroll-snap-align: center; }
+.vaga img { width: 100%; aspect-ratio: 3.5 / 1; object-fit: cover; }
+.seta {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: 0; border-radius: 50%;
+  background: #ffffff; color: var(--tinta); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 14px rgba(20, 20, 20, 0.22); transition: transform 0.2s;
+}
+.seta:hover { transform: translateY(-50%) scale(1.06); }
+.anterior { left: -16px; }
+.proximo { right: -16px; }
+.bolinhas { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 4px; }
+.bolinha, .bolinhaAtiva {
+  width: 24px; height: 24px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.bolinha::before, .bolinhaAtiva::before {
+  content: ''; height: 8px; border-radius: 999px; background: #ffffff; box-shadow: 0 0 0 1px rgba(20, 20, 20, 0.25); transition: width 0.3s;
+}
+.bolinha::before { width: 8px; opacity: 0.75; }
+.bolinhaAtiva::before { width: 22px; background: var(--tinta); }
+@media (max-width: 720px) {
+  .seta { display: none; }
+  .bolinhas { bottom: 4px; }
+}

@@ -1,3 +1,3 @@
-.banners { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding-block: 32px 0; scrollbar-width: none; }
-.banner { flex: 0 0 100%; scroll-snap-align: center; border-radius: var(--raio-g); overflow: hidden; background: var(--fundo-suave); }
+.banners { display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding-block: 24px 0; scrollbar-width: none; }
+.banner { flex: 0 0 100%; scroll-snap-align: center; border-radius: var(--raio-m); overflow: hidden; background: var(--destaque); }
 .banner img { width: 100%; aspect-ratio: 3.5 / 1; object-fit: cover; }

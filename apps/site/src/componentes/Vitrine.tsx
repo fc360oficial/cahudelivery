@@ -1,17 +1,18 @@
 import Link from 'next/link';
 import type { Patrocinador, Produto } from '@/lib/api/tipos';
 import { CartaoProduto } from './CartaoProduto';
+import { Trilho } from './Trilho';
 import estilos from './Vitrine.module.css';
 
-function Trilho({ produtos, limiteEstoqueBaixo }: { produtos: Produto[]; limiteEstoqueBaixo: number }) {
+function Fileira({ produtos, limiteEstoqueBaixo, rotulo }: { produtos: Produto[]; limiteEstoqueBaixo: number; rotulo: string }) {
   return (
-    <div className={estilos.trilho}>
+    <Trilho rotulo={rotulo}>
       {produtos.map((p) => (
-        <div key={p.id} className={estilos.vaga}>
+        <div key={p.id}>
           <CartaoProduto produto={p} limiteEstoqueBaixo={limiteEstoqueBaixo} />
         </div>
       ))}
-    </div>
+    </Trilho>
   );
 }
 
@@ -24,7 +25,7 @@ export function Vitrine({ titulo, produtos, verTodos, limiteEstoqueBaixo }: {
         <h2>{titulo}</h2>
         {verTodos && <Link href={verTodos}>Ver todos</Link>}
       </div>
-      <Trilho produtos={produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} />
+      <Fileira produtos={produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={titulo} />
     </section>
   );
 }
@@ -40,7 +41,7 @@ export function VitrinePatrocinada({ patrocinador, limiteEstoqueBaixo }: { patro
         </div>
         <span className={estilos.patrocinado}>Patrocinado</span>
       </div>
-      <Trilho produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} />
+      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} />
     </section>
   );
 }

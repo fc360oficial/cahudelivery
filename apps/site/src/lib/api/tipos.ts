@@ -76,6 +76,10 @@ export interface ConfigLoja {
   logoUrl: string | null;
   limiteEstoqueBaixo: number;
   contatoWhatsapp: string | null;
+  /** Pedido mínimo em reais; nulo quando não há mínimo por valor. */
+  pedidoMinimo: number | null;
+  horarioSemana: string | null;
+  horarioSabado: string | null;
 }
 
 export interface PaginaProdutos { dados: Produto[]; pagina: number; temMais: boolean }

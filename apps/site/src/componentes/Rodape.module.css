@@ -1,3 +1,12 @@
-.rodape { margin-top: 88px; border-top: 1px solid var(--linha); padding-block: 40px; font-size: 14px; color: var(--tinta-suave); }
-.linha { display: flex; flex-wrap: wrap; gap: 16px 56px; justify-content: space-between; }
-.rodape strong { color: var(--tinta); }
+.rodape { margin-top: 80px; background: var(--tinta); color: #cfcfca; font-size: 14px; border-top: 6px solid var(--destaque); }
+.colunas { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px 48px; padding-block: 48px; }
+.logo { height: 34px; width: auto; filter: invert(1); }
+.sobre p { margin: 16px 0 0; max-width: 30ch; line-height: 1.6; }
+.rodape h2 { font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--destaque); margin-bottom: 16px; }
+.rodape ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.rodape a { text-decoration: none; }
+.rodape a:hover { color: #ffffff; text-decoration: underline; }
+.rodape strong { color: #ffffff; }
+.base { border-top: 1px solid #2c2c2a; padding-block: 18px; font-size: 13px; color: #9a9a94; }
+@media (max-width: 860px) { .colunas { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 520px) { .colunas { grid-template-columns: 1fr; } }

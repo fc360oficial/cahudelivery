@@ -1,15 +1,18 @@
 .adicionar {
-  width: 48px; height: 48px; flex-shrink: 0; border: 0; border-radius: 50%;
-  background: var(--tinta); color: #ffffff; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; flex-shrink: 0; margin-left: auto; border: 0; border-radius: 50%;
+  background: var(--destaque); color: var(--sobre-destaque); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: transform 0.2s, filter 0.2s;
+  box-shadow: 0 2px 6px rgba(20, 20, 20, 0.16);
 }
-.adicionar:disabled, .stepper button:disabled { opacity: 0.5; cursor: default; }
+.adicionar span { display: none; }
+.adicionar:hover:not(:disabled) { transform: scale(1.08); filter: brightness(0.96); }
+.adicionar:disabled, .stepper button:disabled { opacity: 0.55; cursor: default; }
 .stepper {
-  display: flex; align-items: center; gap: 2px; flex-shrink: 0;
-  background: var(--destaque); color: var(--sobre-destaque); border-radius: var(--raio-pilula); padding: 2px;
+  flex: 1 0 100%; height: 44px; display: flex; align-items: center; justify-content: space-between;
+  background: var(--tinta); color: #ffffff; border-radius: var(--raio-pilula); padding: 2px;
 }
 .stepper button {
-  width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent;
-  font-size: 20px; line-height: 1; cursor: pointer;
+  width: 40px; height: 40px; border: 0; border-radius: 50%; background: var(--destaque); color: var(--sobre-destaque);
+  font-size: 20px; font-weight: 700; line-height: 1; cursor: pointer;
 }
-.stepper span { min-width: 28px; text-align: center; font-weight: 600; }
+.stepper span { min-width: 28px; text-align: center; font-weight: 700; }

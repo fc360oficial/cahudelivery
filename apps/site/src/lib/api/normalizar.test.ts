@@ -62,15 +62,21 @@ describe('normalizarConfig', () => {
     const c = normalizarConfig({
       appNome: 'CAHU Delivery', distribuidora: 'CAHU',
       tema: { cor_primaria: '#FFD500', logo_url: 'http://x/l.png' },
-      configuracoes: { limite_estoque_baixo: '5', contato_whatsapp: '(81) 99999-0000' },
+      configuracoes: {
+        limite_estoque_baixo: '5', contato_whatsapp: '(81) 99999-0000',
+        pedido_minimo: { tipo: 'valor', valor: '100' }, horario_atendimento: { seg_sex: '08:00-19:00', sab: '08:00-13:00' },
+      },
     });
     expect(c).toEqual({
       appNome: 'CAHU Delivery', distribuidora: 'CAHU', corPrimaria: '#FFD500',
       logoUrl: 'http://x/l.png', limiteEstoqueBaixo: 5, contatoWhatsapp: '(81) 99999-0000',
+      pedidoMinimo: 100, horarioSemana: '08:00-19:00', horarioSabado: '08:00-13:00',
     });
     const vazio = normalizarConfig({ appNome: 'A', distribuidora: 'B', tema: null, configuracoes: {} });
     expect(vazio.corPrimaria).toBeNull();
     expect(vazio.limiteEstoqueBaixo).toBe(0);
+    expect(vazio.pedidoMinimo).toBeNull();
+    expect(vazio.horarioSemana).toBeNull();
     expect(vazio.contatoWhatsapp).toBeNull();
   });
 });

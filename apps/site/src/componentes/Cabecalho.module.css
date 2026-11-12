@@ -1,30 +1,72 @@
-.faixa { border-bottom: 1px solid var(--linha); font-size: 13px; color: var(--tinta-suave); padding-block: 10px; }
-.faixaLinha { display: flex; flex-wrap: wrap; gap: 6px 24px; justify-content: space-between; }
-.principal { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 40px; padding-block: 20px; }
-.marca { display: flex; align-items: center; text-decoration: none; min-height: 44px; }
-.logo { height: 44px; width: auto; }
-.nome { font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.02em; }
+.cabecalho { position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 0 var(--linha); }
+.faixa { background: var(--tinta); color: #ffffff; font-size: 13px; padding-block: 8px; }
+.faixaLinha { display: flex; flex-wrap: wrap; gap: 4px 24px; justify-content: space-between; align-items: center; }
+.faixa a { display: inline-flex; align-items: center; gap: 8px; color: var(--destaque); font-weight: 600; text-decoration: none; }
+.faixa a:hover { text-decoration: underline; }
+
+.barra { background: var(--destaque); color: var(--sobre-destaque); }
+.principal { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px; padding-block: 16px; }
+.marca { display: flex; align-items: center; text-decoration: none; min-height: 48px; }
+.logo { height: 38px; width: auto; }
 .busca {
   flex: 999 1 280px; min-width: 0; display: flex; align-items: center; gap: 8px;
-  height: 48px; padding: 0 6px 0 20px; background: var(--fundo-suave); border-radius: var(--raio-pilula);
+  height: 52px; padding: 0 5px 0 22px; background: #ffffff; border-radius: var(--raio-pilula);
+  box-shadow: 0 1px 2px rgba(20, 20, 20, 0.12);
 }
 .busca input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; }
+.busca input::placeholder { color: var(--tinta-suave); }
 .busca button {
-  width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent;
-  color: var(--tinta-suave); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; flex-shrink: 0; border: 0; border-radius: 50%; background: var(--tinta);
+  color: var(--destaque); cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .busca:focus-within { outline: 2px solid var(--tinta); outline-offset: 2px; }
 .carrinho {
-  display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 20px;
+  display: inline-flex; align-items: center; gap: 10px; height: 52px; padding: 0 22px;
   border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff;
-  font-weight: 500; text-decoration: none;
+  font-weight: 600; text-decoration: none; transition: transform 0.2s;
 }
-.nav { border-block: 1px solid var(--linha); }
-.navLinha { display: flex; flex-wrap: wrap; gap: 0 36px; font-weight: 500; }
-.navLinha a { padding-block: 16px; text-decoration: none; }
-.navLinha a:hover { text-decoration: underline; }
-.ofertas { margin-left: auto; font-weight: 600; }
-@media (max-width: 640px) {
-  .ofertas { margin-left: 0; }
-  .navLinha { gap: 0 20px; }
+.carrinho:hover { transform: translateY(-1px); }
+
+.nav { background: #ffffff; }
+.navLinha { position: relative; display: flex; align-items: center; gap: 0 28px; font-weight: 600; font-size: 15px; }
+.atalhos { display: flex; align-items: center; gap: 0 28px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.atalhos::-webkit-scrollbar { display: none; }
+.atalhos a { padding-block: 14px; text-decoration: none; white-space: nowrap; border-bottom: 3px solid transparent; }
+.atalhos a:hover { border-bottom-color: var(--destaque); }
+.ofertas {
+  margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; margin-block: 6px;
+  border-radius: var(--raio-pilula); background: var(--tinta); color: var(--destaque); text-decoration: none; white-space: nowrap;
+}
+
+.mega { flex-shrink: 0; }
+.mega summary {
+  list-style: none; display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 18px; margin-block: 4px;
+  border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque); cursor: pointer; white-space: nowrap;
+}
+.mega summary::-webkit-details-marker { display: none; }
+.megaPainel {
+  position: absolute; left: var(--margem); right: var(--margem); top: 100%; z-index: 45;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 24px 32px; padding: 28px;
+  background: #ffffff; border-radius: 0 0 var(--raio-m) var(--raio-m); border-top: 3px solid var(--destaque);
+  box-shadow: 0 24px 48px rgba(20, 20, 20, 0.18); max-height: 70vh; overflow-y: auto;
+}
+.megaColuna { display: flex; flex-direction: column; gap: 8px; font-weight: 400; font-size: 14px; }
+.megaColuna a { text-decoration: none; color: var(--tinta-suave); }
+.megaColuna a:hover { color: var(--tinta); text-decoration: underline; }
+.megaColuna .megaTitulo { font-weight: 700; font-size: 15px; color: var(--tinta); }
+.megaColuna .megaMais { font-weight: 600; color: var(--tinta); }
+@media (max-width: 720px) {
+  .cabecalho { position: static; }
+  .principal { gap: 12px 16px; }
+  .busca { order: 3; flex-basis: 100%; }
+  .carrinho { margin-left: auto; padding: 0 16px; height: 46px; }
+  .logo { height: 30px; }
+  .navLinha { gap: 0 14px; }
+  .atalhos { display: none; }
+  .mega summary { height: 40px; padding: 0 14px; font-size: 14px; }
+  .megaPainel { left: 0; right: 0; grid-template-columns: 1fr 1fr; padding: 20px var(--margem); border-radius: 0; }
+  .ofertas { font-size: 14px; padding: 8px 14px; }
+}
+@media (max-width: 420px) {
+  .ofertas { display: none; }
 }

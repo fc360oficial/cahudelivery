@@ -1,0 +1,66 @@
+.pagina { padding-block: 28px 0; display: flex; flex-direction: column; gap: 56px; }
+.trilha { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--tinta-suave); }
+.principal { display: flex; flex-wrap: wrap; gap: 40px 64px; align-items: flex-start; }
+.colunaFoto { flex: 1 1 440px; min-width: 0; }
+.colunaInfo { flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 28px; }
+
+.galeria { display: flex; flex-direction: column; gap: 16px; }
+.fotoGrande {
+  aspect-ratio: 1 / 1; background: var(--fundo-suave); border-radius: var(--raio-g); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; color: var(--tinta-suave); font-size: 13px;
+}
+.fotoGrande img { width: 100%; height: 100%; object-fit: contain; padding: 24px; }
+.miniaturas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.miniatura, .miniaturaAtiva {
+  aspect-ratio: 1 / 1; padding: 6px; background: var(--fundo-suave); border: 2px solid transparent;
+  border-radius: var(--raio-p); cursor: pointer; overflow: hidden;
+}
+.miniaturaAtiva { border-color: var(--tinta); }
+.miniatura img, .miniaturaAtiva img { width: 100%; height: 100%; object-fit: contain; }
+
+.cabeca { display: flex; flex-direction: column; gap: 10px; }
+.cabeca h1 { font-size: 40px; }
+.sobre { font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tinta-suave); }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 14px; color: var(--tinta-suave); }
+.emEstoque { color: var(--positivo); font-weight: 500; }
+.semEstoque { color: var(--perigo); font-weight: 500; }
+.selos { display: flex; flex-wrap: wrap; gap: 8px; }
+.selo { padding: 4px 12px; border-radius: var(--raio-pilula); font-size: 13px; font-weight: 600; background: var(--fundo-suave); }
+.oferta { background: var(--destaque); color: var(--sobre-destaque); }
+.estoque { color: var(--alerta); }
+.validade { color: var(--perigo); }
+.quantidade { color: var(--positivo); }
+
+.precos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.precoPrincipal, .precoSecundario { border-radius: var(--raio-m); padding: 20px; display: flex; flex-direction: column; gap: 4px; }
+.precoPrincipal { border: 2px solid var(--tinta); }
+.precoSecundario { border: 1px solid var(--linha); }
+.precos span, .precos s { font-size: 13px; color: var(--tinta-suave); }
+.precos strong { font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 34px; letter-spacing: -0.02em; line-height: 1.1; }
+
+.compra { display: flex; flex-direction: column; gap: 16px; }
+.compraLinha { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.seletor { display: flex; align-items: center; gap: 4px; background: var(--fundo-suave); border-radius: var(--raio-pilula); padding: 4px; }
+.seletor button { width: 48px; height: 48px; border: 0; border-radius: 50%; background: #ffffff; font-size: 20px; cursor: pointer; }
+.seletor button:disabled { opacity: 0.4; cursor: default; }
+.seletor span { min-width: 56px; text-align: center; font-weight: 600; font-size: 16px; }
+.totalCompra { text-align: right; }
+.totalCompra span { display: block; font-size: 13px; color: var(--tinta-suave); }
+.totalCompra strong { font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 24px; }
+.botaoComprar {
+  height: 60px; border: 0; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque);
+  font-size: 17px; font-weight: 600; cursor: pointer;
+}
+.botaoComprar:disabled { opacity: 0.6; cursor: default; }
+.nota { margin: 0; font-size: 14px; color: var(--tinta-suave); }
+
+.ficha { margin: 0; border-top: 1px solid var(--linha); }
+.ficha div { display: flex; justify-content: space-between; gap: 16px; padding-block: 14px; border-bottom: 1px solid var(--linha); }
+.ficha dt { color: var(--tinta-suave); }
+.ficha dd { margin: 0; font-weight: 500; text-align: right; }
+.descricao { margin: 0; color: var(--tinta-suave); line-height: 1.6; white-space: pre-line; }
+
+@media (max-width: 640px) {
+  .cabeca h1 { font-size: 28px; }
+  .precos strong { font-size: 28px; }
+}

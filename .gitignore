@@ -19,3 +19,9 @@ apps/mobile/ios/Pods/
 
 # Comprovantes de entrega (nome/documento de quem recebeu) — nunca no git; vão no backup-cahu.js
 apps/api/uploads-privado/
+
+# Site (Next.js)
+.next/
+apps/site/next-env.d.ts
+apps/site/test-results/
+apps/site/playwright-report/

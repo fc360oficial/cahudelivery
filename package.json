@@ -6,11 +6,13 @@
   "workspaces": [
     "apps/api",
     "apps/admin",
+    "apps/site",
     "packages/*"
   ],
   "scripts": {
     "api": "npm run start:dev --workspace apps/api",
     "admin": "npm run dev --workspace apps/admin",
+    "site": "npm run dev --workspace apps/site",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"

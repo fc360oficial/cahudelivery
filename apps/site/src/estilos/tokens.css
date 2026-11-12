@@ -1,0 +1,51 @@
+:root {
+  --tinta: #141414;
+  --tinta-suave: #5f5f5a;
+  --linha: #ececea;
+  --linha-forte: #c9c9c4;
+  --fundo: #ffffff;
+  --fundo-suave: #f5f5f3;
+  --destaque: #ffd500;
+  --sobre-destaque: #141414;
+  --positivo: #14693a;
+  --alerta: #9a4a00;
+  --perigo: #b42318;
+  --raio-p: 12px;
+  --raio-m: 20px;
+  --raio-g: 28px;
+  --raio-pilula: 999px;
+  --largura: 1232px;
+  --margem: 32px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--fonte-texto), system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--tinta);
+  background: var(--fundo);
+}
+a { color: inherit; }
+h1, h2, h3 {
+  margin: 0;
+  font-family: var(--fonte-titulo), var(--fonte-texto), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+img { display: block; max-width: 100%; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--tinta); outline-offset: 2px; }
+
+.conteudo { max-width: var(--largura); margin: 0 auto; padding-inline: var(--margem); }
+.so-leitor {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  :root { --margem: 16px; }
+}

@@ -22,11 +22,14 @@ export function extrairEndereco(dados: unknown): EnderecoCep | null {
   const d = dados as Record<string, unknown>;
   if (d.erro === true || d.erro === 'true') return null;
   const uf = curto(d.uf, 3).toUpperCase();
+  const cidade = curto(d.localidade, 80);
+  // Sem cidade ou UF a resposta não serve (serviço degradado): tratar como não encontrado, e não guardar.
+  if (!cidade || !/^[A-Z]{2}$/.test(uf)) return null;
   return {
     logradouro: curto(d.logradouro, 120),
     bairro: curto(d.bairro, 80),
-    cidade: curto(d.localidade, 80),
-    uf: /^[A-Z]{2}$/.test(uf) ? uf : '',
+    cidade,
+    uf,
     codigoMunicipio: typeof d.ibge === 'string' && /^\d{7}$/.test(d.ibge.trim()) ? d.ibge.trim() : null,
   };
 }

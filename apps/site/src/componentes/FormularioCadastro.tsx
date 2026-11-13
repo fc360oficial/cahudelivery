@@ -234,6 +234,7 @@ export function FormularioCadastro({ appNome, whatsapp, horario, temPolitica, in
     try {
       const r = await cadastrar(corpo);
       if (r.ok) {
+        setV((x) => ({ ...x, senha: '', confirmacao: '' }));
         setConcluido({ status: r.status });
         return;
       }

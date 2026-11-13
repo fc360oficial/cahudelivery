@@ -30,6 +30,7 @@ interface EstadoSessao {
 
 const INICIAL: EstadoSessao = { carregado: false, logado: false, nome: null, status: null };
 const SEM_CONEXAO = 'Sem conexão. Tente novamente.';
+const CADASTRO_NAO_CONCLUIDO = 'Não foi possível concluir o cadastro. Tente de novo ou fale com a distribuidora.';
 const Contexto = createContext<ValorSessao | null>(null);
 
 async function lerJson(r: Response): Promise<Record<string, unknown>> {
@@ -57,21 +58,25 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const { recarregar: recarregarCarrinho } = useCarrinho();
   const pedido = useRef(0);
 
-  const verificar = useCallback(async () => {
+  /** Devolve true/false quando o servidor respondeu se há sessão; nulo quando não deu para saber. */
+  const verificar = useCallback(async (): Promise<boolean | null> => {
     const meu = ++pedido.current;
     try {
       const r = await fetch('/api/sessao', { cache: 'no-store' });
       const j = await lerJson(r);
-      if (meu !== pedido.current) return;
-      if (r.ok && j.logado === true) {
+      const logado = r.ok ? j.logado === true : null;
+      if (meu !== pedido.current) return logado;
+      if (logado === true) {
         setEstado({ carregado: true, logado: true, nome: texto(j.nome), status: texto(j.status) });
-      } else if (r.ok) {
+      } else if (logado === false) {
         setEstado({ carregado: true, logado: false, nome: null, status: null });
       } else {
         setEstado((e) => ({ ...e, carregado: true }));
       }
+      return logado;
     } catch {
       if (meu === pedido.current) setEstado((e) => ({ ...e, carregado: true }));
+      return null;
     }
   }, []);
 
@@ -82,7 +87,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(EVENTO_SESSAO_EXPIROU, aoExpirar);
   }, [verificar]);
 
-  const enviar = useCallback(async (url: string, dados: object): Promise<ResultadoEntrada> => {
+  const enviar = useCallback(async (url: string, dados: object, exigirSessao = false): Promise<ResultadoEntrada> => {
     let r: Response;
     try {
       r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dados) });
@@ -98,7 +103,10 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       if (erros) resultado.erros = erros;
       return resultado;
     }
-    await verificar();
+    const logado = await verificar();
+    // O servidor disse que deu certo, mas não há sessão: o envio não virou conta (por exemplo, o campo
+    // contra robôs foi preenchido por um preenchimento automático). Nunca mostrar sucesso nesse caso.
+    if (exigirSessao && logado === false) return { ok: false, mensagem: CADASTRO_NAO_CONCLUIDO };
     recarregarCarrinho(); // o carrinho agora é o do cliente (com o do visitante somado)
     return { ok: true, status: texto(j.status) };
   }, [verificar, recarregarCarrinho]);
@@ -109,7 +117,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     [enviar],
   );
 
-  const cadastrar = useCallback((d: object) => enviar('/api/sessao/cadastro', d), [enviar]);
+  const cadastrar = useCallback((d: object) => enviar('/api/sessao/cadastro', d, true), [enviar]);
 
   const sair = useCallback(async () => {
     try {
@@ -125,7 +133,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [recarregarCarrinho]);
 
   const valor = useMemo<ValorSessao>(
-    () => ({ ...estado, entrar, primeiroAcesso, cadastrar, sair, recarregar: verificar }),
+    () => ({ ...estado, entrar, primeiroAcesso, cadastrar, sair, recarregar: async () => { await verificar(); } }),
     [estado, entrar, primeiroAcesso, cadastrar, sair, verificar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

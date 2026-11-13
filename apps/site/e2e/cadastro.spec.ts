@@ -180,7 +180,8 @@ test('erros de validação aparecem junto dos campos sem chamar a API', async ({
 
   // "Criar conta" também aparece na tela de login.
   await page.goto('/entrar');
-  await page.getByRole('link', { name: 'Criar conta' }).click();
+  // O cabeçalho também tem "Criar conta": aqui vale o link do corpo da tela de login.
+  await page.getByRole('main').getByRole('link', { name: 'Criar conta' }).click();
   await expect(page).toHaveURL(/\/cadastrar$/);
 
   await page.getByLabel('CNPJ', { exact: true }).fill('11222333000182');

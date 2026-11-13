@@ -23,10 +23,13 @@ describe('extrairEndereco', () => {
   });
 
   it('corta textos longos e descarta UF e código fora do formato', () => {
-    const e = extrairEndereco({ ...viaCep, logradouro: 'a'.repeat(300), uf: 'Pernambuco', ibge: '26116<script>' });
+    const e = extrairEndereco({ ...viaCep, logradouro: 'a'.repeat(300), ibge: '26116<script>' });
     expect(e?.logradouro).toHaveLength(120);
-    expect(e?.uf).toBe('');
     expect(e?.codigoMunicipio).toBeNull();
+    // Sem cidade ou com UF fora do formato a resposta não serve: nulo (e por isso nunca vai para o cache).
+    expect(extrairEndereco({ ...viaCep, uf: 'Pernambuco' })).toBeNull();
+    expect(extrairEndereco({ ...viaCep, localidade: '' })).toBeNull();
+    expect(extrairEndereco({})).toBeNull();
     expect(extrairEndereco({ ...viaCep, bairro: 7, ibge: 2611606 })).toMatchObject({ bairro: '', codigoMunicipio: null });
   });
 

@@ -229,8 +229,12 @@ export class ProfileController {
         where cliente_id = $1 order by criado_em desc limit 50`,
       [req.cliente.clienteId],
     );
-    const saldo = rows.reduce((s, r) => s + Number(r.valor), 0);
-    return { saldo: Number(saldo.toFixed(2)), movimentos: rows };
+    // Saldo de TODOS os movimentos (mesma soma do uso da carteira no pedido); a lista fica nos 50 mais recentes.
+    const total = await pool.query(
+      `select coalesce(sum(valor),0) as saldo from carteira_movimentos where cliente_id = $1`,
+      [req.cliente.clienteId],
+    );
+    return { saldo: Number(Number(total.rows[0].saldo).toFixed(2)), movimentos: rows };
   }
 
   @Get('indicacoes')

@@ -256,7 +256,7 @@ export class VendasPedidosService {
       await client.query('rollback');
       // Dois envios simultâneos do mesmo pedido: o segundo bate no índice único e devolve o primeiro.
       if ((e as { code?: string }).code === '23505') {
-        const ja = await this.porIdDispositivo(pool, dto.idDispositivo, vendedorId);
+        const ja = await this.porIdDispositivo(client, dto.idDispositivo, vendedorId);
         if (ja) return ja;
       }
       throw e;

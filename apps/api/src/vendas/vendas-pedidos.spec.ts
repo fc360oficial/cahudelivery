@@ -406,3 +406,39 @@ describe('VendasPedidosService.cancelar', () => {
     await expect(rodar(() => servico.cancelar('v1', 'ped-retido'))).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('VendasPedidosService.receber — envio simultâneo do mesmo pedido (23505)', () => {
+  it('busca o pedido já gravado na própria conexão, depois do rollback e antes de devolvê-la (sem segunda conexão)', async () => {
+    const { query: base } = montar();
+    let gravou = false;
+    let emprestada = false;
+    const noPoolComClienteEmprestado: string[] = [];
+    const noCliente = jest.fn(async (sql: string) => {
+      if (sql.includes('insert into pedidos')) {
+        gravou = true;
+        throw Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505' });
+      }
+      if (sql.includes('where p.id_dispositivo = $1') && gravou) {
+        return { rows: [{ id: 'ped-do-outro-envio', numero: '7', status: 'RECEBIDO', total: '345.60', retencao_json: null, vendedor_id: 'v1' }] };
+      }
+      return base(sql);
+    });
+    const pool = {
+      query: jest.fn(async (sql: string) => {
+        if (emprestada) noPoolComClienteEmprestado.push(sql.replace(/\s+/g, ' ').trim().slice(0, 80));
+        return base(sql);
+      }),
+      connect: async () => {
+        emprestada = true;
+        return { query: noCliente, release: () => { emprestada = false; } };
+      },
+    };
+
+    const r = await runComTenant({ tenant: {}, pool } as never, () => new VendasPedidosService().receber('v1', dto));
+
+    expect(r).toMatchObject({ id: 'ped-do-outro-envio', numero: 7 });
+    expect(noPoolComClienteEmprestado).toEqual([]);
+    const sqls = noCliente.mock.calls.map(([sql]) => sql);
+    expect(sqls.findIndex((s) => s.includes('where p.id_dispositivo = $1'))).toBeGreaterThan(sqls.indexOf('rollback'));
+  });
+});

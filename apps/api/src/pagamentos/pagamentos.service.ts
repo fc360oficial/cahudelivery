@@ -231,6 +231,10 @@ export class PagamentosService {
    * Cobra o cartão de um pagamento pendente. Recusa do emissor NÃO encerra o
    * pagamento: o cliente pode tentar outro cartão até a janela (expira_em) vencer.
    * Advisory lock por pagamento: clique duplo não pode virar cobrança dupla.
+   * Tudo roda na conexão que segura a trava (de sessão): a confirmação do aprovado é uma
+   * transação explícita nela (begin/commit), nunca uma segunda conexão do pool — com ~10
+   * aprovações ao mesmo tempo o pool de 10 travava esperando a si mesmo. A chamada ao provedor
+   * fica fora dessa transação.
    */
   async pagarComCartao(
     pool: Pool,
@@ -249,6 +253,26 @@ export class PagamentosService {
       return { status: 'expirado' };
     }
     const client = await pool.connect();
+    // Rollback que falhou deixa a sessão num estado incerto (talvez ainda em transação, com a
+    // trava): a conexão é descartada em vez de voltar ao pool. Fechar a sessão solta a trava.
+    let conexaoIncerta: Error | undefined;
+    const confirmarNaConexao = async (
+      pagamentoId: string, valorPago: number, pagoEm: Date, detalhe: string,
+      dadosCartao: { tid?: string; codigo3ds?: string; soReserva?: boolean },
+    ): Promise<boolean> => {
+      await client.query('begin');
+      try {
+        // Com PoolClient, confirmarPago roda na transação do chamador (emTransacao não abre outra).
+        const ok = await this.confirmarPago(client, pagamentoId, valorPago, pagoEm, detalhe, dadosCartao);
+        await client.query('commit');
+        return ok;
+      } catch (e) {
+        await client.query('rollback').catch((erro: Error) => {
+          conexaoIncerta = erro;
+        });
+        throw e;
+      }
+    };
     try {
       const lk = await client.query('select pg_try_advisory_lock(hashtext($1)) as ok', [pagamento.id]);
       if (!lk.rows[0]?.ok) return { status: 'processando' };
@@ -269,7 +293,7 @@ export class PagamentosService {
         // a exceção sobe e o cliente tenta de novo quando o provedor voltar.
         const s = await provedor.consultar(atual.rows[0].provedor_ref);
         if (s.status === 'pago') {
-          await this.confirmarPago(pool, pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), detalheAprovado, {
+          await confirmarNaConexao(pagamento.id, s.valorPago ?? pagamento.valor, s.pagoEm ?? new Date(), detalheAprovado, {
             tid: s.tid, codigo3ds: s.codigo3ds, soReserva: reserva && s.capturado !== true,
           });
           return { status: 'pago' };
@@ -302,7 +326,7 @@ export class PagamentosService {
         [pagamento.id, JSON.stringify(r.payload ?? null), r.codigo3ds ?? null],
       );
       if (r.aprovado) {
-        await this.confirmarPago(pool, pagamento.id, pagamento.valor, new Date(), detalheAprovado, {
+        await confirmarNaConexao(pagamento.id, pagamento.valor, new Date(), detalheAprovado, {
           tid: r.tid, codigo3ds: r.codigo3ds, soReserva: reserva,
         });
         return { status: 'pago' };
@@ -316,7 +340,7 @@ export class PagamentosService {
       return { status: 'recusado', codigo: r.codigo, mensagem: r.mensagem };
     } finally {
       await client.query('select pg_advisory_unlock(hashtext($1))', [pagamento.id]).catch(() => {});
-      client.release();
+      client.release(conexaoIncerta);
     }
   }
 

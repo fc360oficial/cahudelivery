@@ -19,8 +19,9 @@ function fakePool(over: Record<string, any> = {}) {
     if (sql.includes('select status from pagamentos')) return over.statusFinal ?? { rows: [{ status: 'pago' }] };
     return { rows: [], rowCount: 0 };
   });
-  const pool = { query, connect: async () => ({ query, release }) } as unknown as Pool;
-  return { pool, query, release };
+  const cliente = { query, release };
+  const pool = { query, connect: async () => cliente } as unknown as Pool;
+  return { pool, query, release, cliente };
 }
 
 function provedorCartao(over: Partial<ProvedorCartao> = {}): ProvedorCartao {
@@ -43,14 +44,15 @@ describe('PagamentosService.pagarComCartao', () => {
   it('aprovado: grava ref nova, cobra e confirma o pagamento', async () => {
     const svc = new PagamentosService();
     const confirmar = jest.spyOn(svc, 'confirmarPago').mockResolvedValue(true);
-    const { pool, query, release } = fakePool();
+    const { pool, query, release, cliente } = fakePool();
     const prov = provedorCartao();
 
     const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
 
     expect(r.status).toBe('pago');
     expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO, undefined, { capturar: true });
-    expect(confirmar).toHaveBeenCalledWith(pool, 'pag-1', 150.5, expect.any(Date), 'Cartão aprovado', expect.any(Object));
+    // Confirma na conexão que segura a trava (nunca uma segunda conexão do pool).
+    expect(confirmar).toHaveBeenCalledWith(cliente, 'pag-1', 150.5, expect.any(Date), 'Cartão aprovado', expect.any(Object));
     const upRef = query.mock.calls.find((c) => (c[0] as string).includes('update pagamentos set provedor_ref'));
     expect(upRef![1]).toEqual(['pag-1', 'P000042NOVAREF00']);
     expect(release).toHaveBeenCalled(); // lock sempre devolvido
@@ -146,14 +148,14 @@ describe('PagamentosService.pagarComCartao', () => {
   it('pré-autorização: só reserva (capture false) e o pagamento vira autorizado, não pago', async () => {
     const svc = new PagamentosService();
     const confirmar = jest.spyOn(svc, 'confirmarPago').mockResolvedValue(true);
-    const { pool } = fakePool({ atual: { rows: [{ provedor_ref: null, status: 'pendente', captura: 'posterior' }] } });
+    const { pool, cliente } = fakePool({ atual: { rows: [{ provedor_ref: null, status: 'pendente', captura: 'posterior' }] } });
     const prov = provedorCartao();
 
     const r = await svc.pagarComCartao(pool, prov, PAGAMENTO, CARTAO);
 
     expect(r.status).toBe('pago'); // pro app: aprovado, o pedido seguiu
     expect(prov.cobrar).toHaveBeenCalledWith('P000042NOVAREF00', 150.5, CARTAO, undefined, { capturar: false });
-    expect(confirmar).toHaveBeenCalledWith(pool, 'pag-1', 150.5, expect.any(Date), expect.stringContaining('reservado'),
+    expect(confirmar).toHaveBeenCalledWith(cliente, 'pag-1', 150.5, expect.any(Date), expect.stringContaining('reservado'),
       expect.objectContaining({ soReserva: true }));
   });
 

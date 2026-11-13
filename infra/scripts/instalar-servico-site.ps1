@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   Cria (ou atualiza) o serviço Windows FluxoSite: o site de vendas (apps/site, Next.js) no Servidor_BI.
 .DESCRIPTION

@@ -117,56 +117,62 @@ export class OrdersService {
       );
     }
     const tipoEntrega = dto.tipoEntrega ?? 'entrega';
-    const { itens, subtotal } = await this.carrinho({ clienteId });
-    if (!itens.length) throw new BadRequestException('Carrinho vazio');
-    for (const i of itens) {
-      if (Number(i.estoque) < Number(i.quantidade))
-        throw new BadRequestException(`Estoque insuficiente: ${i.nome}`);
-    }
-    const cfg = await pool.query(`select valor_json from configuracoes where chave = 'pedido_minimo'`);
-    const minimo = Number(cfg.rows[0]?.valor_json?.valor ?? 0);
-    if (subtotal < minimo) throw new BadRequestException(`Pedido mínimo: R$ ${minimo.toFixed(2)}`);
 
-    // Só aceita forma habilitada na retaguarda (Configurações > Formas de pagamento aceitas).
-    // Config ausente = comportamento antigo (pix e boleto).
-    const cfgFormas = await pool.query(`select valor_json from configuracoes where chave = 'formas_pagamento'`);
-    const formasAceitas: string[] = Array.isArray(cfgFormas.rows[0]?.valor_json) ? cfgFormas.rows[0].valor_json : ['pix', 'boleto'];
-    if (!formasAceitas.includes(dto.formaPagamento)) {
-      throw new BadRequestException('Forma de pagamento não disponível');
-    }
-    if (dto.formaPagamento === 'cartao') await this.validarRiscoCartao(clienteId, subtotal);
-
-    if (dto.formaPagamento === 'boleto') {
-      const cred = await pool.query(`select limite_credito from clientes where id = $1`, [clienteId]);
-      const limite = cred.rows[0]?.limite_credito;
-      // limite_credito só existe depois que o Dlinks sincroniza o cliente (POST /clientes) — sem
-      // isso ainda, não há dado do ERP pra validar, então não bloqueia (comportamento atual mantido).
-      if (limite != null) {
-        const aberto = await pool.query(
-          `select coalesce(sum(valor),0) as total from titulos_cliente where cliente_id = $1 and status = 'ABERTO'`,
-          [clienteId],
-        );
-        const disponivel = Number(limite) - Number(aberto.rows[0].total);
-        if (subtotal > disponivel) {
-          throw new BadRequestException(`Limite de crédito insuficiente. Disponível: R$ ${disponivel.toFixed(2)}`);
-        }
-      }
-    }
-
-    let enderecoJson: string | null = null;
-    if (tipoEntrega === 'entrega') {
-      const end = await pool.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [
-        dto.enderecoId,
-        clienteId,
-      ]);
-      if (!end.rows[0]) throw new BadRequestException('Endereço inválido');
-      enderecoJson = JSON.stringify(end.rows[0]);
-    }
-
+    // Duplo envio: a trava do cliente vem ANTES de ler o carrinho. Quem chega
+    // em segundo espera o primeiro terminar e encontra o carrinho já esvaziado
+    // pelo commit dele ("Carrinho vazio"). Validações e mensagens são as mesmas
+    // e na mesma ordem; só passaram a rodar com a trava segura.
     const client = await pool.connect();
     try {
       await client.query('begin');
       await client.query('select pg_advisory_xact_lock(hashtext($1))', [clienteId]);
+
+      const { itens, subtotal } = await this.carrinho({ clienteId });
+      if (!itens.length) throw new BadRequestException('Carrinho vazio');
+      for (const i of itens) {
+        if (Number(i.estoque) < Number(i.quantidade))
+          throw new BadRequestException(`Estoque insuficiente: ${i.nome}`);
+      }
+      const cfg = await pool.query(`select valor_json from configuracoes where chave = 'pedido_minimo'`);
+      const minimo = Number(cfg.rows[0]?.valor_json?.valor ?? 0);
+      if (subtotal < minimo) throw new BadRequestException(`Pedido mínimo: R$ ${minimo.toFixed(2)}`);
+
+      // Só aceita forma habilitada na retaguarda (Configurações > Formas de pagamento aceitas).
+      // Config ausente = comportamento antigo (pix e boleto).
+      const cfgFormas = await pool.query(`select valor_json from configuracoes where chave = 'formas_pagamento'`);
+      const formasAceitas: string[] = Array.isArray(cfgFormas.rows[0]?.valor_json) ? cfgFormas.rows[0].valor_json : ['pix', 'boleto'];
+      if (!formasAceitas.includes(dto.formaPagamento)) {
+        throw new BadRequestException('Forma de pagamento não disponível');
+      }
+      if (dto.formaPagamento === 'cartao') await this.validarRiscoCartao(clienteId, subtotal);
+
+      if (dto.formaPagamento === 'boleto') {
+        const cred = await pool.query(`select limite_credito from clientes where id = $1`, [clienteId]);
+        const limite = cred.rows[0]?.limite_credito;
+        // limite_credito só existe depois que o Dlinks sincroniza o cliente (POST /clientes) — sem
+        // isso ainda, não há dado do ERP pra validar, então não bloqueia (comportamento atual mantido).
+        if (limite != null) {
+          const aberto = await pool.query(
+            `select coalesce(sum(valor),0) as total from titulos_cliente where cliente_id = $1 and status = 'ABERTO'`,
+            [clienteId],
+          );
+          const disponivel = Number(limite) - Number(aberto.rows[0].total);
+          if (subtotal > disponivel) {
+            throw new BadRequestException(`Limite de crédito insuficiente. Disponível: R$ ${disponivel.toFixed(2)}`);
+          }
+        }
+      }
+
+      let enderecoJson: string | null = null;
+      if (tipoEntrega === 'entrega') {
+        const end = await pool.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [
+          dto.enderecoId,
+          clienteId,
+        ]);
+        if (!end.rows[0]) throw new BadRequestException('Endereço inválido');
+        enderecoJson = JSON.stringify(end.rows[0]);
+      }
+
       let valorSaldoUsado = 0;
       if (dto.usarSaldo) {
         const saldoRow = await client.query(

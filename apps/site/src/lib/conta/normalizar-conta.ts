@@ -2,6 +2,7 @@ import type {
   Carteira, Cobranca, Credito, Endereco, EnderecoEntrega, EventoPedido, ItemPedido, NotaFiscal, NotaPedido, Pagina,
   PagamentoOnline, PedidoDetalhe, PedidoResumo, Perfil,
 } from './tipos';
+import { codigoPixValido } from '@/lib/checkout/codigo-pix';
 
 /**
  * Respostas da API (/perfil, /pedidos, /carteira…) → formato do site. Cada função copia só os
@@ -67,10 +68,14 @@ function enderecoEntrega(v: unknown): EnderecoEntrega | null {
   };
 }
 
-function pagamentoOnline(v: unknown): PagamentoOnline | null {
+/** `comCodigo`: só o detalhe do pedido leva o copia-e-cola, e só de um PIX ainda pendente. */
+function pagamentoOnline(v: unknown, comCodigo = false): PagamentoOnline | null {
   const b = obj(v);
   if (!b) return null;
-  return { metodo: txt(b.metodo), status: txt(b.status), valor: numOuNulo(b.valor), expiraEm: data(b.expiraEm), pagoEm: data(b.pagoEm) };
+  const metodo = txt(b.metodo);
+  const status = txt(b.status);
+  const copiaCola = comCodigo && metodo === 'pix' && status === 'pendente' && codigoPixValido(b.copiaCola) ? b.copiaCola : null;
+  return { metodo, status, valor: numOuNulo(b.valor), expiraEm: data(b.expiraEm), pagoEm: data(b.pagoEm), copiaCola };
 }
 
 function pedidoResumo(b: Bruto): PedidoResumo {
@@ -150,7 +155,7 @@ export function normalizarPedidoDetalhe(b: Bruto): PedidoDetalhe {
     eventos: lista(b.eventos).map(evento),
     cobranca: cobranca(b.cobranca),
     nota: notaPedido(b.nota),
-    pagamento: pagamentoOnline(b.pagamento),
+    pagamento: pagamentoOnline(b.pagamento, true),
   };
 }
 

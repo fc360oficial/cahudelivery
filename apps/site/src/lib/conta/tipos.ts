@@ -33,13 +33,15 @@ export interface EnderecoEntrega {
   uf: string;
 }
 
-/** Pagamento online (PIX/cartão) do pedido. Sem o copia-e-cola: pagar pelo site é outra etapa. */
+/** Pagamento online (PIX/cartão) do pedido. */
 export interface PagamentoOnline {
   metodo: string | null;
   status: string | null;
   valor: number | null;
   expiraEm: string | null;
   pagoEm: string | null;
+  /** Copia-e-cola do PIX: só no detalhe do pedido e só enquanto o PIX está pendente. */
+  copiaCola: string | null;
 }
 
 export interface PedidoResumo {

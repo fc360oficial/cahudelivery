@@ -44,7 +44,7 @@ export function VisaoGeral({ appNome }: { appNome: string }) {
               <p><strong>Pedido nº {ultimoPedido.numero}</strong> · {formatarData(ultimoPedido.criadoEm)}</p>
               <Etiqueta rotulo={statusPedido(ultimoPedido.status)} />
               <span className={estilos.valorGrande}>{formatarPreco(ultimoPedido.total)}</span>
-              {aguardaPagamento(ultimoPedido.status) && <p className={estilos.suave}>Pague pelo app {appNome}.</p>}
+              {aguardaPagamento(ultimoPedido.status) && <p className={estilos.suave}>Aguardando pagamento: pague pela página do pedido.</p>}
               <Link href={`/conta/pedidos/${ultimoPedido.id}`}>Ver pedido</Link>
             </>
           ) : (

@@ -58,7 +58,7 @@ export function ListaPedidos({ appNome }: { appNome: string }) {
                   <td data-rotulo="Data">{formatarData(p.criadoEm)}</td>
                   <td data-rotulo="Status">
                     <Etiqueta rotulo={statusPedido(p.status)} />
-                    {aguardaPagamento(p.status) && <span className={estilos.suave}> Pague pelo app {appNome}</span>}
+                    {aguardaPagamento(p.status) && <> <Link href={`/conta/pedidos/${p.id}`} className={estilos.suave}>Pagar</Link></>}
                   </td>
                   <td data-rotulo="Pagamento">{rotuloFormaPagamento(p.formaPagamento)}</td>
                   <td data-rotulo="Total" className={estilos.direita}><strong>{formatarPreco(p.total)}</strong></td>

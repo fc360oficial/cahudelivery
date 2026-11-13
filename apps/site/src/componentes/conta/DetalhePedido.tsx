@@ -4,11 +4,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useCarrinho } from '@/componentes/CarrinhoProvider';
-import { aguardaPagamento, rotuloFormaPagamento, statusPagamentoOnline, statusPedido } from '@/lib/conta/status';
+import { rotuloFormaPagamento, statusPagamentoOnline, statusPedido } from '@/lib/conta/status';
 import type { NotaPedido, PedidoDetalhe } from '@/lib/conta/tipos';
 import { formatarCep } from '@/lib/formato/documentos';
 import { formatarData, formatarDataHora } from '@/lib/formato/datas';
 import { formatarPreco } from '@/lib/formato/preco';
+import { BlocoPagamento } from '@/componentes/checkout/BlocoPagamento';
 import { useDadosConta, useEnviarConta } from './api-conta';
 import { Aviso, Carregando, ErroCarga, Etiqueta } from './Partes';
 import estilos from './Conta.module.css';
@@ -85,12 +86,7 @@ export function DetalhePedido({ id, appNome }: { id: string; appNome: string }) 
       </div>
       {erroRepetir && <Aviso tipo="erro">{erroRepetir}</Aviso>}
 
-      {aguardaPagamento(p.status) && (
-        <p className={estilos.alertaPagamento} role="status">
-          <strong>Este pedido está aguardando pagamento.</strong>
-          Pague pelo app {appNome}. O pagamento pelo site chega em breve.
-        </p>
-      )}
+      <BlocoPagamento pedido={p} aoAtualizar={carga.definir} />
 
       <div className={estilos.grade}>
         <section className={estilos.cartao} aria-labelledby="pedido-status">

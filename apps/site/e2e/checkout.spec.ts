@@ -166,6 +166,64 @@ test('recusa da API aparece com a mensagem dela (estoque insuficiente)', async (
   await expect(page.getByRole('button', { name: 'Confirmar pedido' })).toBeEnabled();
 });
 
+/** Pedido de verdade (retirada, PIX) pela rota do site, para os testes da página do pedido. */
+async function pedidoPeloSite(page: Page, request: APIRequestContext): Promise<string> {
+  const produto = await produtoComEstoque(request);
+  await porNoCarrinho(page, produto.id, Math.max(1, Number(produto.qtd_minima)));
+  const base = new URL(page.url()).origin;
+  const r = await page.request.post('/api/conta/pedidos', { headers: { Origin: base }, data: { tipoEntrega: 'retirada', formaPagamento: 'pix' } });
+  expect(r.status(), await r.text()).toBe(201);
+  const corpo = (await r.json()) as Record<string, unknown>;
+  // Só o necessário volta ao navegador (nada de copia-e-cola nem dados do provedor aqui).
+  expect(Object.keys(corpo).sort()).toEqual(['id', 'numero', 'pagamento', 'status']);
+  return corpo.id as string;
+}
+
+// A API local NÃO tem provedor PIX ativo (pagamento_provedores vazio no banco de controle): o
+// pedido PIX nasce RECEBIDO, sem cobrança, e não há como chegar a um PIX pendente de verdade.
+// Este teste usa um pedido real, mas reescreve NO NAVEGADOR a resposta de /api/conta/pedidos/<id>
+// para "aguardando PIX" e depois para "pago": prova a tela (QR, copia-e-cola, prazo, consulta
+// periódica que muda sozinha), não o provedor nem a rota do QR.
+test('página do pedido: PIX pendente mostra QR e copia-e-cola e muda sozinha para pago (respostas simuladas no navegador)', async ({ page, request, context }) => {
+  const cpf = await criarClienteAprovado(request);
+  await entrar(page, cpf, '/carrinho');
+  const id = await pedidoPeloSite(page, request);
+  const COPIA_COLA = '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-4266554400005204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D';
+  let pago = false;
+  let consultas = 0;
+  await page.route(`**/api/conta/pedidos/${id}`, async (rota) => {
+    consultas += 1;
+    const real = await rota.fetch();
+    const pedido = (await real.json()) as Record<string, unknown>;
+    const expiraEm = new Date(Date.now() + 10 * 60_000).toISOString();
+    const simulado = pago
+      ? { ...pedido, status: 'RECEBIDO', pagamento: { metodo: 'pix', status: 'pago', valor: pedido.total, expiraEm, pagoEm: new Date().toISOString(), copiaCola: null } }
+      : { ...pedido, status: 'AGUARDANDO_PAGAMENTO', pagamento: { metodo: 'pix', status: 'pendente', valor: pedido.total, expiraEm, pagoEm: null, copiaCola: COPIA_COLA } };
+    await rota.fulfill({ response: real, json: simulado });
+  });
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+
+  await page.goto(`/conta/pedidos/${id}`);
+  await expect(page.getByRole('heading', { name: /^Pague R\$ .* com PIX$/ })).toBeVisible();
+  await expect(page.getByRole('timer')).toHaveText(/^Expira em (09|10):\d\d$/);
+  await expect(page.getByRole('img', { name: 'QR Code do PIX' })).toHaveAttribute('src', new RegExp(`^/api/conta/pedidos/${id}/pix-qr\\?v=`));
+  await expect(page.getByLabel('PIX copia e cola')).toHaveValue(COPIA_COLA);
+  await page.getByRole('button', { name: 'Copiar código' }).click();
+  await expect(page.getByText('Código PIX copiado!')).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(COPIA_COLA);
+
+  // O "banco" confirma: a próxima consulta (5 s) traz pago e a tela muda sem recarregar.
+  const antes = consultas;
+  pago = true;
+  await expect(page.getByRole('heading', { name: 'Pagamento confirmado' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByLabel('PIX copia e cola')).toHaveCount(0);
+  expect(consultas).toBeGreaterThan(antes);
+  // Pago: a consulta para.
+  const depois = consultas;
+  await page.waitForTimeout(7_000);
+  expect(consultas).toBe(depois);
+});
+
 test('pedido abaixo do mínimo: recusa da API', async ({ page, request }) => {
   const cfg = (await (await request.get(`${API}/config`, { headers: { 'X-Tenant': TENANT } })).json()) as {
     configuracoes?: { pedido_minimo?: { valor?: unknown } };

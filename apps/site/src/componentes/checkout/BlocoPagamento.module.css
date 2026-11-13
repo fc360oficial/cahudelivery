@@ -1,0 +1,31 @@
+.quadro {
+  min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 12px;
+  border-radius: var(--raio-m); border: 1px solid var(--linha); border-left-width: 6px; background: #ffffff;
+}
+.quadro p { margin: 0; }
+.quadro h2 { font-size: 20px; }
+.ok { border-left-color: var(--positivo); }
+.ok h2 { color: var(--positivo); }
+.alerta { border-left-color: var(--destaque); }
+.perigo { border-left-color: var(--perigo); }
+.perigo h2 { color: var(--perigo); }
+.neutro { border-left-color: var(--linha-forte); }
+
+.prazo { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--alerta); }
+.pix { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-start; }
+.qr { width: 220px; height: 220px; flex-shrink: 0; border: 1px solid var(--linha); border-radius: var(--raio-p); background: #ffffff; }
+.codigo { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.codigo label { font-weight: 700; font-size: 14px; }
+.codigo textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--linha-forte); border-radius: var(--raio-p);
+  background: var(--fundo-suave); font-family: ui-monospace, Consolas, monospace; font-size: 13px; resize: none; overflow-wrap: anywhere;
+}
+.copiar {
+  display: inline-flex; align-items: center; min-height: 46px; padding: 0 22px; border: 0; border-radius: var(--raio-pilula);
+  background: var(--destaque); color: var(--sobre-destaque); font-weight: 700; font-size: 15px; cursor: pointer;
+}
+.dica { font-size: 13px; color: var(--tinta-suave); }
+
+@media (max-width: 480px) {
+  .qr { width: 100%; max-width: 260px; height: auto; aspect-ratio: 1; }
+}

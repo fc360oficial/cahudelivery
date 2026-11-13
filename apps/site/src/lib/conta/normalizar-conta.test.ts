@@ -50,12 +50,22 @@ describe('normalizarPaginaPedidos', () => {
     });
     expect(normalizarPaginaPedidos({ dados: [linha(1)], pagina: 2 })).toMatchObject({ pagina: 2, temMais: false });
   });
-  it('pagamento online sem o copia-e-cola (pagamento pelo site é outra etapa)', () => {
+  it('lista: pagamento online sem o copia-e-cola (só a página do pedido mostra o código)', () => {
     const r = normalizarPaginaPedidos({
       dados: [{ ...linha(1), status: 'AGUARDANDO_PAGAMENTO', pagamento: { id: 'x', metodo: 'pix', status: 'pendente', valor: '10.00', copiaCola: '000201...', expiraEm: '2026-11-10T13:00:00Z', pagoEm: null } }],
       pagina: 1,
     });
-    expect(r.dados[0].pagamento).toEqual({ metodo: 'pix', status: 'pendente', valor: 10, expiraEm: '2026-11-10T13:00:00Z', pagoEm: null });
+    expect(r.dados[0].pagamento).toEqual({ metodo: 'pix', status: 'pendente', valor: 10, expiraEm: '2026-11-10T13:00:00Z', pagoEm: null, copiaCola: null });
+  });
+  it('detalhe: copia-e-cola só de PIX pendente e válido (pago, cartão ou texto estranho ficam sem)', () => {
+    const detalhe = (pagamento: Record<string, unknown>) => normalizarPedidoDetalhe({ id: ID, numero: '1', status: 'AGUARDANDO_PAGAMENTO', pagamento }).pagamento?.copiaCola;
+    const base = { id: 'x', metodo: 'pix', status: 'pendente', valor: '10.00', copiaCola: '000201abc', expiraEm: null, pagoEm: null, provedor_ref: 'r' };
+    expect(detalhe(base)).toBe('000201abc');
+    expect(detalhe({ ...base, status: 'pago' })).toBeNull();
+    expect(detalhe({ ...base, metodo: 'cartao' })).toBeNull();
+    expect(detalhe({ ...base, copiaCola: 'a\nb' })).toBeNull();
+    expect(detalhe({ ...base, copiaCola: 5 })).toBeNull();
+    expect(normalizarPedidoDetalhe({ id: ID, pagamento: base }).pagamento).not.toHaveProperty('provedor_ref');
   });
   it('corpo estranho vira lista vazia', () => {
     expect(normalizarPaginaPedidos({})).toEqual({ dados: [], pagina: 1, temMais: false });

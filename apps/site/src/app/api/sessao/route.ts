@@ -3,7 +3,7 @@ import { chamarApi, ErroApi } from '@/lib/api/cliente';
 import { autenticar, recusarOrigem, SEM_CACHE } from '@/lib/sessao/autenticar';
 import { validarLogin } from '@/lib/sessao/credenciais';
 import { requisicaoSegura } from '@/lib/sessao/requisicao';
-import { apagarSessao, tokenValido } from '@/lib/sessao/sessao-cliente';
+import { apagarSessao, estadoDaSessao } from '@/lib/sessao/sessao-cliente';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,14 +18,14 @@ const VISITANTE = { logado: false };
 /** Quem está no navegador: visitante ou cliente (nome e status). Nunca devolve token. */
 export async function GET(req: Request) {
   try {
-    const token = await tokenValido(requisicaoSegura(req.headers, req.url));
-    if (!token) return NextResponse.json(VISITANTE, { headers: SEM_CACHE });
-    const perfil = await chamarApi<Perfil>('/perfil', { token });
+    const sessao = await estadoDaSessao(requisicaoSegura(req.headers, req.url));
+    if (sessao.estado !== 'logado') return NextResponse.json(VISITANTE, { headers: SEM_CACHE });
+    const perfil = await chamarApi<Perfil>('/perfil', { token: sessao.token });
     const nome = perfil.nome_fantasia?.trim() || perfil.razao_social?.trim() || '';
     return NextResponse.json({ logado: true, nome, status: perfil.status ?? null }, { headers: SEM_CACHE });
   } catch (e) {
     if (e instanceof ErroApi && e.status === 401) {
-      await apagarSessao();
+      await apagarSessao(requisicaoSegura(req.headers, req.url));
       return NextResponse.json(VISITANTE, { headers: SEM_CACHE });
     }
     return NextResponse.json(
@@ -53,6 +53,6 @@ export async function POST(req: Request) {
 export async function DELETE(req: Request) {
   const recusa = recusarOrigem(req);
   if (recusa) return recusa;
-  await apagarSessao();
+  await apagarSessao(requisicaoSegura(req.headers, req.url));
   return NextResponse.json(VISITANTE, { headers: SEM_CACHE });
 }

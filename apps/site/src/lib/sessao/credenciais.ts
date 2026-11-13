@@ -31,13 +31,26 @@ export function validarLogin(corpo: unknown): DadosLogin | null {
   return { identificador, senha: o.senha };
 }
 
-/** Para onde ir depois de entrar: só caminho interno (começa com "/" e não com "//" nem "/\"). */
-export function destinoInterno(voltar: string | null): string {
-  if (!voltar || !voltar.startsWith('/') || voltar.startsWith('//') || voltar.startsWith('/\\')) return '/';
-  return voltar;
+const ORIGEM_FALSA = 'http://x.invalid';
+
+/**
+ * Para onde ir depois de entrar: só caminho interno do próprio site. O analisador de URL do
+ * navegador remove TAB/LF/CR e troca a barra invertida por "/", então o texto cru não basta:
+ * rejeita esses caracteres, resolve a URL e confere que continua na mesma origem. Devolve o
+ * caminho resolvido, nunca a entrada.
+ */
+export function destinoInterno(voltar: string | null | undefined): string {
+  if (!voltar || !voltar.startsWith('/') || voltar.startsWith('//') || /[\x00-\x1F\x7F\\]/.test(voltar)) return '/';
+  try {
+    const url = new URL(voltar, ORIGEM_FALSA);
+    if (url.origin !== ORIGEM_FALSA) return '/';
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return '/';
+  }
 }
 
-const CODIGOS_DA_TELA =['PRIMEIRO_ACESSO_PENDENTE', 'CODIGO_INVALIDO'];
+const CODIGOS_DA_TELA = ['PRIMEIRO_ACESSO_PENDENTE', 'CODIGO_INVALIDO'];
 const MENSAGEM_GENERICA = 'Não foi possível entrar agora. Tente novamente.';
 
 /**

@@ -1,28 +1,25 @@
 import { NextResponse } from 'next/server';
 import { chamarApi, ErroApi } from '@/lib/api/cliente';
 import { normalizarCarrinho } from '@/lib/api/normalizar';
+import { respostaSessaoExpirou, SEM_CACHE } from '@/lib/sessao/autenticar';
 import { lerDispositivo } from '@/lib/sessao/dispositivo';
 import { requisicaoSegura } from '@/lib/sessao/requisicao';
-import { apagarSessao, tokenValido } from '@/lib/sessao/sessao-cliente';
+import { estadoDaSessao } from '@/lib/sessao/sessao-cliente';
 
 export const dynamic = 'force-dynamic';
 
-const SEM_CACHE = { 'Cache-Control': 'no-store' };
-const SESSAO_EXPIROU = 'Sua sessão expirou. Entre novamente.';
-
 export async function GET(req: Request) {
   try {
+    const sessao = await estadoDaSessao(requisicaoSegura(req.headers, req.url));
+    // Havia sessão e ela morreu: avisa (401) em vez de mostrar o carrinho do aparelho como se fosse dele.
+    if (sessao.estado === 'expirada') return await respostaSessaoExpirou(req);
     // Cliente logado: carrinho dele (o mesmo do app), sem depender do dispositivo.
-    const token = await tokenValido(requisicaoSegura(req.headers, req.url));
-    if (token) {
+    if (sessao.estado === 'logado') {
       try {
-        const bruto = await chamarApi<Record<string, unknown>>('/carrinho', { token });
+        const bruto = await chamarApi<Record<string, unknown>>('/carrinho', { token: sessao.token });
         return NextResponse.json(normalizarCarrinho(bruto), { headers: SEM_CACHE });
       } catch (e) {
-        if (e instanceof ErroApi && e.status === 401) {
-          await apagarSessao();
-          return NextResponse.json({ mensagem: SESSAO_EXPIROU }, { status: 401, headers: SEM_CACHE });
-        }
+        if (e instanceof ErroApi && e.status === 401) return await respostaSessaoExpirou(req);
         throw e;
       }
     }

@@ -1,7 +1,7 @@
 import 'server-only';
 import { cookies, headers } from 'next/headers';
 import { chamarApi, ErroApi } from '@/lib/api/cliente';
-import { expiracaoDoJwt, precisaRenovar } from './tokens';
+import { decidirSessao, type EstadoSessao } from './estado-sessao';
 
 export const COOKIE_ACESSO = 'fc_acesso';
 export const COOKIE_RENOVA = 'fc_renova';
@@ -28,11 +28,11 @@ export async function gravarSessao(par: ParTokens, seguro: boolean): Promise<voi
   jar.set(COOKIE_RENOVA, par.refreshToken, { ...base, maxAge: TRINTA_DIAS });
 }
 
-/** Sai da conta: apaga os cookies de sessão. O fc_dispositivo fica. */
-export async function apagarSessao(): Promise<void> {
+/** Sai da conta: apaga os cookies de sessão com os mesmos atributos da gravação. O fc_dispositivo fica. */
+export async function apagarSessao(seguro: boolean): Promise<void> {
   const jar = await cookies();
   for (const nome of [COOKIE_ACESSO, COOKIE_RENOVA]) {
-    jar.set(nome, '', { httpOnly: true, sameSite: 'lax', path: '/', maxAge: 0 });
+    jar.set(nome, '', { httpOnly: true, secure: seguro, sameSite: 'lax', path: '/', maxAge: 0 });
   }
 }
 
@@ -43,37 +43,30 @@ export function ipDoVisitante(h: Headers): string | undefined {
 }
 
 /**
- * Access token utilizável, renovando pelo fc_renova quando falta ou vence em < 60 s.
- * Nulo = visitante. Refresh recusado (401) apaga a sessão. Outras falhas da API sobem
- * como ErroApi: a rota responde erro em vez de rebaixar o cliente para visitante.
+ * Estado da sessão, renovando pelo fc_renova quando o access token falta ou vence em < 60 s.
+ * "expirada" = havia sessão e o refresh foi recusado (401): os cookies já foram apagados e a
+ * rota deve responder 401, não tratar como visitante. Outras falhas da API sobem como ErroApi.
  * Só em rota /api (pode gravar cookies).
  */
-export async function tokenValido(seguro: boolean): Promise<string | null> {
+export async function estadoDaSessao(seguro: boolean): Promise<EstadoSessao> {
   const jar = await cookies();
-  const acesso = jar.get(COOKIE_ACESSO)?.value || null;
-  const renova = jar.get(COOKIE_RENOVA)?.value || null;
-  const agora = Date.now();
+  const cookiesDaSessao = {
+    acesso: jar.get(COOKIE_ACESSO)?.value || null,
+    renova: jar.get(COOKIE_RENOVA)?.value || null,
+  };
+  const ip = ipDoVisitante(await headers());
 
-  if (acesso && !precisaRenovar(acesso, agora)) return acesso;
-  if (!renova) {
-    const exp = acesso ? expiracaoDoJwt(acesso) : null;
-    return acesso && exp !== null && exp * 1000 > agora ? acesso : null;
-  }
-
-  try {
-    const par = await chamarApi<unknown>('/auth/refresh', {
-      metodo: 'POST',
-      corpo: { refreshToken: renova },
-      ipCliente: ipDoVisitante(await headers()),
-    });
-    if (!parValido(par)) throw new ErroApi(502, 'Resposta inesperada do servidor.');
-    await gravarSessao(par, seguro);
-    return par.accessToken;
-  } catch (e) {
-    if (e instanceof ErroApi && e.status === 401) {
-      await apagarSessao();
-      return null;
+  const estado = await decidirSessao(cookiesDaSessao, Date.now(), async (renova) => {
+    try {
+      const par = await chamarApi<unknown>('/auth/refresh', { metodo: 'POST', corpo: { refreshToken: renova }, ipCliente: ip });
+      if (!parValido(par)) throw new ErroApi(502, 'Resposta inesperada do servidor.');
+      await gravarSessao(par, seguro);
+      return par.accessToken;
+    } catch (e) {
+      if (e instanceof ErroApi && e.status === 401) return null;
+      throw e instanceof ErroApi ? e : new ErroApi(500, 'Erro inesperado. Tente novamente.');
     }
-    throw e instanceof ErroApi ? e : new ErroApi(500, 'Erro inesperado. Tente novamente.');
-  }
+  });
+  if (estado.estado === 'expirada') await apagarSessao(seguro);
+  return estado;
 }

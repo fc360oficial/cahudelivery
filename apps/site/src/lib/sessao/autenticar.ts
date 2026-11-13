@@ -5,7 +5,7 @@ import { erroDeAutenticacao } from './credenciais';
 import { lerDispositivo } from './dispositivo';
 import { origemConfere } from './origem';
 import { requisicaoSegura } from './requisicao';
-import { gravarSessao, ipDoVisitante, parValido } from './sessao-cliente';
+import { apagarSessao, gravarSessao, ipDoVisitante, parValido } from './sessao-cliente';
 
 export const SEM_CACHE = { 'Cache-Control': 'no-store' };
 
@@ -14,6 +14,15 @@ export function recusarOrigem(req: Request): NextResponse | null {
   const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host');
   if (origemConfere(req.headers.get('origin'), host)) return null;
   return NextResponse.json({ mensagem: 'Origem não permitida.' }, { status: 403, headers: SEM_CACHE });
+}
+
+/** Mensagem única de sessão vencida; o navegador reage ao 401 voltando para "Entrar". */
+export const SESSAO_EXPIROU = 'Sua sessão expirou. Entre novamente.';
+
+/** 401 de sessão expirada, apagando os cookies de sessão (idempotente). */
+export async function respostaSessaoExpirou(req: Request): Promise<NextResponse> {
+  await apagarSessao(requisicaoSegura(req.headers, req.url));
+  return NextResponse.json({ mensagem: SESSAO_EXPIROU }, { status: 401, headers: SEM_CACHE });
 }
 
 /**

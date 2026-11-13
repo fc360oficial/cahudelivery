@@ -14,6 +14,15 @@ describe('destinoInterno', () => {
     expect(destinoInterno('/\\outro.com')).toBe('/');
     expect(destinoInterno('carrinho')).toBe('/');
     expect(destinoInterno('javascript:alert(1)')).toBe('/');
+    expect(destinoInterno(undefined)).toBe('/');
+  });
+  it('rejeita TAB/LF/CR e barra invertida, que o navegador remove ou converte', () => {
+    for (const v of ['/\t/evil.com', '/\n/evil.com', '/\r/evil.com', '/\\evil.com', '/\t\\evil.com', '/a\u0000b', '/a\u007fb']) {
+      expect(destinoInterno(v), JSON.stringify(v)).toBe('/');
+    }
+  });
+  it('mantém caminho, busca e âncora válidos', () => {
+    expect(destinoInterno('/c/x-1?ordem=preco_asc#topo')).toBe('/c/x-1?ordem=preco_asc#topo');
   });
 });
 

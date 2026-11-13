@@ -29,3 +29,22 @@ describe('site', () => {
     expect(linkWhatsapp('abc')).toBeNull();
   });
 });
+
+describe('dados da instalação para o rodapé', () => {
+  it('endereço vem da variável e some quando vazio', async () => {
+    const { enderecoEmpresa } = await import('./site');
+    delete process.env.EMPRESA_ENDERECO;
+    expect(enderecoEmpresa()).toBeNull();
+    process.env.EMPRESA_ENDERECO = '  Rua Exemplo, 100 - Centro, Recife/PE  ';
+    expect(enderecoEmpresa()).toBe('Rua Exemplo, 100 - Centro, Recife/PE');
+    delete process.env.EMPRESA_ENDERECO;
+  });
+  it('advertência de bebida só com a variável ligada', async () => {
+    const { vendeBebidaAlcoolica } = await import('./site');
+    delete process.env.VENDE_BEBIDA_ALCOOLICA;
+    expect(vendeBebidaAlcoolica()).toBe(false);
+    process.env.VENDE_BEBIDA_ALCOOLICA = 'true';
+    expect(vendeBebidaAlcoolica()).toBe(true);
+    delete process.env.VENDE_BEBIDA_ALCOOLICA;
+  });
+});

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Categoria, ConfigLoja } from '@/lib/api/tipos';
 import { caminhoCategoria } from '@/lib/formato/caminhos';
-import { linkWhatsapp } from '@/lib/site';
+import { enderecoEmpresa, linkWhatsapp, vendeBebidaAlcoolica } from '@/lib/site';
 import estilos from './Rodape.module.css';
 
 const LOGO_PADRAO = '/marca/logo.png';
@@ -58,9 +58,14 @@ export function Rodape({ config, categorias }: { config: ConfigLoja; categorias:
           )}
         </div>
       </div>
+      {vendeBebidaAlcoolica() && (
+        <p className={`conteudo ${estilos.advertencia}`}>
+          Se beber, não dirija. Aprecie com moderação. A venda de bebidas alcoólicas é proibida para menores de 18 anos.
+        </p>
+      )}
       <div className={estilos.base}>
         <div className={`conteudo ${estilos.baseLinha}`}>
-          <span>{config.identificacaoLegal ?? config.distribuidora}</span>
+          <span>{[config.identificacaoLegal ?? config.distribuidora, enderecoEmpresa()].filter(Boolean).join(' · ')}</span>
           <span>Venda exclusiva para pessoa jurídica</span>
         </div>
       </div>

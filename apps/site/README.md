@@ -17,6 +17,8 @@ A API precisa estar no ar (o site não acessa o banco):
 | `API_URL` | `http://localhost:3000/v1` | Endereço da API, visto pelo servidor do site |
 | `TENANT` | `cahu` | Slug do tenant enviado em `X-Tenant` |
 | `SITE_URL` | `http://localhost:3010` | Endereço público do site |
+| `EMPRESA_ENDERECO` | (vazio) | Endereço da empresa, mostrado na última linha do rodapé ao lado da razão social e do CNPJ |
+| `VENDE_BEBIDA_ALCOOLICA` | (vazio) | `true` mostra no rodapé a advertência de bebida alcoólica |
 | `SITE_INDEXAVEL` | (vazio) | Só `true` libera o Google; qualquer outro valor mantém `noindex` (trocar exige rebuild, ver "Antes de abrir ao público") |
 
 ## Testes

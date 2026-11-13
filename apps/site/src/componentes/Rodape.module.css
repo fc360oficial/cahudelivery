@@ -35,3 +35,7 @@
 .baseLinha { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; }
 /* Espaço para o botão flutuante de WhatsApp não cobrir a última linha. */
 .base { padding-bottom: 84px; }
+.advertencia {
+  margin: 0 auto; padding-block: 16px; border-top: 1px solid #2c2c2a; text-align: center;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--destaque);
+}

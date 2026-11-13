@@ -37,10 +37,24 @@ export async function rotaDaConta(
     return await acao(sessao.token);
   } catch (e) {
     if (e instanceof ErroApi && e.status === 401) return await respostaSessaoExpirou(req);
+    registrarErro(req, e);
     const erro = e instanceof ErroApi ? e : new ErroApi(500, 'Erro inesperado.');
     const { status, corpo } = erroDaConta(erro.status, erro.message);
     return respostaJson(corpo, status);
   }
+}
+
+/**
+ * Deixa rastro no log do servidor do que deu errado de verdade: falha da API (5xx) e erro do próprio
+ * site. Erro esperado do cliente (4xx) não vira ruído. Só entram método, caminho, status e o texto
+ * do erro: nada de corpo da requisição, cookie ou token.
+ */
+function registrarErro(req: Request, e: unknown): void {
+  if (e instanceof ErroApi && e.status < 500) return;
+  let caminho = '';
+  try { caminho = new URL(req.url).pathname; } catch { /* URL inválida: fica sem caminho */ }
+  const detalhe = e instanceof Error ? `${e.name}: ${e.message}` : 'erro desconhecido';
+  console.error(`[conta] ${req.method} ${caminho} -> ${e instanceof ErroApi ? e.status : 500} ${detalhe}`);
 }
 
 /** Lê o corpo JSON sem lançar; corpo grande demais ou inválido vira nulo. */

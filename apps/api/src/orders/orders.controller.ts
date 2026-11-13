@@ -142,7 +142,12 @@ export class OrdersController {
 
   @Post('pedidos/:id/pagar-cartao')
   @UseGuards(JwtAuthGuard)
-  pagarCartao(@Req() req: ReqCliente, @Param('id', ParseUUIDPipe) id: string, @Body() dto: PagarCartaoDto) {
+  pagarCartao(
+    @Req() req: ReqCliente,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PagarCartaoDto,
+    @Headers('x-canal') canal?: string,
+  ) {
     return this.orders.pagarCartao(
       req.cliente.clienteId,
       id,
@@ -160,6 +165,7 @@ export class OrdersController {
         userAgent: dto.dispositivo?.userAgent ?? String(req.headers['user-agent'] ?? ''),
         dispositivo: dto.dispositivo,
       },
+      origemDoCanal(canal) === 'site',
     );
   }
 

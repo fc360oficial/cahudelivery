@@ -290,6 +290,8 @@ export class OrdersService {
       userAgent: string;
       dispositivo?: { profundidadeCor?: number; altura: number; largura: number; idioma?: string; fusoHoras: number };
     } = { ip: null, userAgent: '' },
+    // Pagamento iniciado pelo site: a volta do 3DS leva o navegador à página do pedido no site.
+    retornoNoSite = false,
   ) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
@@ -312,7 +314,7 @@ export class OrdersService {
     }
     let ctx3ds: Contexto3ds | undefined;
     if (pt.provedor.usa3ds) {
-      const urls = urlsRetorno3ds(tenant.slug);
+      const urls = urlsRetorno3ds(tenant.slug, retornoNoSite ? pedidoId : undefined);
       if (!urls) {
         this.log.error('3DS ligado mas PUBLIC_URL não está configurada — sem URL de retorno do banco');
         throw new BadRequestException('Pagamento com cartão indisponível no momento. Use o PIX ou tente mais tarde.');

@@ -1,28 +1,28 @@
 .cabecalho { position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 0 var(--linha); }
-.faixa { background: var(--tinta); color: #ffffff; font-size: 13px; padding-block: 8px; }
+.faixa { background: var(--tinta); color: #ffffff; font-size: 13px; padding-block: 6px; }
 .faixaLinha { display: flex; flex-wrap: wrap; gap: 4px 24px; justify-content: space-between; align-items: center; }
 .faixa a { display: inline-flex; align-items: center; gap: 8px; color: var(--destaque); font-weight: 600; text-decoration: none; }
 .faixa a:hover { text-decoration: underline; }
 
 .barra { background: var(--destaque); color: var(--sobre-destaque); }
-.principal { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px; padding-block: 16px; }
+.principal { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px; padding-block: 9px; }
 .acoes { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.marca { display: flex; align-items: center; text-decoration: none; min-height: 48px; }
-.logo { height: 38px; width: auto; }
+.marca { display: flex; align-items: center; text-decoration: none; min-height: 44px; }
+.logo { height: 34px; width: auto; }
 .busca {
   flex: 999 1 280px; min-width: 0; display: flex; align-items: center; gap: 8px;
-  height: 52px; padding: 0 5px 0 22px; background: #ffffff; border-radius: var(--raio-pilula);
+  height: 46px; padding: 0 5px 0 22px; background: #ffffff; border-radius: var(--raio-pilula);
   box-shadow: 0 1px 2px rgba(20, 20, 20, 0.12);
 }
 .busca input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; }
 .busca input::placeholder { color: var(--tinta-suave); }
 .busca button {
-  width: 42px; height: 42px; flex-shrink: 0; border: 0; border-radius: 50%; background: var(--tinta);
+  width: 36px; height: 36px; flex-shrink: 0; border: 0; border-radius: 50%; background: var(--tinta);
   color: var(--destaque); cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .busca:focus-within { outline: 2px solid var(--tinta); outline-offset: 2px; }
 .carrinho {
-  display: inline-flex; align-items: center; gap: 10px; height: 52px; padding: 0 22px;
+  display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 22px;
   border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff;
   font-weight: 600; text-decoration: none; transition: transform 0.2s;
 }
@@ -32,7 +32,7 @@
 .navLinha { position: relative; display: flex; align-items: center; gap: 0 28px; font-weight: 600; font-size: 15px; }
 .atalhos { display: flex; align-items: center; gap: 0 28px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .atalhos::-webkit-scrollbar { display: none; }
-.atalhos a { padding-block: 14px; text-decoration: none; white-space: nowrap; border-bottom: 3px solid transparent; }
+.atalhos a { padding-block: 10px; text-decoration: none; white-space: nowrap; border-bottom: 3px solid transparent; }
 .atalhos a:hover { border-bottom-color: var(--destaque); }
 .ofertas {
   margin-left: auto; flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; margin-block: 6px;
@@ -41,7 +41,7 @@
 
 .mega { flex-shrink: 0; }
 .mega summary {
-  list-style: none; display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 18px; margin-block: 4px;
+  list-style: none; display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 18px; margin-block: 4px;
   border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque); cursor: pointer; white-space: nowrap;
 }
 .mega summary::-webkit-details-marker { display: none; }

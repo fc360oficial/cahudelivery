@@ -305,8 +305,12 @@ export class AuthService {
     return { ok: true };
   }
 
-  async definirSenha(clienteId: string, senhaAtual: string, novaSenha: string) {
-    const { pool } = tenantCtx();
+  /**
+   * Troca a senha do cliente logado. As outras sessões caem (refresh tokens apagados na
+   * mesma transação) e a resposta traz um par novo para quem trocou continuar logado.
+   */
+  async definirSenha(clienteId: string, senhaAtual: string, novaSenha: string): Promise<{ ok: true } & TokenPair> {
+    const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
       `select cc.senha_hash, cc.senha_provisoria, c.documento
          from cliente_credenciais cc join clientes c on c.id = cc.cliente_id
@@ -317,11 +321,25 @@ export class AuthService {
       throw new UnauthorizedException('Senha atual incorreta');
     }
     if (senhaFraca(novaSenha, rows[0].documento)) throw new BadRequestException(MSG_SENHA_FRACA);
-    await pool.query(
-      `update cliente_credenciais set senha_hash = $2, senha_provisoria = false, senha_definida_em = now() where cliente_id = $1`,
-      [clienteId, await argon2.hash(novaSenha)],
-    );
-    return { ok: true };
+    const senhaHash = await argon2.hash(novaSenha);
+    const client = await pool.connect();
+    try {
+      await client.query('begin');
+      await client.query(
+        `update cliente_credenciais set senha_hash = $2, senha_provisoria = false, senha_definida_em = now() where cliente_id = $1`,
+        [clienteId, senhaHash],
+      );
+      // Apaga em vez de revogar: o refresh aceita token revogado há menos de 30 s.
+      await client.query(`delete from refresh_tokens where sujeito_id = $1 and sujeito = 'cliente'`, [clienteId]);
+      await client.query('commit');
+    } catch (e) {
+      await client.query('rollback');
+      throw e;
+    } finally {
+      client.release();
+    }
+    // Depois do commit: o par novo não pode cair junto com os antigos.
+    return { ok: true, ...(await this.emitirTokens(clienteId, tenant.slug)) };
   }
 
   /**

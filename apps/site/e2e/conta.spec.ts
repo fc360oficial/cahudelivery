@@ -53,7 +53,7 @@ async function abrirMenuDaConta(page: Page, item: string) {
   await page.getByRole('banner').getByRole('link', { name: item, exact: true }).click();
 }
 
-test('área do cliente: menu, seções, dados, endereço, senha e saída', async ({ page, request }) => {
+test('área do cliente: menu, seções, dados, endereço, senha e saída', async ({ page, request, context }) => {
   const cpf = await criarCliente(request);
   const cpfFormatado = `${cpf.slice(0, 3)}.${cpf.slice(3, 6)}.${cpf.slice(6, 9)}-${cpf.slice(9)}`;
 
@@ -161,6 +161,15 @@ test('área do cliente: menu, seções, dados, endereço, senha e saída', async
   await senha.getByLabel('Senha atual').fill(SENHA);
   await senha.getByRole('button', { name: 'Trocar senha' }).click();
   await expect(senha.getByText(/Senha alterada/)).toBeVisible();
+
+  // A API derrubou as sessões antigas e mandou um par novo: sem o access token, a renovação usa
+  // o refresh novo e o cliente continua logado (com o refresh antigo voltaria para "Entrar").
+  const restantes = (await context.cookies()).filter((c) => c.name !== 'fc_acesso');
+  await context.clearCookies();
+  await context.addCookies(restantes);
+  await page.goto('/conta/dados');
+  await expect(titulo(page, 'Dados cadastrais')).toBeVisible();
+  await expect(page).toHaveURL(/\/conta\/dados$/);
 
   // Sai: a área manda para "Entrar".
   await page.getByRole('button', { name: /Olá/ }).click();

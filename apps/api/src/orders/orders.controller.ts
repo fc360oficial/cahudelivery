@@ -60,14 +60,13 @@ class PagarCartaoDto {
 /**
  * IPv4 do cliente atrás do Caddy (X-Forwarded-For, primeiro da lista). A Rede
  * só aceita IPv4 no 3DS; IPv6 sem IPv4 mapeado vira null e o serviço decide.
+ * O endereço do socket só vale quando não veio X-Forwarded-For: com o
+ * encaminhado presente, o socket é o proxy ou o site (127.0.0.1), não o cliente.
  */
 export function ipv4DoCliente(req: Request): string | null {
   const xff = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
-  for (const bruto of [xff, req.socket?.remoteAddress ?? '']) {
-    const ip = bruto.replace(/^::ffff:/, '');
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip;
-  }
-  return null;
+  const ip = (xff || req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(ip) ? ip : null;
 }
 
 @Controller()

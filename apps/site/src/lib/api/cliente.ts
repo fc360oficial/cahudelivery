@@ -22,6 +22,9 @@ export interface OpcoesApi {
 const base = () => (process.env.API_URL ?? 'http://localhost:3000/v1').replace(/\/+$/, '');
 const tenant = () => process.env.TENANT ?? 'cahu';
 
+/** Slug do tenant deste site (o mesmo do X-Tenant). */
+export const tenantDoSite = (): string => tenant();
+
 /** Única porta do site para a API /v1. Só roda no servidor. */
 export async function chamarApi<T>(caminho: string, op: OpcoesApi = {}): Promise<T> {
   const headers: Record<string, string> = { 'X-Tenant': tenant(), Accept: 'application/json' };
@@ -59,4 +62,31 @@ export async function chamarApi<T>(caminho: string, op: OpcoesApi = {}): Promise
     throw new ErroApi(resp.status, mensagem, codigo);
   }
   return (await resp.json()) as T;
+}
+
+/** Teto de tamanho de arquivo repassado (DANFE/XML de NF-e ficam bem abaixo disto). */
+const LIMITE_ARQUIVO = 10 * 1024 * 1024;
+
+/**
+ * Baixa um arquivo da API (DANFE/XML), sempre do API_URL do servidor, sem cache e sem seguir
+ * redirecionamento. Erro vira ErroApi só com o status (o corpo da API não é repassado).
+ */
+export async function baixarArquivoApi(caminho: string): Promise<{ corpo: ArrayBuffer; tipo: string | null }> {
+  let resp: Response;
+  try {
+    resp = await fetch(`${base()}${caminho}`, {
+      headers: { 'X-Tenant': tenant() },
+      cache: 'no-store',
+      redirect: 'error',
+      signal: AbortSignal.timeout(30_000),
+    });
+  } catch {
+    throw new ErroApi(503, 'Não foi possível falar com o servidor. Tente novamente.');
+  }
+  if (!resp.ok) throw new ErroApi(resp.status, 'Arquivo indisponível.');
+  const tamanho = Number(resp.headers.get('content-length') ?? 0);
+  if (tamanho > LIMITE_ARQUIVO) throw new ErroApi(502, 'Arquivo grande demais.');
+  const corpo = await resp.arrayBuffer();
+  if (corpo.byteLength > LIMITE_ARQUIVO) throw new ErroApi(502, 'Arquivo grande demais.');
+  return { corpo, tipo: resp.headers.get('content-type') };
 }

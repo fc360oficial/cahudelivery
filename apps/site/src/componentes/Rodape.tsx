@@ -6,9 +6,13 @@ import estilos from './Rodape.module.css';
 
 const LOGO_PADRAO = '/marca/logo.png';
 
+/** Só entra no rodapé a forma que a retaguarda diz que a loja aceita. */
+const FORMAS: Record<string, string> = { pix: 'PIX', cartao: 'Cartão de crédito', boleto: 'Boleto', dinheiro: 'Dinheiro', carteira: 'Saldo da carteira' };
+
 export function Rodape({ config, categorias }: { config: ConfigLoja; categorias: Categoria[] }) {
   const whatsapp = linkWhatsapp(config.contatoWhatsapp);
   const raizes = categorias.filter((c) => !c.paiId);
+  const formas = config.formasPagamento.map((f) => FORMAS[f]).filter(Boolean);
   return (
     <footer className={estilos.rodape}>
       <div className={`conteudo ${estilos.colunas}`}>
@@ -33,14 +37,32 @@ export function Rodape({ config, categorias }: { config: ConfigLoja; categorias:
             {config.horarioSemana && <li>Segunda a sexta, {config.horarioSemana}</li>}
             {config.horarioSabado && <li>Sábado, {config.horarioSabado}</li>}
           </ul>
+          <h2 className={estilos.segundo}>No celular</h2>
+          <ul><li>Peça também pelo app <strong>{config.appNome}</strong></li></ul>
         </div>
         <div>
-          <h2>No celular</h2>
-          <ul><li>Peça também pelo app <strong>{config.appNome}</strong></li></ul>
+          {formas.length > 0 && (
+            <>
+              <h2>Formas de pagamento</h2>
+              <ul className={estilos.formas}>{formas.map((f) => <li key={f}>{f}</li>)}</ul>
+            </>
+          )}
+          {(config.politicaPrivacidade || config.politicaCancelamento) && (
+            <nav aria-label="Políticas">
+              <h2 className={formas.length > 0 ? estilos.segundo : undefined}>Políticas</h2>
+              <ul>
+                {config.politicaPrivacidade && <li><Link href="/privacidade">Política de privacidade</Link></li>}
+                {config.politicaCancelamento && <li><Link href="/cancelamento">Cancelamento e devolução</Link></li>}
+              </ul>
+            </nav>
+          )}
         </div>
       </div>
       <div className={estilos.base}>
-        <div className="conteudo">{config.distribuidora} · Venda exclusiva para pessoa jurídica</div>
+        <div className={`conteudo ${estilos.baseLinha}`}>
+          <span>{config.identificacaoLegal ?? config.distribuidora}</span>
+          <span>Venda exclusiva para pessoa jurídica</span>
+        </div>
       </div>
       {whatsapp && (
         <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={estilos.flutuante}>

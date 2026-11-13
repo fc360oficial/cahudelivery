@@ -28,3 +28,8 @@
   .flutuante { right: 14px; bottom: 14px; width: 52px; padding: 0; justify-content: center; }
   .flutuante span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 }
+
+.rodape h2.segundo { margin-top: 28px; }
+.rodape ul.formas { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+.formas li { padding: 6px 12px; border-radius: 8px; background: #ffffff; color: var(--tinta); font-size: 13px; font-weight: 700; }
+.baseLinha { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; }

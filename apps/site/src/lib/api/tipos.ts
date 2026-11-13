@@ -80,6 +80,12 @@ export interface ConfigLoja {
   pedidoMinimo: number | null;
   horarioSemana: string | null;
   horarioSabado: string | null;
+  /** Formas aceitas, como a retaguarda grava: 'pix', 'cartao', 'boleto'… */
+  formasPagamento: string[];
+  politicaPrivacidade: string | null;
+  politicaCancelamento: string | null;
+  /** Razão social e CNPJ, tirados da primeira linha das políticas ("EMPRESA LTDA — CNPJ …"). */
+  identificacaoLegal: string | null;
 }
 
 export interface PaginaProdutos { dados: Produto[]; pagina: number; temMais: boolean }

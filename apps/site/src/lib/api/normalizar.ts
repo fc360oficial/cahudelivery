@@ -89,6 +89,13 @@ export function normalizarCategoria(b: Bruto): Categoria {
   return { id: String(b.id), paiId: txt(b.pai_id), nome: String(b.nome ?? ''), imagemUrl: txt(b.imagem_url) };
 }
 
+/** As políticas da loja abrem com "RAZÃO SOCIAL — CNPJ 00.000.000/0000-00". Só aceita a primeira
+ *  linha se ela tiver um CNPJ no formato; senão devolve nulo (melhor não mostrar do que inventar). */
+export function identificacaoLegal(politica: string | null): string | null {
+  const linha = (politica ?? '').split(/\r?\n/)[0].replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(linha) && linha.length <= 160 ? linha : null;
+}
+
 export function normalizarConfig(b: Bruto): ConfigLoja {
   const tema = (b.tema ?? {}) as Bruto;
   const cfg = (b.configuracoes ?? {}) as Bruto;
@@ -104,6 +111,12 @@ export function normalizarConfig(b: Bruto): ConfigLoja {
     pedidoMinimo: minimo.tipo === 'valor' && num(minimo.valor) > 0 ? num(minimo.valor) : null,
     horarioSemana: txt(horario.seg_sex),
     horarioSabado: txt(horario.sab),
+    formasPagamento: Array.isArray(cfg.formas_pagamento)
+      ? cfg.formas_pagamento.filter((f): f is string => typeof f === 'string' && f.trim() !== '')
+      : [],
+    politicaPrivacidade: txt(cfg.politica_privacidade),
+    politicaCancelamento: txt(cfg.politica_cancelamento),
+    identificacaoLegal: identificacaoLegal(txt(cfg.politica_privacidade)) ?? identificacaoLegal(txt(cfg.politica_cancelamento)),
   };
 }
 

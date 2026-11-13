@@ -65,18 +65,29 @@ describe('normalizarConfig', () => {
       configuracoes: {
         limite_estoque_baixo: '5', contato_whatsapp: '(81) 99999-0000',
         pedido_minimo: { tipo: 'valor', valor: '100' }, horario_atendimento: { seg_sex: '08:00-19:00', sab: '08:00-13:00' },
+        formas_pagamento: ['pix', 'cartao', '', 7],
+        politica_privacidade: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90 ("nós")\n\nTexto da política.',
+        politica_cancelamento: 'Texto do cancelamento.',
       },
     });
     expect(c).toEqual({
       appNome: 'CAHU Delivery', distribuidora: 'CAHU', corPrimaria: '#FFD500',
       logoUrl: 'http://x/l.png', limiteEstoqueBaixo: 5, contatoWhatsapp: '(81) 99999-0000',
       pedidoMinimo: 100, horarioSemana: '08:00-19:00', horarioSabado: '08:00-13:00',
+      formasPagamento: ['pix', 'cartao'],
+      politicaPrivacidade: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90 ("nós")\n\nTexto da política.',
+      politicaCancelamento: 'Texto do cancelamento.',
+      identificacaoLegal: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90',
     });
     const vazio = normalizarConfig({ appNome: 'A', distribuidora: 'B', tema: null, configuracoes: {} });
     expect(vazio.corPrimaria).toBeNull();
     expect(vazio.limiteEstoqueBaixo).toBe(0);
     expect(vazio.pedidoMinimo).toBeNull();
     expect(vazio.horarioSemana).toBeNull();
+    expect(vazio.formasPagamento).toEqual([]);
+    expect(vazio.identificacaoLegal).toBeNull();
+    // Primeira linha sem CNPJ no formato não vira identificação legal.
+    expect(normalizarConfig({ appNome: 'A', distribuidora: 'B', configuracoes: { politica_privacidade: 'Bem-vindo à nossa política' } }).identificacaoLegal).toBeNull();
     expect(vazio.contatoWhatsapp).toBeNull();
   });
 });

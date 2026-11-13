@@ -1,0 +1,8 @@
+.pagina { padding-block: 24px 56px; display: flex; flex-direction: column; gap: 20px; }
+.trilha { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--tinta-suave); }
+.pagina h1 { font-size: 32px; display: flex; align-items: center; gap: 14px; }
+.pagina h1::before { content: ''; width: 10px; height: 32px; border-radius: 5px; background: var(--destaque); flex-shrink: 0; }
+.texto { max-width: 72ch; display: flex; flex-direction: column; gap: 14px; line-height: 1.7; }
+.texto p { margin: 0; white-space: pre-line; }
+.texto h2 { font-size: 16px; letter-spacing: 0.04em; margin-top: 12px; }
+@media (max-width: 640px) { .pagina h1 { font-size: 26px; } }

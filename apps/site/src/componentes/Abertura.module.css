@@ -25,3 +25,11 @@
   .acoes { flex-direction: row; flex-wrap: wrap; }
   .primario, .secundario { flex: 1 1 160px; }
 }
+@media (max-width: 720px) {
+  .abertura { margin-top: 12px; gap: 12px; }
+  .convite { padding: 16px; gap: 6px; border-radius: var(--raio-p); }
+  .convite h2 { font-size: 19px; }
+  .convite h2 span { display: inline; }
+  .acoes { margin-top: 8px; flex-wrap: nowrap; }
+  .primario, .secundario { height: 42px; padding: 0 10px; font-size: 13px; flex: 1 1 0; }
+}

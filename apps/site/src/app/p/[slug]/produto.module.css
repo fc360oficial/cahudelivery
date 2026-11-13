@@ -65,3 +65,15 @@
   .cabeca h1 { font-size: 28px; }
   .precos strong { font-size: 28px; }
 }
+@media (max-width: 720px) {
+  .pagina { padding-top: 14px; gap: 32px; }
+  .trilha { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; font-size: 13px; }
+  .trilha > :last-child { overflow: hidden; text-overflow: ellipsis; }
+  .principal { gap: 20px; }
+  .fotoGrande { aspect-ratio: 4 / 3; border-radius: var(--raio-m); }
+  .fotoGrande img { padding: 12px; }
+  .colunaInfo { gap: 18px; }
+  .precos { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .precoPrincipal, .precoSecundario { padding: 14px; }
+  .precos strong { font-size: 24px; }
+}

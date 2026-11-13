@@ -22,3 +22,10 @@
   .foto { width: 76px; height: 76px; }
   .nome { font-size: 13px; }
 }
+@media (max-width: 720px) {
+  .secao { margin-top: 18px; }
+  .lista { gap: 6px; }
+  .lista li { flex: 0 0 74px; }
+  .foto { width: 62px; height: 62px; }
+  .nome { font-size: 12px; }
+}

@@ -72,3 +72,29 @@
 @media (max-width: 420px) {
   .ofertas { display: none; }
 }
+
+/* ===== Celular: topo compacto (uma linha de marca e ações, busca, e categorias em faixa rolável) ===== */
+@media (max-width: 720px) {
+  .faixa { padding-block: 5px; font-size: 12px; }
+  .faixaLinha { flex-wrap: nowrap; justify-content: center; }
+  .faixaLinha > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .faixa a { display: none; } /* o WhatsApp fica no botão flutuante e no rodapé */
+  .principal { padding-block: 8px 10px; gap: 8px 10px; }
+  .marca { min-height: 40px; }
+  .logo { height: 26px; }
+  .acoes { gap: 8px; }
+  .carrinho { width: 42px; height: 42px; padding: 0; justify-content: center; position: relative; }
+  .carrinho > span:not([data-testid]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .carrinho [data-testid='contador-carrinho'] { position: absolute; top: -4px; right: -4px; }
+  .busca { height: 44px; padding-left: 16px; }
+  .busca button { width: 34px; height: 34px; }
+  .navLinha { gap: 0; padding-inline: 0; }
+  .mega { display: none; } /* no celular as categorias já aparecem na faixa abaixo */
+  .atalhos { display: flex; gap: 8px; padding: 8px var(--margem); width: 100%; }
+  .atalhos a {
+    padding: 7px 14px; border: 1px solid var(--linha-forte); border-radius: var(--raio-pilula);
+    font-size: 13px; font-weight: 600; border-bottom-width: 1px;
+  }
+  .atalhos a:hover { border-color: var(--tinta); }
+  .ofertas { display: none; } /* fica na barra de baixo e nos atalhos de departamento */
+}

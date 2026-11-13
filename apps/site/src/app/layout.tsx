@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Manrope } from 'next/font/google';
 import type { CSSProperties, ReactNode } from 'react';
 import { CarrinhoProvider } from '@/componentes/CarrinhoProvider';
+import { BarraInferior } from '@/componentes/BarraInferior';
 import { Cabecalho } from '@/componentes/Cabecalho';
 import { Rodape } from '@/componentes/Rodape';
 import { SessaoProvider } from '@/componentes/SessaoProvider';
@@ -36,6 +37,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
             <Cabecalho config={config} categorias={categorias} />
             <main>{children}</main>
             <Rodape config={config} categorias={categorias} />
+            <BarraInferior />
           </SessaoProvider>
         </CarrinhoProvider>
       </body>

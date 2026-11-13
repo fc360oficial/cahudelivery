@@ -39,3 +39,10 @@
   margin: 0 auto; padding-block: 16px; border-top: 1px solid #2c2c2a; text-align: center;
   font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--destaque);
 }
+@media (max-width: 720px) {
+  .rodape { margin-top: 48px; }
+  .colunas { padding-block: 32px; gap: 24px; }
+  /* A barra de navegação fica fixa no pé da tela: o rodapé termina acima dela e o WhatsApp sobe. */
+  .base { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .flutuante { bottom: calc(72px + env(safe-area-inset-bottom)); width: 48px; height: 48px; }
+}

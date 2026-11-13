@@ -34,3 +34,7 @@
     clip-path: inset(50%); white-space: nowrap;
   }
 }
+@media (max-width: 720px) {
+  .conta { width: 42px; height: 42px; }
+  .menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: calc(70px + env(safe-area-inset-bottom)); min-width: 0; }
+}

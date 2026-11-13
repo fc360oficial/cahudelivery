@@ -28,3 +28,10 @@
   .seta { display: none; }
   .bolinhas { bottom: 4px; }
 }
+@media (max-width: 720px) {
+  .trilho { border-radius: var(--raio-p); }
+  .bolinhas { bottom: 2px; gap: 0; }
+  .bolinha, .bolinhaAtiva { width: 16px; height: 16px; }
+  .bolinha::before { width: 5px; height: 5px; }
+  .bolinhaAtiva::before { width: 14px; height: 5px; }
+}

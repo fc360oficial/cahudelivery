@@ -15,3 +15,16 @@
 .base { border-top: 1px solid #2c2c2a; padding-block: 18px; font-size: 13px; color: #9a9a94; }
 @media (max-width: 860px) { .colunas { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 520px) { .colunas { grid-template-columns: 1fr; } }
+
+.flutuante {
+  position: fixed; right: 20px; bottom: 20px; z-index: 45; display: inline-flex; align-items: center; gap: 10px;
+  height: 52px; padding: 0 20px 0 16px; border-radius: var(--raio-pilula); background: #0f7a40; color: #ffffff;
+  font-size: 14px; text-decoration: none; box-shadow: 0 8px 22px rgba(20, 20, 20, 0.28); transition: transform 0.2s;
+}
+.rodape a.flutuante:hover { transform: translateY(-2px); text-decoration: none; }
+.flutuante strong { display: block; line-height: 1.15; }
+.flutuante span { line-height: 1.2; }
+@media (max-width: 720px) {
+  .flutuante { right: 14px; bottom: 14px; width: 52px; padding: 0; justify-content: center; }
+  .flutuante span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}

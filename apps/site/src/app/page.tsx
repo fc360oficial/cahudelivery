@@ -19,6 +19,7 @@ export default async function PaginaInicial() {
       <AvisoDesatualizado geradoEm={Date.now()} />
       <Banners banners={home.banners} />
       <AtalhosCategoria categorias={categorias} />
+      <div style={{ marginTop: 32 }}><Vantagens config={config} /></div>
       <div className="conteudo" style={{ display: 'flex', flexDirection: 'column', gap: 48, paddingBlock: 40 }}>
         {secoes.length === 0 && <p>Nenhum produto disponível no momento.</p>}
         {secoes.map((s) =>
@@ -27,7 +28,6 @@ export default async function PaginaInicial() {
             : <Vitrine key={s.chave} titulo={s.titulo} produtos={s.produtos} verTodos={s.verTodos} limiteEstoqueBaixo={config.limiteEstoqueBaixo} />,
         )}
       </div>
-      <Vantagens config={config} />
     </>
   );
 }

@@ -32,27 +32,27 @@ export function Vitrine({ titulo, produtos, verTodos, limiteEstoqueBaixo }: {
   );
 }
 
-/** Vitrine de marca: um quadro com a identificação da marca e o banner do fornecedor inteiro (sem
- *  corte) no topo, e os produtos embaixo. No computador a marca fica à esquerda e o banner à direita,
- *  em tamanho médio; no celular o banner ocupa a largura toda e a marca vem logo abaixo. */
+/** Vitrine de marca. No computador: à esquerda o banner do fornecedor inteiro (sem corte) com o nome
+ *  da marca, e os produtos ao lado. No celular: o banner em cima e os produtos rolando embaixo.
+ *  O logo redondo só aparece quando não há banner, para a marca não aparecer duas vezes. */
 export function VitrinePatrocinada({ patrocinador, limiteEstoqueBaixo }: { patrocinador: Patrocinador; limiteEstoqueBaixo: number }) {
   return (
     <section className={estilos.patrocinada} aria-label={`Produtos ${patrocinador.nome}`}>
       <div className={estilos.apresentacao}>
-        {patrocinador.bannerUrl && (
+        {patrocinador.bannerUrl ? (
           <div className={estilos.bannerPatrocinio}>
             <img src={patrocinador.bannerUrl} alt="" loading="lazy" decoding="async" />
           </div>
+        ) : patrocinador.logoUrl && (
+          <img src={patrocinador.logoUrl} alt="" loading="lazy" className={estilos.logoMarca} />
         )}
         <div className={estilos.marca}>
-          {patrocinador.logoUrl && <img src={patrocinador.logoUrl} alt="" loading="lazy" />}
-          <div>
-            <h2>{patrocinador.nome}</h2>
-            <span className={estilos.patrocinado}>Marca em destaque</span>
-          </div>
+          <span className={estilos.patrocinado}>Marca em destaque</span>
+          <h2>{patrocinador.nome}</h2>
+          <p>{patrocinador.produtos.length === 1 ? '1 produto' : `${patrocinador.produtos.length} produtos`} com preço de atacado</p>
         </div>
       </div>
-      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} />
+      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} porLinha={4} />
     </section>
   );
 }

@@ -42,6 +42,14 @@ export function Rodape({ config, categorias }: { config: ConfigLoja; categorias:
       <div className={estilos.base}>
         <div className="conteudo">{config.distribuidora} · Venda exclusiva para pessoa jurídica</div>
       </div>
+      {whatsapp && (
+        <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={estilos.flutuante}>
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12a8.5 8.5 0 0 1-12.6 7.4L3 21l1.7-5.1A8.5 8.5 0 1 1 21 12z" />
+          </svg>
+          <span><strong>Dúvida no pedido?</strong> Fale com o vendedor</span>
+        </a>
+      )}
     </footer>
   );
 }

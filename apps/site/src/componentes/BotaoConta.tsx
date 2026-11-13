@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useId, useRef, useState } from 'react';
+import { SECOES_MENU } from '@/lib/conta/secoes';
 import { useSessao } from './SessaoProvider';
 import estilos from './BotaoConta.module.css';
 
@@ -14,7 +15,8 @@ function IconePessoa() {
   );
 }
 
-/** "Entrar" para o visitante; "Olá, <nome>" com menu "Sair" para o cliente. Fica entre a busca e o carrinho. */
+/** "Entrar" para o visitante; "Olá, <nome>" com o menu da conta (seções e "Sair") para o cliente.
+ *  Fica entre a busca e o carrinho. */
 export function BotaoConta() {
   const { carregado, logado, nome, sair } = useSessao();
   const caminho = usePathname();
@@ -75,6 +77,12 @@ export function BotaoConta() {
       </button>
       {aberto && (
         <div id={idMenu} className={estilos.menu}>
+          <nav aria-label="Minha conta">
+            {SECOES_MENU.map((s) => (
+              <Link key={s.caminho} href={s.caminho} onClick={() => setAberto(false)}>{s.rotulo}</Link>
+            ))}
+          </nav>
+          <hr />
           <button type="button" onClick={aoSair} disabled={saindo}>{saindo ? 'Saindo…' : 'Sair'}</button>
           {erro && <p role="alert">Não foi possível sair. Tente novamente.</p>}
         </div>

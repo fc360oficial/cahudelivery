@@ -15,6 +15,8 @@ interface ValorSessao {
   entrar: (dados: { identificador: string; senha: string }) => Promise<ResultadoEntrada>;
   primeiroAcesso: (dados: { identificador: string; codigo: string; novaSenha: string }) => Promise<ResultadoEntrada>;
   sair: () => Promise<boolean>;
+  /** Busca de novo nome e status (depois de editar os dados cadastrais). */
+  recarregar: () => Promise<void>;
 }
 
 interface EstadoSessao {
@@ -109,8 +111,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [recarregarCarrinho]);
 
   const valor = useMemo<ValorSessao>(
-    () => ({ ...estado, entrar, primeiroAcesso, sair }),
-    [estado, entrar, primeiroAcesso, sair],
+    () => ({ ...estado, entrar, primeiroAcesso, sair, recarregar: verificar }),
+    [estado, entrar, primeiroAcesso, sair, verificar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

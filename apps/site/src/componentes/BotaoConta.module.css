@@ -14,11 +14,13 @@
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 46; min-width: 180px; padding: 8px;
   background: #ffffff; border-radius: var(--raio-p); box-shadow: 0 16px 32px rgba(20, 20, 20, 0.18);
 }
-.menu button {
-  width: 100%; padding: 10px 14px; border: 0; border-radius: 8px; background: transparent;
-  text-align: left; font-weight: 600; cursor: pointer;
+.menu nav { display: flex; flex-direction: column; }
+.menu a, .menu button {
+  display: block; width: 100%; padding: 10px 14px; border: 0; border-radius: 8px; background: transparent;
+  text-align: left; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap;
 }
-.menu button:hover { background: var(--fundo-suave); }
+.menu a:hover, .menu button:hover { background: var(--fundo-suave); }
+.menu hr { margin: 6px 8px; border: 0; border-top: 1px solid var(--linha); }
 .menu button:disabled { cursor: progress; color: var(--tinta-suave); }
 .menu p { margin: 4px 14px 6px; font-size: 13px; color: var(--perigo); }
 

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { EVENTO_SESSAO_EXPIROU } from '@/componentes/CarrinhoProvider';
 import { caminhoEntrar } from '@/componentes/conta/api-conta';
 import { retornoDoBanco } from '@/lib/checkout/cartao';
-import { deveConsultar, intervaloConsulta, telaDoPagamento, tempoRestante, type TelaPagamento } from '@/lib/checkout/estado-pagamento';
+import { deveConsultar, proximaConsulta, telaDoPagamento, tempoRestante, type TelaPagamento } from '@/lib/checkout/estado-pagamento';
 import type { PedidoDetalhe } from '@/lib/conta/tipos';
 import { formatarDataHora } from '@/lib/formato/datas';
 import { formatarPreco } from '@/lib/formato/preco';
@@ -27,30 +27,47 @@ function useAbaVisivel(): boolean {
   return visivel;
 }
 
-/**
- * Bloco de pagamento da página do pedido. A tela sai SEMPRE do que a API devolve
- * (telaDoPagamento); enquanto espera o pagamento, consulta /api/conta/pedidos/[id] a cada 5 s
- * (recuando em falha, parando com a aba escondida ou quando o pagamento termina).
- */
 const sessaoExpirou = () => {
   window.dispatchEvent(new Event(EVENTO_SESSAO_EXPIROU));
   window.location.replace(caminhoEntrar());
 };
 const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 
-/** Texto da conferência do cartão a partir do status REAL (POST .../pagar-cartao/confirmar). Nulo = pago. */
+/**
+ * Texto da conferência do cartão a partir do status REAL (POST .../pagar-cartao/confirmar). Nulo = pago.
+ * Pendente depois das tentativas = mesmo texto do app (pagamento_cartao_screen.dart): o formulário
+ * fica liberado para tentar de novo. A consulta periódica não chama "confirmar", então nada aqui
+ * promete que a página continua conferindo com o banco.
+ */
 function avisoDaConferencia(status: string): string | null {
   if (status === 'pago') return null;
   if (status === 'expirado') return 'O prazo deste pagamento venceu. Refaça o pedido.';
-  if (status === 'pendente') return 'O banco ainda não confirmou a compra. Se você já confirmou no banco, aguarde: esta página continua conferindo.';
+  if (status === 'creditado') return 'Valor virou crédito: o que você pagou está na sua carteira para usar no próximo pedido.';
   return 'O banco não confirmou a compra. Tente de novo, use outro cartão ou pague com PIX.';
 }
 
+/** Conferências na volta do banco: ~30 s como o app; com ?pagamento=falhou, só ~6 s (a API decide igual). */
+const TENTATIVAS_CONFERENCIA = 10;
+const TENTATIVAS_SE_FALHOU = 3;
+
+/**
+ * Bloco de pagamento da página do pedido. A tela sai SEMPRE do que a API devolve
+ * (telaDoPagamento); enquanto espera o pagamento, consulta /api/conta/pedidos/[id] a cada 5 s
+ * (recuando em falha, parando com a aba escondida ou quando o pagamento termina). Em prazo
+ * encerrado ou PIX gerando a consulta tem teto (proximaConsulta): depois de 30 min para e
+ * mostra "Atualizar".
+ */
 export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe; aoAtualizar: (p: PedidoDetalhe) => void }) {
   const [agora, setAgora] = useState(() => Date.now());
-  const tela = telaDoPagamento(pedido, agora);
+  const [semCodigo, setSemCodigo] = useState(0);
+  const tela = telaDoPagamento(pedido, agora, semCodigo);
   const visivel = useAbaVisivel();
-  const consultar = deveConsultar(tela, visivel);
+  const [parado, setParado] = useState(false);
+  const consultar = deveConsultar(tela, visivel) && !parado;
+  const comTeto = tela.tipo === 'prazo-encerrado' || tela.tipo === 'pix-gerando';
+  const tipoAtual = useRef(tela.tipo);
+  tipoAtual.current = tela.tipo;
+  const esperandoDesde = useRef<number | null>(null);
   const falhas = useRef(0);
   const atualizar = useRef(aoAtualizar);
   atualizar.current = aoAtualizar;
@@ -78,11 +95,11 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
    * Volta do banco (3DS): pergunta à API o status real, por até ~30 s como o app, e recarrega o
    * pedido. O ?pagamento=ok|falhou só dispara a conferência: o resultado mostrado é o da API.
    */
-  const conferirCartao = useCallback(async () => {
+  const conferirCartao = useCallback(async (tentativas = TENTATIVAS_CONFERENCIA) => {
     setConferindo(true);
     setAviso(null);
     let status = 'pendente';
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < tentativas; i++) {
       try {
         const r = await fetch(`/api/conta/pedidos/${pedido.id}/pagar-cartao/confirmar`, { method: 'POST' });
         if (r.status === 401) return sessaoExpirou();
@@ -92,7 +109,7 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
       } catch {
         // sem rede: tenta de novo na próxima volta
       }
-      if (status !== 'pendente') break;
+      if (status !== 'pendente' || i === tentativas - 1) break;
       await esperar(3000);
     }
     await recarregar();
@@ -105,8 +122,26 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
     if (!dica || conferiu.current) return;
     conferiu.current = true;
     router.replace(caminho, { scroll: false }); // tira a dica da URL: recarregar a página não repete
-    if (ehCartao) void conferirCartao();
+    // A dica só encurta a espera; quem decide é sempre o status que a API devolve.
+    if (ehCartao) void conferirCartao(dica === 'falhou' ? TENTATIVAS_SE_FALHOU : TENTATIVAS_CONFERENCIA);
   }, [dica, ehCartao, caminho, router, conferirCartao]);
+
+  // Desde quando a tela está em prazo encerrado / PIX gerando (base do teto da consulta).
+  useEffect(() => {
+    if (comTeto) {
+      esperandoDesde.current ??= Date.now();
+    } else {
+      esperandoDesde.current = null;
+      setParado(false);
+    }
+  }, [comTeto]);
+
+  const atualizarAgora = () => {
+    esperandoDesde.current = Date.now();
+    falhas.current = 0;
+    setParado(false);
+    void recarregar();
+  };
 
   // Relógio da contagem regressiva (só enquanto há prazo correndo).
   const temPrazo = tela.tipo === 'pix' || tela.tipo === 'cartao';
@@ -120,28 +155,35 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
   useEffect(() => {
     if (!consultar) return;
     let vivo = true;
-    let espera: ReturnType<typeof setTimeout>;
+    let espera: ReturnType<typeof setTimeout> | undefined;
+    const agendar = (tipo: TelaPagamento['tipo']) => {
+      const desde = esperandoDesde.current;
+      const ms = proximaConsulta(falhas.current, tipo, desde === null ? 0 : Date.now() - desde);
+      if (ms === null) setParado(true); // teto: para e mostra "Atualizar"
+      else espera = setTimeout(rodada, ms);
+    };
     const rodada = async () => {
+      let tipo = tipoAtual.current;
       try {
         const r = await fetch(`/api/conta/pedidos/${pedido.id}`, { cache: 'no-store' });
         if (!vivo) return;
-        if (r.status === 401) {
-          window.dispatchEvent(new Event(EVENTO_SESSAO_EXPIROU));
-          window.location.replace(caminhoEntrar());
-          return;
-        }
+        if (r.status === 401) return sessaoExpirou();
         if (!r.ok) throw new Error(String(r.status));
         const dados = (await r.json()) as PedidoDetalhe;
         if (!vivo) return;
         falhas.current = 0;
-        setAgora(Date.now());
+        const agoraMs = Date.now();
+        tipo = telaDoPagamento(dados, agoraMs).tipo;
+        // PIX pendente ainda sem código válido: conta as consultas (o limite vira "indisponível").
+        setSemCodigo((n) => (tipo === 'pix-gerando' ? n + 1 : 0));
+        setAgora(agoraMs);
         atualizar.current(dados);
       } catch {
         falhas.current += 1; // sem acelerar em erro: a próxima rodada espera mais
       }
-      if (vivo) espera = setTimeout(rodada, intervaloConsulta(falhas.current));
+      if (vivo) agendar(tipo);
     };
-    espera = setTimeout(rodada, intervaloConsulta(falhas.current));
+    agendar(tipoAtual.current);
     return () => { vivo = false; clearTimeout(espera); };
   }, [consultar, pedido.id]);
 
@@ -166,8 +208,16 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
   return (
     <>
       {conferindo && tela.tipo !== 'cartao' && <p className={estilos.dica} role="status">Conferindo o pagamento com o banco…</p>}
-      {aviso && tela.tipo !== 'cartao' && tela.tipo !== 'pago' && tela.tipo !== 'reservado' && <p className={estilos.avisoCartao} role="alert">{aviso}</p>}
+      {aviso && tela.tipo !== 'cartao' && tela.tipo !== 'pago' && tela.tipo !== 'reservado' && tela.tipo !== 'creditado' && (
+        <p className={estilos.avisoCartao} role="alert">{aviso}</p>
+      )}
       <Tela tela={tela} pedidoId={pedido.id} agora={agora} cartao={cartao} />
+      {parado && comTeto && (
+        <div className={estilos.parado}>
+          <button type="button" className={estilos.copiar} onClick={atualizarAgora}>Atualizar</button>
+          <p className={estilos.dica} role="status">A página parou de conferir sozinha. Toque em Atualizar para ver a situação agora.</p>
+        </div>
+      )}
     </>
   );
 }
@@ -249,7 +299,7 @@ function Tela({ tela, pedidoId, agora, cartao }: {
     case 'indisponivel':
       return (
         <Quadro tom="perigo" titulo="Pagamento indisponível">
-          <p>Não foi possível carregar a situação do pagamento. Atualize a página do pedido.</p>
+          <p>Não foi possível carregar a situação do pagamento. Atualize a página do pedido; se continuar assim, fale com a distribuidora.</p>
         </Quadro>
       );
   }

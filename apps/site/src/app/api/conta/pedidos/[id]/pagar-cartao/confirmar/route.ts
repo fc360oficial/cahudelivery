@@ -4,7 +4,7 @@ import { UUID_INTEIRO } from '@/lib/formato/caminhos';
 
 export const dynamic = 'force-dynamic';
 
-const STATUS = new Set(['pago', 'pendente', 'recusado', 'expirado', 'cancelado', 'falhou', 'estorno_solicitado', 'estornado']);
+const STATUS = new Set(['pago', 'pendente', 'recusado', 'expirado', 'cancelado', 'falhou', 'estorno_solicitado', 'estornado', 'creditado']);
 
 /**
  * POST pedidos/:id/pagar-cartao/confirmar: depois do desafio 3DS, a API consulta a Rede e devolve

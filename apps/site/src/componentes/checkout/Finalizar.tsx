@@ -11,6 +11,7 @@ import { ENDERECO_VAZIO, FormularioEndereco } from '@/componentes/conta/Endereco
 import { Aviso, Carregando, ErroCarga } from '@/componentes/conta/Partes';
 import { barraDoMinimo } from '@/lib/checkout/minimo';
 import { formasDePagamento, saldoAplicado, type CodigoForma } from '@/lib/checkout/formas';
+import { decidirAposIncerto } from '@/lib/checkout/incerto';
 import { MAX_OBSERVACOES } from '@/lib/checkout/pedido';
 import { cadastroEmAnalise } from '@/lib/conta/status';
 import type { Carteira, Endereco } from '@/lib/conta/tipos';
@@ -32,8 +33,36 @@ interface Props {
 const PASSOS = ['Entrega', 'Pagamento', 'Revisão'] as const;
 const ENTRAR = '/entrar?voltar=%2Ffinalizar';
 const INCERTO = 'Não deu para confirmar se o pedido foi criado. Confira em Meus pedidos antes de tentar de novo.';
+const CONFERINDO = 'Conferindo se o pedido foi criado…';
+const PODE_TENTAR = 'Não recebemos a resposta do envio, mas seu carrinho continua com os itens: o pedido não foi registrado. Pode tentar de novo.';
 
-type Falha = { tipo: 'recusa' | 'incerto'; mensagem: string };
+type Falha = { tipo: 'recusa' | 'incerto' | 'conferindo'; mensagem: string };
+
+/** Quantos itens o carrinho tem agora; nulo = não deu para ler. */
+async function itensNoCarrinho(): Promise<number | null> {
+  try {
+    const r = await fetch('/api/carrinho', { cache: 'no-store' });
+    const j = r.ok ? ((await r.json()) as { itens?: unknown }) : null;
+    return Array.isArray(j?.itens) ? j.itens.length : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Primeira página de "Meus pedidos" (id e data); nulo = não deu para ler. */
+async function pedidosRecentes(): Promise<{ id: string; criadoEm: string | null }[] | null> {
+  try {
+    const r = await fetch('/api/conta/pedidos?pagina=1', { cache: 'no-store' });
+    const j = r.ok ? ((await r.json()) as { dados?: unknown }) : null;
+    if (!Array.isArray(j?.dados)) return null;
+    return j.dados.map((p: { id?: unknown; criadoEm?: unknown }) => ({
+      id: typeof p?.id === 'string' ? p.id : '',
+      criadoEm: typeof p?.criadoEm === 'string' ? p.criadoEm : null,
+    }));
+  } catch {
+    return null;
+  }
+}
 
 /** Fechamento do pedido: entrega → pagamento → revisão → POST /api/conta/pedidos (como o checkout do app). */
 export function Finalizar(props: Props) {
@@ -67,9 +96,10 @@ function Checkout({ formasPagamento, cartaoOnline, cartaoEmBreve, condicoesBolet
   const [condicao, setCondicao] = useState(condicoesBoleto[0]);
   const [usarSaldo, setUsarSaldo] = useState(false);
   const [enviando, setEnviando] = useState(false);
-  const [concluido, setConcluido] = useState(false);
+  const [saindo, setSaindo] = useState<string | null>(null);
   const [falha, setFalha] = useState<Falha | null>(null);
   const travado = useRef(false);
+  const inicioEnvio = useRef(0);
   const tituloPasso = useRef<HTMLHeadingElement>(null);
 
   // Endereço inicial: o padrão, senão o primeiro (como o app).
@@ -95,9 +125,41 @@ function Checkout({ formasPagamento, cartaoOnline, cartaoEmBreve, condicoesBolet
 
   const podeContinuar = passo === 0 ? (tipoEntrega === 'retirada' || (!!endereco && !cadastrando)) : true;
 
+  /**
+   * Envio sem resposta (rede, 5xx, tempo esgotado): o botão continua travado enquanto confere
+   * carrinho e "Meus pedidos" (decidirAposIncerto). Só libera nova tentativa com o carrinho
+   * ainda cheio; nunca reenvia sozinho.
+   */
+  const conferirEnvio = async () => {
+    setFalha({ tipo: 'conferindo', mensagem: CONFERINDO });
+    const [itens, pedidos] = await Promise.all([itensNoCarrinho(), pedidosRecentes()]);
+    const decisao = decidirAposIncerto({ itensNoCarrinho: itens, pedidos, inicioEnvio: inicioEnvio.current });
+    switch (decisao.acao) {
+      case 'ir-ao-pedido':
+        setSaindo('Pedido feito! Abrindo o pedido…');
+        router.replace(`/conta/pedidos/${decisao.id}?novo=1`);
+        recarregarCarrinho();
+        return;
+      case 'meus-pedidos':
+        setSaindo('Abrindo Meus pedidos…');
+        router.replace('/conta/pedidos?aviso=conferir');
+        recarregarCarrinho();
+        return;
+      case 'liberar':
+        travado.current = false;
+        setEnviando(false);
+        setFalha({ tipo: 'incerto', mensagem: PODE_TENTAR });
+        return;
+      case 'indeterminado':
+        setFalha({ tipo: 'incerto', mensagem: INCERTO }); // continua travado: "Conferir de novo"
+        return;
+    }
+  };
+
   const confirmar = async () => {
     if (travado.current) return; // duplo clique: um envio só, e nunca reenvio automático
     travado.current = true;
+    inicioEnvio.current = Date.now();
     setEnviando(true);
     setFalha(null);
     const corpo = {
@@ -112,10 +174,7 @@ function Checkout({ formasPagamento, cartaoOnline, cartaoEmBreve, condicoesBolet
     try {
       r = await fetch('/api/conta/pedidos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo) });
     } catch {
-      travado.current = false;
-      setEnviando(false);
-      setFalha({ tipo: 'incerto', mensagem: INCERTO });
-      return;
+      return conferirEnvio();
     }
     const j = (await r.json().catch(() => null)) as { id?: unknown; mensagem?: unknown } | null;
     if (r.status === 401) {
@@ -124,18 +183,19 @@ function Checkout({ formasPagamento, cartaoOnline, cartaoEmBreve, condicoesBolet
       return;
     }
     if (r.ok && typeof j?.id === 'string' && UUID_INTEIRO.test(j.id)) {
-      setConcluido(true);
+      setSaindo('Pedido feito! Abrindo o pedido…');
       router.replace(`/conta/pedidos/${j.id}?novo=1`);
       recarregarCarrinho();
       return; // fica travado: o pedido já existe
     }
+    // Resposta sem pedido legível ou 5xx (inclui 504 de tempo esgotado): pode ter sido criado.
+    if (r.ok || r.status >= 500) return conferirEnvio();
     travado.current = false;
     setEnviando(false);
-    if (r.ok || r.status >= 500) setFalha({ tipo: 'incerto', mensagem: INCERTO });
-    else setFalha({ tipo: 'recusa', mensagem: typeof j?.mensagem === 'string' && j.mensagem ? j.mensagem : 'Não foi possível fechar o pedido.' });
+    setFalha({ tipo: 'recusa', mensagem: typeof j?.mensagem === 'string' && j.mensagem ? j.mensagem : 'Não foi possível fechar o pedido.' });
   };
 
-  if (concluido) return <Carregando texto="Pedido feito! Abrindo o pedido…" />;
+  if (saindo) return <Carregando texto={saindo} />;
   if (!carrinhoCarregado) return <Carregando texto="Carregando seu carrinho…" />;
   if (carrinho.itens.length === 0) {
     return (
@@ -150,9 +210,11 @@ function Checkout({ formasPagamento, cartaoOnline, cartaoEmBreve, condicoesBolet
     <button type="button" className={conta.primario} onClick={() => irPara(passo + 1)} disabled={!podeContinuar}>Continuar</button>
   ) : (
     <button type="button" className={conta.primario} onClick={confirmar} disabled={enviando || emAnalise}>
-      {enviando ? 'Enviando pedido…' : 'Confirmar pedido'}
+      {falha?.tipo === 'conferindo' ? 'Conferindo…' : enviando && !falha ? 'Enviando pedido…' : 'Confirmar pedido'}
     </button>
   );
+  // Travado depois de um envio sem resposta que não deu para conferir: só "Conferir de novo".
+  const semConferencia = falha?.tipo === 'incerto' && enviando;
 
   return (
     <>
@@ -176,9 +238,13 @@ function Checkout({ formasPagamento, cartaoOnline, cartaoEmBreve, condicoesBolet
             {botaoAvancar}
           </div>
 
-          {falha && (
+          {falha?.tipo === 'conferindo' && <p className={conta.info} role="status">{falha.mensagem}</p>}
+          {falha && falha.tipo !== 'conferindo' && (
             <div className={conta.erro} role="alert">
               <p>{falha.mensagem}</p>
+              {semConferencia && (
+                <button type="button" className={conta.secundario} onClick={() => void conferirEnvio()}>Conferir de novo</button>
+              )}
               {falha.tipo === 'incerto' ? (
                 <Link href="/conta/pedidos">Ver meus pedidos</Link>
               ) : whatsapp && (

@@ -227,7 +227,7 @@ test('página do pedido: PIX pendente mostra QR e copia-e-cola e muda sozinha pa
 // Também sem provedor de cartão na API local. Só a resposta do GET do pedido é reescrita no
 // navegador ("aguardando cartão"); o POST do cartão e a conferência do 3DS vão de verdade pelas
 // rotas do site até a API, que responde o real: este pedido não tem pagamento com cartão (404).
-test('página do pedido: cartão pendente (simulado) – formulário, recusa real da API e volta do 3DS forjada não mostra "pago"', async ({ page, request }) => {
+test('página do pedido: cartão pendente (simulado) – formulário, envio chega à API (404: pedido sem cartão) e volta do 3DS forjada não mostra "pago"', async ({ page, request }) => {
   const cpf = await criarClienteAprovado(request);
   await entrar(page, cpf, '/carrinho');
   const id = await pedidoPeloSite(page, request);
@@ -259,7 +259,7 @@ test('página do pedido: cartão pendente (simulado) – formulário, recusa rea
   await expect(form.getByRole('alert')).toHaveText('Confira o número do cartão.');
   expect(enviados).toHaveLength(0);
 
-  // Cartão de teste válido: vai pela rota do site até a API, que recusa de verdade.
+  // Cartão de teste válido: vai pela rota do site até a API, que responde 404 (este pedido não tem cartão).
   await form.getByLabel('Número do cartão').fill('4111111111111111');
   await expect(form.getByLabel('Número do cartão')).toHaveValue('4111 1111 1111 1111');
   await form.getByRole('button', { name: /^Pagar/ }).click();

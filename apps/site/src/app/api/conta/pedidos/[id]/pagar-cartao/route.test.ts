@@ -65,11 +65,21 @@ describe('POST /api/conta/pedidos/[id]/pagar-cartao', () => {
     expect(fetchFalso).toHaveBeenCalledTimes(5);
   });
 
-  it('erro 4xx da API também conta; 409 (em processamento) não', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => resposta(409, { message: 'Pagamento em processamento. Aguarde alguns segundos.' })));
-    for (let i = 0; i < 6; i++) expect((await chamar()).status).toBe(409);
-    vi.stubGlobal('fetch', vi.fn(async () => resposta(404, { message: 'Pedido sem pagamento com cartão' })));
-    for (let i = 0; i < 5; i++) expect((await chamar()).status).toBe(404);
+  it('só a recusa real do cartão conta: erros 4xx/5xx da API (404, 400 indisponível, 409, 500) nunca travam', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const erros: [number, string][] = [
+      [404, 'Pedido sem pagamento com cartão'],
+      [400, 'Pagamento com cartão indisponível no momento. Tente novamente em instantes.'],
+      [409, 'Pagamento em processamento. Aguarde alguns segundos.'],
+      [500, 'falha interna'],
+    ];
+    for (const [status, message] of erros) {
+      vi.stubGlobal('fetch', vi.fn(async () => resposta(status, { message })));
+      for (let i = 0; i < 6; i++) expect((await chamar()).status).toBe(status);
+    }
+    // Depois de 24 erros, a recusa real ainda tem as 5 tentativas inteiras.
+    vi.stubGlobal('fetch', vi.fn(async () => resposta(201, { status: 'recusado', mensagem: 'Não autorizada' })));
+    for (let i = 0; i < 5; i++) expect((await chamar()).status).toBe(200);
     expect((await chamar()).status).toBe(429);
   });
 

@@ -7,7 +7,7 @@ import type { Pagina, PedidoResumo } from '@/lib/conta/tipos';
 import { formatarData } from '@/lib/formato/datas';
 import { formatarPreco } from '@/lib/formato/preco';
 import { useDadosConta } from './api-conta';
-import { Carregando, ErroCarga, Etiqueta, Vazio } from './Partes';
+import { Aviso, Carregando, ErroCarga, Etiqueta, Vazio } from './Partes';
 import estilos from './Conta.module.css';
 
 /** Botões de página ficam acima da lista. */
@@ -26,7 +26,7 @@ export function Paginacao({ pagina, temMais, ocupado, aoMudar }: { pagina: numbe
   );
 }
 
-export function ListaPedidos({ appNome }: { appNome: string }) {
+export function ListaPedidos({ avisoConferir = false }: { avisoConferir?: boolean }) {
   const [pagina, setPagina] = useState(1);
   const carga = useDadosConta<Pagina<PedidoResumo>>(`/api/conta/pedidos?pagina=${pagina}`);
   const dados = carga.dados;
@@ -34,6 +34,12 @@ export function ListaPedidos({ appNome }: { appNome: string }) {
   return (
     <>
       <h1>Meus pedidos</h1>
+      {avisoConferir && (
+        <Aviso tipo="info">
+          Não recebemos a confirmação do seu último envio, mas o carrinho foi esvaziado. Confira abaixo se o pedido aparece;
+          se não aparecer em alguns minutos, fale com a distribuidora antes de fazer outro.
+        </Aviso>
+      )}
       {carga.fase === 'erro' ? (
         <ErroCarga mensagem={carga.erro} aoTentar={carga.recarregar} />
       ) : !dados || (carga.fase === 'carregando' && dados.pagina !== pagina) ? (

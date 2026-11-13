@@ -1,5 +1,5 @@
-import { chamarApi, ErroApi } from '@/lib/api/cliente';
-import { resultadoCartao, validarPagamentoCartao } from '@/lib/checkout/cartao';
+import { chamarApi, TEMPO_LIMITE_PAGAMENTO_MS } from '@/lib/api/cliente';
+import { resultadoCartao, validarPagamentoCartao, type ResultadoCartao } from '@/lib/checkout/cartao';
 import { criarLimite, sujeitoDoJwt } from '@/lib/conta/limite-tentativas';
 import { corpoInvalido, lerCorpo, naoEncontrado, respostaJson, rotaDaConta } from '@/lib/conta/rota-conta';
 import { UUID_INTEIRO } from '@/lib/formato/caminhos';
@@ -11,8 +11,12 @@ export const dynamic = 'force-dynamic';
 const tentativas = criarLimite({ maximo: 5, janelaMs: 15 * 60 * 1000 });
 const MUITAS_TENTATIVAS = 'Muitas tentativas de pagamento com cartão. Aguarde 15 minutos ou pague com PIX.';
 
-/** Erro da API que conta como tentativa recusada: 4xx do pagamento, menos sessão (401) e "em processamento" (409). */
-const contaComoRecusa = (e: unknown) => e instanceof ErroApi && e.status >= 400 && e.status < 500 && e.status !== 401 && e.status !== 409;
+/**
+ * Só a recusa real do cartão conta para o limite: resposta 200 da API com `status: 'recusado'`.
+ * Erro da API (4xx/5xx: provedor fora do ar, "indisponível", pedido sem cartão, em processamento)
+ * não é tentativa de cartão e nunca trava o cliente.
+ */
+const contaComoRecusa = (r: ResultadoCartao) => r.status === 'recusado';
 
 /**
  * POST pedidos/:id/pagar-cartao. Os dados do cartão ficam só nesta requisição (memória), vão
@@ -28,22 +32,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!dados) return corpoInvalido('Confira os dados do cartão: número, nome impresso, validade e código de segurança.');
     const chave = sujeitoDoJwt(token);
     if (chave && tentativas.bloqueado(chave, Date.now())) return respostaJson({ mensagem: MUITAS_TENTATIVAS }, 429);
-    let bruto: unknown;
-    try {
-      bruto = await chamarApi<unknown>(`/pedidos/${id.toLowerCase()}/pagar-cartao`, {
-        metodo: 'POST',
-        corpo: dados,
-        token,
-        canal: 'site',
-        ipCliente: ipDoVisitante(req.headers),
-        userAgent: req.headers.get('user-agent') ?? undefined,
-      });
-    } catch (e) {
-      if (chave && contaComoRecusa(e)) tentativas.registrarFalha(chave, Date.now());
-      throw e;
-    }
+    const bruto = await chamarApi<unknown>(`/pedidos/${id.toLowerCase()}/pagar-cartao`, {
+      metodo: 'POST',
+      corpo: dados,
+      token,
+      canal: 'site',
+      ipCliente: ipDoVisitante(req.headers),
+      userAgent: req.headers.get('user-agent') ?? undefined,
+      tempoLimiteMs: TEMPO_LIMITE_PAGAMENTO_MS,
+    });
     const resultado = resultadoCartao(bruto);
-    if (chave && resultado.status === 'recusado') tentativas.registrarFalha(chave, Date.now());
+    if (chave && contaComoRecusa(resultado)) tentativas.registrarFalha(chave, Date.now());
     if (chave && resultado.status === 'pago') tentativas.limpar(chave);
     return respostaJson(resultado);
   }, { mudaEstado: true });

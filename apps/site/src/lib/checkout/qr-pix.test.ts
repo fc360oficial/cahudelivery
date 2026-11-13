@@ -9,6 +9,14 @@ describe('codigoPixValido', () => {
     expect(codigoPixValido(BR_CODE)).toBe(true);
     expect(codigoPixValido('MOCKPIX-ref-79.90')).toBe(true);
   });
+  it('aceita texto imprimível fora do ASCII (nome/cidade com acento no BR Code)', () => {
+    expect(codigoPixValido(BR_CODE.replace('BRASILIA', 'SÃO JOSÉ'))).toBe(true);
+  });
+  it('recusa caracteres de controle fora do ASCII (C1, separador de linha)', () => {
+    expect(codigoPixValido('abc\u0085def')).toBe(false);
+    expect(codigoPixValido('abc def')).toBe(false);
+    expect(codigoPixValido('abc‮def')).toBe(false);
+  });
   it('recusa vazio, quebra de linha, controle, não-texto e grande demais', () => {
     expect(codigoPixValido('')).toBe(false);
     expect(codigoPixValido('abc\ndef')).toBe(false);

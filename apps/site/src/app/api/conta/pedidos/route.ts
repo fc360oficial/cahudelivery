@@ -1,4 +1,4 @@
-import { chamarApi, ErroApi } from '@/lib/api/cliente';
+import { chamarApi, ErroApi, TEMPO_LIMITE_PAGAMENTO_MS } from '@/lib/api/cliente';
 import { buscarConfig } from '@/lib/api/catalogo';
 import { normalizarPedidoCriado, validarPedido } from '@/lib/checkout/pedido';
 import { normalizarPaginaPedidos } from '@/lib/conta/normalizar-conta';
@@ -21,8 +21,11 @@ export async function GET(req: Request) {
  * POST pedidos: fecha o pedido com o carrinho que a API já tem. O site manda só as escolhas
  * (entrega, endereço, forma, condição do boleto, saldo, observações): preço, total, mínimo,
  * estoque, crédito e bloqueios são da API. Vai com X-Canal: site e com o IP e o navegador do
- * visitante (aceite do pedido / antifraude). A API não tem chave de idempotência; um segundo
- * envio encontra o carrinho já esvaziado pela transação do primeiro e é recusado ("Carrinho vazio").
+ * visitante (aceite do pedido / antifraude). A API não tem chave de idempotência: o que segura
+ * um segundo envio é a trava por cliente com o carrinho lido depois dela (API a partir do commit
+ * "criar pedido lê o carrinho depois da trava do cliente"); antes disso, dois envios simultâneos
+ * podiam criar dois pedidos. Por isso a tela também nunca reenvia sozinha e, quando a resposta
+ * não chega (rede, 5xx, tempo esgotado = 504), confere carrinho e "Meus pedidos" antes de liberar.
  */
 export async function POST(req: Request) {
   return rotaDaConta(req, async (token) => {
@@ -37,6 +40,7 @@ export async function POST(req: Request) {
       canal: 'site',
       ipCliente: ipDoVisitante(req.headers),
       userAgent: req.headers.get('user-agent') ?? undefined,
+      tempoLimiteMs: TEMPO_LIMITE_PAGAMENTO_MS,
     });
     const pedido = normalizarPedidoCriado(bruto);
     // Pedido criado mas resposta fora do formato: a tela manda conferir em "Meus pedidos".

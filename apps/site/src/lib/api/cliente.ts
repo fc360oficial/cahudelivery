@@ -21,7 +21,15 @@ export interface OpcoesApi {
   userAgent?: string;
   /** 'site' em POST pedidos e pagar-cartao: origem do pedido e volta do 3DS para o site. */
   canal?: 'site';
+  /** Tempo limite em ms. Padrão: 30 s nas chamadas sem cache; com cache, só se for passado. */
+  tempoLimiteMs?: number;
 }
+
+/** Tempo limite padrão das chamadas sem cache. */
+export const TEMPO_LIMITE_PADRAO_MS = 30_000;
+/** POST pedidos e pagar-cartao (a API fala com o provedor do PIX/cartão dentro da chamada). */
+export const TEMPO_LIMITE_PAGAMENTO_MS = 60_000;
+const DEMOROU = 'O servidor demorou para responder. Tente novamente.';
 
 /** Só texto imprimível numa linha: nada de CR/LF (injeção de cabeçalho) nem valor vazio. */
 function userAgentSeguro(v: string | undefined): string | undefined {
@@ -55,10 +63,28 @@ export async function chamarApi<T>(caminho: string, op: OpcoesApi = {}): Promise
   if (op.revalidar !== undefined) init.next = { revalidate: op.revalidar };
   else init.cache = 'no-store';
 
+  // Tempo esgotado sem resposta = ErroApi 504 (no fechamento do pedido, a tela trata como "incerto").
+  const limite = op.tempoLimiteMs ?? (op.revalidar === undefined ? TEMPO_LIMITE_PADRAO_MS : undefined);
+  const controle = limite !== undefined ? new AbortController() : null;
+  const relogio = controle ? setTimeout(() => controle.abort(), limite) : undefined;
+  if (controle) init.signal = controle.signal;
+  try {
+    return await ler<T>(`${base()}${caminho}`, init);
+  } catch (e) {
+    // Resposta de erro que já chegou (ErroApi com o status da API) continua sendo ela.
+    if (controle?.signal.aborted && !(e instanceof ErroApi)) throw new ErroApi(504, DEMOROU);
+    throw e;
+  } finally {
+    clearTimeout(relogio);
+  }
+}
+
+async function ler<T>(url: string, init: RequestInit): Promise<T> {
   let resp: Response;
   try {
-    resp = await fetch(`${base()}${caminho}`, init);
-  } catch {
+    resp = await fetch(url, init);
+  } catch (e) {
+    if (init.signal?.aborted) throw e;
     throw new ErroApi(503, 'Não foi possível falar com o servidor. Tente novamente.');
   }
 

@@ -40,7 +40,15 @@ const venceu = (expiraEm: string | null, agoraMs: number): boolean => {
   return Number.isFinite(t) && t <= agoraMs;
 };
 
-export function telaDoPagamento(p: PedidoParaPagamento, agoraMs: number): TelaPagamento {
+/** Consultas seguidas com PIX pendente sem código válido (~30 s) antes de desistir de "Gerando…". */
+export const LIMITE_CONSULTAS_SEM_CODIGO = 6;
+
+/**
+ * `consultasSemCodigo`: quantas consultas seguidas já vieram com o PIX pendente sem código
+ * (ausente ou recusado pelo normalizador). Passou do limite: indisponível, com a orientação de
+ * falar com a distribuidora, em vez de "Gerando código PIX…" para sempre.
+ */
+export function telaDoPagamento(p: PedidoParaPagamento, agoraMs: number, consultasSemCodigo = 0): TelaPagamento {
   const g = p.pagamento;
   if (!g) return { tipo: 'nenhum' };
   const metodo: Metodo = g.metodo === 'cartao' ? 'cartao' : 'pix';
@@ -59,7 +67,8 @@ export function telaDoPagamento(p: PedidoParaPagamento, agoraMs: number): TelaPa
       if (p.status !== 'AGUARDANDO_PAGAMENTO') return { tipo: 'indisponivel' };
       if (venceu(g.expiraEm, agoraMs)) return { tipo: 'prazo-encerrado', metodo };
       if (metodo === 'cartao') return { tipo: 'cartao', valor: g.valor, expiraEm: g.expiraEm };
-      return g.copiaCola ? { tipo: 'pix', copiaCola: g.copiaCola, valor: g.valor, expiraEm: g.expiraEm } : { tipo: 'pix-gerando' };
+      if (g.copiaCola) return { tipo: 'pix', copiaCola: g.copiaCola, valor: g.valor, expiraEm: g.expiraEm };
+      return consultasSemCodigo >= LIMITE_CONSULTAS_SEM_CODIGO ? { tipo: 'indisponivel' } : { tipo: 'pix-gerando' };
     }
     // Status desconhecido: nunca afirmar pago nem expirado sem saber.
     default: return { tipo: 'indisponivel' };
@@ -79,6 +88,24 @@ const TETO_MS = 60_000;
 /** 5 s; a cada falha seguida dobra (sem acelerar em erro), até 60 s. */
 export function intervaloConsulta(falhasSeguidas: number): number {
   return Math.min(TETO_MS, BASE_MS * 2 ** Math.max(0, Math.min(falhasSeguidas, 10)));
+}
+
+/** Estados sem prazo correndo: a espera pode não ter fim, então a consulta tem teto. */
+const COM_TETO = new Set<TelaPagamento['tipo']>(['prazo-encerrado', 'pix-gerando']);
+const LENTO_APOS_MS = 10 * 60_000;
+const PARAR_APOS_MS = 30 * 60_000;
+
+/**
+ * Espera até a próxima consulta. Em `prazo-encerrado` ou `pix-gerando`: normal nos primeiros
+ * 10 min, depois a cada 60 s; passados 30 min, nulo = parar (a tela mostra "Atualizar").
+ * `esperandoHaMs` = há quanto tempo a tela está nesses estados.
+ */
+export function proximaConsulta(falhasSeguidas: number, tela: TelaPagamento['tipo'], esperandoHaMs: number): number | null {
+  const normal = intervaloConsulta(falhasSeguidas);
+  if (!COM_TETO.has(tela)) return normal;
+  if (esperandoHaMs >= PARAR_APOS_MS) return null;
+  if (esperandoHaMs >= LENTO_APOS_MS) return Math.max(normal, TETO_MS);
+  return normal;
 }
 
 /** "mm:ss" que falta até `expiraEm` (00:00 quando passou); nulo sem prazo legível. */

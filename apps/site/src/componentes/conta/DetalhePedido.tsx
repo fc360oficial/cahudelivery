@@ -37,7 +37,7 @@ export function ArquivosNota({ pedidoId, nota }: { pedidoId: string; nota: Pick<
   );
 }
 
-export function DetalhePedido({ id, appNome }: { id: string; appNome: string }) {
+export function DetalhePedido({ id }: { id: string }) {
   const carga = useDadosConta<PedidoDetalhe>(`/api/conta/pedidos/${id}`);
   const enviar = useEnviarConta();
   const { recarregar: recarregarCarrinho } = useCarrinho();

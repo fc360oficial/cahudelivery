@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import { ListaPedidos } from '@/componentes/conta/ListaPedidos';
-import { buscarConfig } from '@/lib/api/catalogo';
 
 export const metadata: Metadata = { title: 'Meus pedidos' };
 
-export default async function PaginaPedidos() {
-  const config = await buscarConfig();
-  return <ListaPedidos appNome={config.appNome} />;
+/** ?aviso=conferir vem do /finalizar quando o envio ficou sem resposta e o carrinho esvaziou. */
+export default async function PaginaPedidos({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const { aviso } = await searchParams;
+  return <ListaPedidos avisoConferir={aviso === 'conferir'} />;
 }

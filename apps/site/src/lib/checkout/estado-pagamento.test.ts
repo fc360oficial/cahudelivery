@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { deveConsultar, intervaloConsulta, telaDoPagamento, tempoRestante } from './estado-pagamento';
+import {
+  deveConsultar, intervaloConsulta, LIMITE_CONSULTAS_SEM_CODIGO, proximaConsulta, telaDoPagamento, tempoRestante,
+} from './estado-pagamento';
 
 const AGORA = Date.parse('2026-11-13T15:00:00Z');
 const daqui = (s: number) => new Date(AGORA + s * 1000).toISOString();
@@ -19,6 +21,14 @@ describe('telaDoPagamento (o que o bloco de pagamento mostra; mesmos estados do 
 
   it('PIX pendente ainda sem código: gerando', () => {
     expect(telaDoPagamento(pix('pendente', { copiaCola: null }), AGORA)).toEqual({ tipo: 'pix-gerando' });
+  });
+
+  it('PIX sem código válido depois de várias consultas: indisponível (não fica "gerando" para sempre)', () => {
+    const semCodigo = pix('pendente', { copiaCola: null });
+    expect(telaDoPagamento(semCodigo, AGORA, LIMITE_CONSULTAS_SEM_CODIGO - 1)).toEqual({ tipo: 'pix-gerando' });
+    expect(telaDoPagamento(semCodigo, AGORA, LIMITE_CONSULTAS_SEM_CODIGO)).toEqual({ tipo: 'indisponivel' });
+    // com código, o contador não importa
+    expect(telaDoPagamento(pix('pendente'), AGORA, 99).tipo).toBe('pix');
   });
 
   it('PIX pendente com o prazo vencido no relógio: prazo encerrado (sem QR para pagar)', () => {
@@ -72,6 +82,24 @@ describe('deveConsultar (consulta periódica do pedido)', () => {
 describe('intervaloConsulta', () => {
   it('5 s normal; recua em falha (10, 20, 40) até 60 s', () => {
     expect([0, 1, 2, 3, 4, 10].map(intervaloConsulta)).toEqual([5000, 10000, 20000, 40000, 60000, 60000]);
+  });
+});
+
+describe('proximaConsulta (teto da consulta periódica)', () => {
+  const MIN = 60_000;
+  it('esperando PIX/cartão com prazo correndo: intervalo normal, sem teto', () => {
+    expect(proximaConsulta(0, 'pix', 2 * 3600 * 1000)).toBe(5000);
+    expect(proximaConsulta(2, 'cartao', 2 * 3600 * 1000)).toBe(20000);
+  });
+  it('prazo encerrado ou PIX gerando: normal até 10 min, depois a cada 60 s', () => {
+    expect(proximaConsulta(0, 'prazo-encerrado', 9 * MIN)).toBe(5000);
+    expect(proximaConsulta(0, 'prazo-encerrado', 10 * MIN)).toBe(60_000);
+    expect(proximaConsulta(0, 'pix-gerando', 15 * MIN)).toBe(60_000);
+    expect(proximaConsulta(5, 'pix-gerando', 15 * MIN)).toBe(60_000);
+  });
+  it('depois de 30 min nesses estados: para (nulo) e a tela mostra "Atualizar"', () => {
+    expect(proximaConsulta(0, 'prazo-encerrado', 30 * MIN)).toBeNull();
+    expect(proximaConsulta(0, 'pix-gerando', 45 * MIN)).toBeNull();
   });
 });
 

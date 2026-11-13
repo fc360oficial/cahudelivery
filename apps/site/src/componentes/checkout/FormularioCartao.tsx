@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { lerValidade, luhnOk, urlDesafioSegura } from '@/lib/checkout/cartao';
 import { formatarPreco } from '@/lib/formato/preco';
 import conta from '@/componentes/conta/Conta.module.css';
@@ -42,6 +42,16 @@ export function FormularioCartao({ pedidoId, valor, recarregar, aoSessaoExpirar 
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [indoAoBanco, setIndoAoBanco] = useState(false);
+
+  // Voltar do banco pelo botão Voltar restaura a página do cache (bfcache) com "Abrindo a página
+  // do seu banco…": devolve o formulário.
+  useEffect(() => {
+    const aoMostrar = (e: PageTransitionEvent) => {
+      if (e.persisted) { setIndoAoBanco(false); setEnviando(false); }
+    };
+    window.addEventListener('pageshow', aoMostrar);
+    return () => window.removeEventListener('pageshow', aoMostrar);
+  }, []);
 
   const limparTudo = () => { setNumero(''); setNome(''); setValidade(''); setCvv(''); };
 
@@ -94,7 +104,8 @@ export function FormularioCartao({ pedidoId, valor, recarregar, aoSessaoExpirar 
   }
 
   return (
-    <form className={estilos.cartaoForm} onSubmit={pagar} aria-label="Pagar com cartão de crédito">
+    // method="post": se um dia for enviado sem JavaScript, o cartão nunca vai para a URL (GET).
+    <form method="post" className={estilos.cartaoForm} onSubmit={pagar} aria-label="Pagar com cartão de crédito">
       <div className={conta.acoes}>
         <button type="submit" className={conta.primario} disabled={enviando}>
           {enviando ? 'Processando…' : `Pagar ${valor != null ? formatarPreco(valor) : ''}`.trim()}

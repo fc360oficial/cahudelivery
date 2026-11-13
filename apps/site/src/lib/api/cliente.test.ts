@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { chamarApi, ErroApi } from './cliente';
+import { chamarApi, ErroApi, TEMPO_LIMITE_PAGAMENTO_MS } from './cliente';
 
 const resposta = (status: number, corpo: unknown) =>
   ({ ok: status >= 200 && status < 300, status, json: async () => corpo }) as Response;
@@ -94,6 +94,49 @@ describe('chamarApi', () => {
   it('mensagem em lista (validação do Nest) é juntada', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => resposta(400, { message: ['a', 'b'] })));
     await expect(chamarApi('/x')).rejects.toMatchObject({ status: 400, message: 'a. b' });
+  });
+
+  describe('tempo limite', () => {
+    /** fetch que só termina se for abortado (API pendurada). */
+    const fetchPendurado = () =>
+      vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_ok, falha) => {
+        init.signal?.addEventListener('abort', () => falha(init.signal!.reason));
+      }));
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+
+    it('sem cache: 30 s por padrão; esgotou vira ErroApi 504 em português', async () => {
+      const f = fetchPendurado();
+      vi.stubGlobal('fetch', f);
+      const p = chamarApi('/pedidos?pagina=1', { token: 't' }).catch((e: unknown) => e);
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect((f.mock.calls[0][1] as RequestInit).signal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const erro = (await p) as ErroApi;
+      expect(erro).toBeInstanceOf(ErroApi);
+      expect(erro.status).toBe(504);
+      expect(erro.message).toBe('O servidor demorou para responder. Tente novamente.');
+    });
+
+    it('aceita outro valor (60 s em pedido e cartão)', async () => {
+      vi.stubGlobal('fetch', fetchPendurado());
+      const p = chamarApi('/pedidos', { metodo: 'POST', corpo: {}, tempoLimiteMs: TEMPO_LIMITE_PAGAMENTO_MS }).catch((e: unknown) => e);
+      expect(TEMPO_LIMITE_PAGAMENTO_MS).toBe(60_000);
+      await vi.advanceTimersByTimeAsync(30_000);
+      let terminou = false;
+      void p.then(() => { terminou = true; });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(terminou).toBe(false);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(((await p) as ErroApi).status).toBe(504);
+    });
+
+    it('resposta a tempo não é abortada depois (o relógio é desligado)', async () => {
+      const f = vi.fn(async (_u: string, _i: RequestInit) => resposta(200, { ok: 1 }));
+      vi.stubGlobal('fetch', f);
+      await expect(chamarApi('/perfil', { token: 't' })).resolves.toEqual({ ok: 1 });
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it('API fora do ar vira ErroApi 503', async () => {

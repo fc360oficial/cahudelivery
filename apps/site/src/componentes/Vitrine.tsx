@@ -32,8 +32,9 @@ export function Vitrine({ titulo, produtos, verTodos, limiteEstoqueBaixo }: {
   );
 }
 
-/** Vitrine de marca: no computador o banner do fornecedor fica à esquerda e os produtos ao lado;
- *  no celular o banner sobe e os produtos rolam embaixo. */
+/** Vitrine de marca: um quadro com a identificação da marca e o banner do fornecedor inteiro (sem
+ *  corte) no topo, e os produtos embaixo. No computador a marca fica à esquerda e o banner à direita,
+ *  em tamanho médio; no celular o banner ocupa a largura toda e a marca vem logo abaixo. */
 export function VitrinePatrocinada({ patrocinador, limiteEstoqueBaixo }: { patrocinador: Patrocinador; limiteEstoqueBaixo: number }) {
   return (
     <section className={estilos.patrocinada} aria-label={`Produtos ${patrocinador.nome}`}>
@@ -51,7 +52,7 @@ export function VitrinePatrocinada({ patrocinador, limiteEstoqueBaixo }: { patro
           </div>
         </div>
       </div>
-      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} porLinha={4} />
+      <Fileira produtos={patrocinador.produtos} limiteEstoqueBaixo={limiteEstoqueBaixo} rotulo={patrocinador.nome} />
     </section>
   );
 }

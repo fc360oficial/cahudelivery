@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
 import { cadastroEmAnalise } from '@/lib/conta/status';
@@ -47,6 +48,11 @@ export function FormularioEntrar({ appNome, whatsapp }: { appNome: string; whats
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [destinoEmAnalise, setDestinoEmAnalise] = useState<string | null>(null);
+
+  // "Primeiro acesso ou esqueci minha senha" vindo de outra tela (p.ex. do cadastro com documento já cadastrado).
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('acesso') === 'primeiro') setModo('primeiro');
+  }, []);
 
   // Cadastro em análise: avisa, mas segue para onde o cliente ia.
   useEffect(() => {
@@ -161,9 +167,13 @@ export function FormularioEntrar({ appNome, whatsapp }: { appNome: string; whats
       <div className={estilos.ajuda}>
         <p>Use o mesmo CNPJ/CPF e a mesma senha do app {appNome}.</p>
         <p>
-          Ainda não é cliente?{' '}
-          {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer">Fale com a distribuidora</a> : 'Fale com a distribuidora.'}
+          Ainda não é cliente? <Link href="/cadastrar">Criar conta</Link>
         </p>
+        {whatsapp && (
+          <p>
+            Prefere ajuda? <a href={whatsapp} target="_blank" rel="noopener noreferrer">Fale com a distribuidora</a>
+          </p>
+        )}
       </div>
     </>
   );

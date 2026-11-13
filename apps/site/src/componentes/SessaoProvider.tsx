@@ -5,7 +5,7 @@ import { EVENTO_SESSAO_EXPIROU, useCarrinho } from './CarrinhoProvider';
 
 export type ResultadoEntrada =
   | { ok: true; status: string | null }
-  | { ok: false; mensagem: string; codigo?: string };
+  | { ok: false; mensagem: string; codigo?: string; erros?: Record<string, string> };
 
 interface ValorSessao {
   carregado: boolean;
@@ -14,6 +14,8 @@ interface ValorSessao {
   status: string | null;
   entrar: (dados: { identificador: string; senha: string }) => Promise<ResultadoEntrada>;
   primeiroAcesso: (dados: { identificador: string; codigo: string; novaSenha: string }) => Promise<ResultadoEntrada>;
+  /** Cadastro de cliente novo: já entra (cookies) e o carrinho do visitante passa para ele. */
+  cadastrar: (dados: object) => Promise<ResultadoEntrada>;
   sair: () => Promise<boolean>;
   /** Busca de novo nome e status (depois de editar os dados cadastrais). */
   recarregar: () => Promise<void>;
@@ -40,6 +42,14 @@ async function lerJson(r: Response): Promise<Record<string, unknown>> {
 }
 
 const texto = (v: unknown) => (typeof v === 'string' && v ? v : null);
+
+/** Erros por campo do cadastro ({ campo: mensagem }); qualquer outra coisa é ignorada. */
+function errosPorCampo(v: unknown): Record<string, string> | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const saida: Record<string, string> = {};
+  for (const [campo, mensagem] of Object.entries(v)) if (typeof mensagem === 'string' && mensagem) saida[campo] = mensagem;
+  return Object.keys(saida).length ? saida : null;
+}
 
 /** Estado "logado" vindo do navegador (GET /api/sessao), como o carrinho: as páginas seguem estáticas. */
 export function SessaoProvider({ children }: { children: ReactNode }) {
@@ -84,6 +94,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       const resultado: ResultadoEntrada = { ok: false, mensagem: texto(j.mensagem) ?? 'Não foi possível entrar agora. Tente novamente.' };
       const codigo = texto(j.codigo);
       if (codigo) resultado.codigo = codigo;
+      const erros = errosPorCampo(j.erros);
+      if (erros) resultado.erros = erros;
       return resultado;
     }
     await verificar();
@@ -96,6 +108,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     (d: { identificador: string; codigo: string; novaSenha: string }) => enviar('/api/sessao/primeiro-acesso', d),
     [enviar],
   );
+
+  const cadastrar = useCallback((d: object) => enviar('/api/sessao/cadastro', d), [enviar]);
 
   const sair = useCallback(async () => {
     try {
@@ -111,8 +125,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   }, [recarregarCarrinho]);
 
   const valor = useMemo<ValorSessao>(
-    () => ({ ...estado, entrar, primeiroAcesso, sair, recarregar: verificar }),
-    [estado, entrar, primeiroAcesso, sair, verificar],
+    () => ({ ...estado, entrar, primeiroAcesso, cadastrar, sair, recarregar: verificar }),
+    [estado, entrar, primeiroAcesso, cadastrar, sair, verificar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }

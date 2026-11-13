@@ -15,8 +15,9 @@ function IconePessoa() {
   );
 }
 
-/** "Entrar" para o visitante; "Olá, <nome>" com o menu da conta (seções e "Sair") para o cliente.
- *  Fica entre a busca e o carrinho. */
+/** "Entrar" (e o link menor "Criar conta") para o visitante; "Olá, <nome>" com o menu da conta
+ *  (seções e "Sair") para o cliente. Fica entre a busca e o carrinho. No celular fica só o ícone de
+ *  entrar; o "Criar conta" aparece na tela de login. */
 export function BotaoConta() {
   const { carregado, logado, nome, sair } = useSessao();
   const caminho = usePathname();
@@ -46,10 +47,13 @@ export function BotaoConta() {
   if (!logado) {
     const voltar = caminho && caminho !== '/' && caminho !== '/entrar' ? `?voltar=${encodeURIComponent(caminho)}` : '';
     return (
-      <Link href={`/entrar${voltar}`} className={estilos.conta}>
-        <IconePessoa />
-        <span className={estilos.rotulo}>Entrar</span>
-      </Link>
+      <div className={estilos.visitante}>
+        <Link href={`/entrar${voltar}`} className={estilos.conta}>
+          <IconePessoa />
+          <span className={estilos.rotulo}>Entrar</span>
+        </Link>
+        <Link href="/cadastrar" className={estilos.criar}>Criar conta</Link>
+      </div>
     );
   }
 

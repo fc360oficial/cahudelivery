@@ -127,6 +127,7 @@ export function normalizarConfig(b: Bruto): ConfigLoja {
     politicaPrivacidade: txt(cfg.politica_privacidade),
     politicaCancelamento: txt(cfg.politica_cancelamento),
     identificacaoLegal: identificacaoLegal(txt(cfg.politica_privacidade)) ?? identificacaoLegal(txt(cfg.politica_cancelamento)),
+    indicacoesAtivas: cfg.indicacoes_ativas === true,
   };
 }
 

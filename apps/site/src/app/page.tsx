@@ -17,7 +17,7 @@ export default async function PaginaInicial() {
   return (
     <>
       <AvisoDesatualizado geradoEm={Date.now()} />
-      <Abertura banners={home.banners} config={config} />
+      <Abertura banners={home.banners} />
       <AtalhosCategoria categorias={categorias} />
       <div style={{ marginTop: 28 }}><Vantagens config={config} /></div>
       <div className="conteudo" style={{ display: 'flex', flexDirection: 'column', gap: 48, paddingBlock: 40 }}>

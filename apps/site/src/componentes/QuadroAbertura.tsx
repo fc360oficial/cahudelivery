@@ -4,9 +4,9 @@ import Link from 'next/link';
 import { useSessao } from './SessaoProvider';
 import estilos from './Abertura.module.css';
 
-/** Quadro ao lado dos banners. Visitante: convite para entrar. Cliente logado: boas-vindas com
+/** Quadro ao lado dos banners. Visitante: convite para entrar ou criar a conta. Cliente logado: boas-vindas com
  *  atalhos. O quadro existe nos dois casos para o banner não mudar de tamanho quando a sessão carrega. */
-export function QuadroAbertura({ whatsapp }: { whatsapp: string | null }) {
+export function QuadroAbertura() {
   const { carregado, logado, nome } = useSessao();
 
   if (carregado && logado) {
@@ -27,9 +27,7 @@ export function QuadroAbertura({ whatsapp }: { whatsapp: string | null }) {
       <h2>Abasteça a sua loja <span>sem sair do balcão.</span></h2>
       <div className={estilos.acoes}>
         <Link href="/entrar" className={estilos.primario}>Já sou cliente: entrar</Link>
-        {whatsapp && (
-          <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={estilos.secundario}>Quero ser cliente</a>
-        )}
+        <Link href="/cadastrar" className={estilos.secundario}>Quero ser cliente</Link>
       </div>
     </aside>
   );

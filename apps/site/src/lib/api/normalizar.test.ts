@@ -81,6 +81,7 @@ describe('normalizarConfig', () => {
         formas_pagamento: ['pix', 'cartao', '', 7],
         politica_privacidade: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90 ("nós")\n\nTexto da política.',
         politica_cancelamento: 'Texto do cancelamento.',
+        indicacoes_ativas: true,
       },
     });
     expect(c).toEqual({
@@ -92,6 +93,7 @@ describe('normalizarConfig', () => {
       politicaPrivacidade: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90 ("nós")\n\nTexto da política.',
       politicaCancelamento: 'Texto do cancelamento.',
       identificacaoLegal: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90',
+      indicacoesAtivas: true,
     });
     const vazio = normalizarConfig({ appNome: 'A', distribuidora: 'B', tema: null, configuracoes: {} });
     expect(vazio.corPrimaria).toBeNull();
@@ -100,6 +102,9 @@ describe('normalizarConfig', () => {
     expect(vazio.horarioSemana).toBeNull();
     expect(vazio.formasPagamento).toEqual([]);
     expect(vazio.identificacaoLegal).toBeNull();
+    // Código de indicação no cadastro só com a chave ligada (como o app).
+    expect(vazio.indicacoesAtivas).toBe(false);
+    expect(normalizarConfig({ appNome: 'A', distribuidora: 'B', configuracoes: { indicacoes_ativas: 'true' } }).indicacoesAtivas).toBe(false);
     // Primeira linha sem CNPJ no formato não vira identificação legal.
     expect(normalizarConfig({ appNome: 'A', distribuidora: 'B', configuracoes: { politica_privacidade: 'Bem-vindo à nossa política' } }).identificacaoLegal).toBeNull();
     expect(vazio.contatoWhatsapp).toBeNull();

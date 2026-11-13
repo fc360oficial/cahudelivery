@@ -92,6 +92,8 @@ export interface ConfigLoja {
   politicaCancelamento: string | null;
   /** Razão social e CNPJ, tirados da primeira linha das políticas ("EMPRESA LTDA — CNPJ …"). */
   identificacaoLegal: string | null;
+  /** Programa de indicação ligado: o cadastro mostra o campo "Código de indicação" (como o app). */
+  indicacoesAtivas: boolean;
 }
 
 export interface PaginaProdutos { dados: Produto[]; pagina: number; temMais: boolean }

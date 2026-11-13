@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import type { Pool, PoolClient } from 'pg';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { CatalogService } from '../catalog/catalog.service';
 import { PagamentosService } from '../pagamentos/pagamentos.service';
@@ -9,6 +10,13 @@ import { urlsRetorno3ds } from '../pagamentos/tres-ds.controller';
 import type { OrigemPedidoCliente } from './origem-pedido';
 
 export type DonoCarrinho = { clienteId?: string; deviceId?: string };
+
+/**
+ * Pool do tenant ou a conexão da transação já aberta. Dentro de criarPedido
+ * TUDO roda na conexão da transação: pedir uma segunda conexão do mesmo pool
+ * com a primeira emprestada trava o pool inteiro quando ~10 pedidos se cruzam.
+ */
+type Executor = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
 @Injectable()
 export class OrdersService {
@@ -20,11 +28,10 @@ export class OrdersService {
     private readonly provedores: ProvedoresService,
   ) {}
 
-  private async carrinhoId(dono: DonoCarrinho): Promise<string> {
-    const { pool } = tenantCtx();
+  private async carrinhoId(dono: DonoCarrinho, exec: Executor = tenantCtx().pool): Promise<string> {
     // coluna vem de whitelist fixa — sem risco de injeção
     const [col, val] = dono.clienteId ? ['cliente_id', dono.clienteId] : ['device_id', dono.deviceId];
-    const { rows } = await pool.query(
+    const { rows } = await exec.query(
       `insert into carrinhos (${col}) values ($1)
        on conflict (${col}) where ${col} is not null do update set atualizado_em = now()
        returning id`,
@@ -33,11 +40,10 @@ export class OrdersService {
     return rows[0].id;
   }
 
-  async carrinho(dono: DonoCarrinho) {
-    const { pool } = tenantCtx();
-    const id = await this.carrinhoId(dono);
-    const tabela = await this.catalog.tabelaPrecoDe(dono.clienteId);
-    const { rows } = await pool.query(
+  async carrinho(dono: DonoCarrinho, exec: Executor = tenantCtx().pool) {
+    const id = await this.carrinhoId(dono, exec);
+    const tabela = await this.catalog.tabelaPrecoDe(dono.clienteId, exec);
+    const { rows } = await exec.query(
       `select ci.produto_id, ci.quantidade, p.nome, p.unidade_venda, p.qtd_minima,
               coalesce(e.quantidade,0) as estoque,
               (select coalesce(pi.url_miniatura, pi.url) from produto_imagens pi where pi.produto_id = p.id order by pi.ordem limit 1) as imagem_url,
@@ -122,37 +128,39 @@ export class OrdersService {
     // em segundo espera o primeiro terminar e encontra o carrinho já esvaziado
     // pelo commit dele ("Carrinho vazio"). Validações e mensagens são as mesmas
     // e na mesma ordem; só passaram a rodar com a trava segura.
+    // Daqui até o release, toda consulta vai em `client` — nunca em `pool`
+    // (ver o tipo Executor): segunda conexão com esta emprestada trava o pool.
     const client = await pool.connect();
     try {
       await client.query('begin');
       await client.query('select pg_advisory_xact_lock(hashtext($1))', [clienteId]);
 
-      const { itens, subtotal } = await this.carrinho({ clienteId });
+      const { itens, subtotal } = await this.carrinho({ clienteId }, client);
       if (!itens.length) throw new BadRequestException('Carrinho vazio');
       for (const i of itens) {
         if (Number(i.estoque) < Number(i.quantidade))
           throw new BadRequestException(`Estoque insuficiente: ${i.nome}`);
       }
-      const cfg = await pool.query(`select valor_json from configuracoes where chave = 'pedido_minimo'`);
+      const cfg = await client.query(`select valor_json from configuracoes where chave = 'pedido_minimo'`);
       const minimo = Number(cfg.rows[0]?.valor_json?.valor ?? 0);
       if (subtotal < minimo) throw new BadRequestException(`Pedido mínimo: R$ ${minimo.toFixed(2)}`);
 
       // Só aceita forma habilitada na retaguarda (Configurações > Formas de pagamento aceitas).
       // Config ausente = comportamento antigo (pix e boleto).
-      const cfgFormas = await pool.query(`select valor_json from configuracoes where chave = 'formas_pagamento'`);
+      const cfgFormas = await client.query(`select valor_json from configuracoes where chave = 'formas_pagamento'`);
       const formasAceitas: string[] = Array.isArray(cfgFormas.rows[0]?.valor_json) ? cfgFormas.rows[0].valor_json : ['pix', 'boleto'];
       if (!formasAceitas.includes(dto.formaPagamento)) {
         throw new BadRequestException('Forma de pagamento não disponível');
       }
-      if (dto.formaPagamento === 'cartao') await this.validarRiscoCartao(clienteId, subtotal);
+      if (dto.formaPagamento === 'cartao') await this.validarRiscoCartao(clienteId, subtotal, client);
 
       if (dto.formaPagamento === 'boleto') {
-        const cred = await pool.query(`select limite_credito from clientes where id = $1`, [clienteId]);
+        const cred = await client.query(`select limite_credito from clientes where id = $1`, [clienteId]);
         const limite = cred.rows[0]?.limite_credito;
         // limite_credito só existe depois que o Dlinks sincroniza o cliente (POST /clientes) — sem
         // isso ainda, não há dado do ERP pra validar, então não bloqueia (comportamento atual mantido).
         if (limite != null) {
-          const aberto = await pool.query(
+          const aberto = await client.query(
             `select coalesce(sum(valor),0) as total from titulos_cliente where cliente_id = $1 and status = 'ABERTO'`,
             [clienteId],
           );
@@ -165,7 +173,7 @@ export class OrdersService {
 
       let enderecoJson: string | null = null;
       if (tipoEntrega === 'entrega') {
-        const end = await pool.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [
+        const end = await client.query(`select * from cliente_enderecos where id = $1 and cliente_id = $2`, [
           dto.enderecoId,
           clienteId,
         ]);
@@ -213,7 +221,7 @@ export class OrdersService {
           dto.formaPagamento === 'boleto' ? (dto.condicaoPagamento ?? 'À vista') : null,
           valorSaldoUsado,
           statusInicial,
-          JSON.stringify(await this.aceite(origem)),
+          JSON.stringify(await this.aceite(origem, client)),
           origemPedido,
         ],
       );
@@ -408,9 +416,8 @@ export class OrdersService {
    * pedido e nº mínimo de pedidos já faturados/entregues antes de liberar o
    * cartão. Cliente novo ou pedido grande vai de PIX (sem chargeback).
    */
-  private async validarRiscoCartao(clienteId: string, subtotal: number) {
-    const { pool } = tenantCtx();
-    const cfg = await pool.query(
+  private async validarRiscoCartao(clienteId: string, subtotal: number, exec: Executor = tenantCtx().pool) {
+    const cfg = await exec.query(
       `select chave, valor_json from configuracoes where chave in ('cartao_valor_maximo','cartao_pedidos_anteriores')`,
     );
     const valor = (chave: string) => Number(cfg.rows.find((r) => r.chave === chave)?.valor_json?.valor ?? 0) || 0;
@@ -422,7 +429,7 @@ export class OrdersService {
     }
     const minimoPedidos = valor('cartao_pedidos_anteriores');
     if (minimoPedidos > 0) {
-      const feitos = await pool.query(
+      const feitos = await exec.query(
         `select count(*)::int as n from pedidos where cliente_id = $1 and origem in ('app_cliente','site') and status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`,
         [clienteId],
       );
@@ -440,9 +447,8 @@ export class OrdersService {
    * Prova do aceite pro caso de contestação: quando, de onde e qual versão do
    * texto da política estava publicada (sha256 dos primeiros 16 hex).
    */
-  private async aceite(origem: { ip: string | null; userAgent: string | null }) {
-    const { pool } = tenantCtx();
-    const pol = await pool.query(`select valor_json from configuracoes where chave = 'politica_cancelamento'`);
+  private async aceite(origem: { ip: string | null; userAgent: string | null }, exec: Executor = tenantCtx().pool) {
+    const pol = await exec.query(`select valor_json from configuracoes where chave = 'politica_cancelamento'`);
     const texto = JSON.stringify(pol.rows[0]?.valor_json ?? null);
     return {
       em: new Date().toISOString(),

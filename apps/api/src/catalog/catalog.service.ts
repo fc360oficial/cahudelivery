@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { Pool, PoolClient } from 'pg';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { DatabaseService } from '../database/database.service';
+
+/** Pool do tenant ou a conexão de uma transação já aberta. */
+type Executor = Pick<Pool, 'query'> | Pick<PoolClient, 'query'>;
 
 export interface FiltroProdutos {
   categoria?: string;
@@ -57,14 +61,16 @@ const ORDENACOES: Record<string, string> = {
 export class CatalogService {
   constructor(private readonly db: DatabaseService) {}
 
-  /** Tabela de preço do cliente logado, ou a padrão do tenant. */
-  async tabelaPrecoDe(clienteId?: string): Promise<string | null> {
-    const { pool } = tenantCtx();
+  /**
+   * Tabela de preço do cliente logado, ou a padrão do tenant. `exec` é a conexão
+   * de quem já está numa transação (criar pedido); sem ela, usa o pool do tenant.
+   */
+  async tabelaPrecoDe(clienteId?: string, exec: Executor = tenantCtx().pool): Promise<string | null> {
     if (clienteId) {
-      const r = await pool.query(`select tabela_preco_id from clientes where id = $1`, [clienteId]);
+      const r = await exec.query(`select tabela_preco_id from clientes where id = $1`, [clienteId]);
       if (r.rows[0]?.tabela_preco_id) return r.rows[0].tabela_preco_id;
     }
-    const p = await pool.query(`select id from tabelas_preco where padrao limit 1`);
+    const p = await exec.query(`select id from tabelas_preco where padrao limit 1`);
     return p.rows[0]?.id ?? null;
   }
 

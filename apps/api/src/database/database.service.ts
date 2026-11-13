@@ -1,6 +1,14 @@
 import { Injectable, NotFoundException, OnModuleDestroy } from '@nestjs/common';
 import { Pool } from 'pg';
 
+/**
+ * Espera máxima por uma conexão livre do pool (ou para abrir uma nova). Sem
+ * isso, pool esgotado vira travamento eterno (13/11/2026: pedidos simultâneos
+ * pararam a API inteira); com isso, vira erro 500 na requisição e o worker
+ * registra a falha e tenta de novo no próximo ciclo.
+ */
+export const ESPERA_CONEXAO_MS = 10_000;
+
 export interface TenantInfo {
   id: string;
   slug: string;
@@ -28,6 +36,7 @@ export class DatabaseService implements OnModuleDestroy {
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: 'fluxo_control',
       max: 5,
+      connectionTimeoutMillis: ESPERA_CONEXAO_MS,
     });
   }
 
@@ -71,6 +80,7 @@ export class DatabaseService implements OnModuleDestroy {
       password: process.env.DB_PASSWORD ?? 'postgres',
       database: rows[0].banco,
       max: 10,
+      connectionTimeoutMillis: ESPERA_CONEXAO_MS,
     });
     this.tenantPools.set(slug, pool);
     return pool;

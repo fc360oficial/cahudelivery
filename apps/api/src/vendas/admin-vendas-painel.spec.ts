@@ -108,6 +108,8 @@ describe('AdminVendasPainelService.painel', () => {
         pedidos: 6,
         pedidosFaturados: 4,
         vendido: 9840,
+        faturado: 9840,
+        devolvido: 0,
         ticketMedio: 2460,
         variacaoPedidosPct: 50,
         variacaoVendidoPct: 20,
@@ -134,8 +136,8 @@ describe('AdminVendasPainelService.painel', () => {
         },
       ],
       ranking: [
-        { vendedorId: V1, nome: 'Ana', vendido: 9840, pedidos: 6, pedidosFaturados: 4, vendidoMes: 9840, metaMes: null, atingidoPct: null },
-        { vendedorId: 'v2', nome: 'Bia', vendido: 0, pedidos: 0, pedidosFaturados: 0, vendidoMes: 0, metaMes: null, atingidoPct: null },
+        { vendedorId: V1, nome: 'Ana', vendido: 9840, faturado: 9840, devolvido: 0, pedidos: 6, pedidosFaturados: 4, vendidoMes: 9840, metaMes: null, atingidoPct: null },
+        { vendedorId: 'v2', nome: 'Bia', vendido: 0, faturado: 0, devolvido: 0, pedidos: 0, pedidosFaturados: 0, vendidoMes: 0, metaMes: null, atingidoPct: null },
       ],
       categorias: [],
     });
@@ -385,6 +387,33 @@ describe('AdminVendasPainelService.painel', () => {
       const sql = sqlDe('/* meta */');
       expect(sql).toContain('vendedor_faturamento_mensal');
       expect(sql).toContain('vendas_meta_percentual');
+    });
+  });
+
+  describe('devoluções', () => {
+    it('vendido é líquido (faturado − devolvido no período); ticket médio continua sobre o faturado', async () => {
+      const { svc, rodar } = montar({ faturado: { vendido: '1000.00', pedidos_faturados: 2, vendido_ant: '800.00', devolvido: '500.00', devolvido_ant: '300.00' } });
+      const out = await rodar(() => svc.painel({}));
+      expect(out.indicadores).toMatchObject({ vendido: 500, faturado: 1000, devolvido: 500, ticketMedio: 500, variacaoVendidoPct: 0 });
+    });
+
+    it('meta e ranking do mês usam o líquido', async () => {
+      const { svc, rodar } = montar({
+        meta: [{ id: V1, vendido_mes: '21000', devolvido_mes: '10500', vendido_ant: '22000', devolvido_ant: '2000', erp_ant: null, percentual: null }],
+      });
+      const out = await rodar(() => svc.painel({}));
+      expect(out.indicadores.meta).toEqual({ percentual: 5, metaMes: 21000, vendidoMes: 10500, atingidoPct: 50 });
+      expect(out.ranking[0]).toMatchObject({ vendidoMes: 10500, metaMes: 21000, atingidoPct: 50 });
+    });
+
+    it('as consultas leem devolucoes_venda sem as canceladas', async () => {
+      const { svc, rodar, sqlDe } = montar();
+      await rodar(() => svc.painel({}));
+      for (const marca of ['/* faturado */', '/* ranking */', '/* meta */']) {
+        const sql = sqlDe(marca);
+        expect(sql).toContain('devolucoes_venda');
+        expect(sql).toContain('not d.cancelada');
+      }
     });
   });
 });

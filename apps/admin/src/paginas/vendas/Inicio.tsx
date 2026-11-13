@@ -11,6 +11,9 @@ interface Painel {
     pedidos: number;
     pedidosFaturados: number;
     vendido: number;
+    /** Faturado antes das devoluções e o total devolvido no período (vendido = faturado − devolvido). */
+    faturado?: number;
+    devolvido?: number;
     ticketMedio: number;
     variacaoPedidosPct: number | null;
     variacaoVendidoPct: number | null;
@@ -21,7 +24,7 @@ interface Painel {
   };
   evolucao: { dia: string; vendido: number; pedidos: number }[];
   recentes: { id: string; numero: number; cliente: string; vendedor: string | null; tabela: string | null; total: number; status: string; criadoEm: string }[];
-  ranking: { vendedorId: string; nome: string; vendido: number; pedidos: number; pedidosFaturados: number; vendidoMes: number; metaMes: number | null; atingidoPct: number | null }[];
+  ranking: { vendedorId: string; nome: string; vendido: number; faturado?: number; devolvido?: number; pedidos: number; pedidosFaturados: number; vendidoMes: number; metaMes: number | null; atingidoPct: number | null }[];
   categorias: { nome: string; vendido: number; pct: number }[];
 }
 
@@ -187,14 +190,17 @@ export function VendasInicio() {
               icone={<Icone><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 0 1-8 0" /></Icone>}
             />
             <Indicador
-              fundo="#0B1F4B" cor="#fff" rotulo="Faturado" valor={formatarReais(ind.vendido)} nota={<NotaVariacao v={ind.variacaoVendidoPct} />}
+              fundo="#0B1F4B" cor="#fff" rotulo={(ind.devolvido ?? 0) > 0 ? 'Venda líquida' : 'Faturado'} valor={formatarReais(ind.vendido)}
+              nota={(ind.devolvido ?? 0) > 0
+                ? <div className="nota">{formatarReais(ind.faturado ?? ind.vendido)} faturado − {formatarReais(ind.devolvido ?? 0)} devolvido</div>
+                : <NotaVariacao v={ind.variacaoVendidoPct} />}
               icone={<Icone><path d="M12 1v22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></Icone>}
             />
             <Indicador
               fundo="#F29F3D" cor="#0B1F4B" rotulo="Meta do mês" valor={ind.meta.atingidoPct == null ? '—' : pct1(ind.meta.atingidoPct)}
               nota={ind.meta.metaMes == null
                 ? <div className="nota">Sem meta: nenhum vendedor faturou no mês anterior</div>
-                : <div className="nota">{formatarReais(ind.meta.vendidoMes)} faturado de {formatarReais(ind.meta.metaMes)} · {pct1(ind.meta.percentual)} sobre o mês anterior</div>}
+                : <div className="nota">{formatarReais(ind.meta.vendidoMes)} de {formatarReais(ind.meta.metaMes)} · {pct1(ind.meta.percentual)} sobre o mês anterior</div>}
               icone={<Icone><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></Icone>}
             />
             <Indicador
@@ -254,7 +260,7 @@ export function VendasInicio() {
                     <li key={r.vendedorId} className="rank">
                       <span className={`medalha${i < 3 && r.vendido > 0 ? ` m${i + 1}` : ''}`}>{i + 1}</span>
                       <span className="rank-nome">{r.nome}</span>
-                      <span className="rank-val"><strong>{formatarReais(r.vendido)}</strong><span className="sub">{r.pedidos} {r.pedidos === 1 ? 'pedido' : 'pedidos'}</span></span>
+                      <span className="rank-val"><strong>{formatarReais(r.vendido)}</strong><span className="sub">{r.pedidos} {r.pedidos === 1 ? 'pedido' : 'pedidos'}{(r.devolvido ?? 0) > 0 ? ` · ${formatarReais(r.devolvido ?? 0)} devolvido` : ''}</span></span>
                       {r.atingidoPct != null && r.metaMes != null
                         ? <BarraMeta pct={r.atingidoPct} meta={r.metaMes} />
                         : <div className="rank-meta"><span className="sub sem-meta">sem meta neste mês</span></div>}

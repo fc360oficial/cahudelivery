@@ -3,6 +3,7 @@ import { tenantCtx } from '../tenancy/tenant-context';
 import {
   addDias,
   calcularMeta,
+  cteDevolucoes,
   cteVendasFaturadas,
   dinheiro,
   diasEntre,
@@ -30,7 +31,8 @@ const dia = (p: number) =>
 
 /**
  * Painel da retaguarda de Vendas. Só pedidos de vendedor.
- * VENDIDO = FATURADO pelo ERP (cteVendasFaturadas: valor faturado, data do faturamento). `pedidos` continua sendo
+ * VENDIDO = FATURADO pelo ERP (cteVendasFaturadas: valor faturado, data do faturamento) MENOS as devoluções que
+ * entraram no período (cteDevolucoes). `faturado` e `devolvido` vão separados. A evolução diária e as categorias são do faturado. `pedidos` continua sendo
  * os pedidos feitos e liberados no período (fora de cancelado/retido/aguardando pagamento); `pedidosFaturados`, os faturados.
  * Períodos (dias do calendário de Recife): hoje = o dia; semana = os últimos 7 dias incluindo hoje; mes = do dia 1 até hoje.
  * O período anterior tem o mesmo número de dias e termina um dia antes do início do atual.
@@ -79,8 +81,10 @@ export class AdminVendasPainelService {
       ),
       pool.query(
         `/* faturado */
-         with ${cteVendasFaturadas('vf', filtroVend(4, 'p.vendedor_id'))}
+         with ${cteVendasFaturadas('vf', filtroVend(4, 'p.vendedor_id'))}, ${cteDevolucoes('dv', filtroVend(4, 'd.vendedor_id'))}
          select coalesce(sum(valor) filter (where data >= ${dia(1)} and data < ${dia(2)}), 0) as vendido,
+                (select coalesce(sum(valor), 0) from dv where data >= ${dia(1)} and data < ${dia(2)}) as devolvido,
+                (select coalesce(sum(valor), 0) from dv where data >= ${dia(3)} and data < ${dia(1)}) as devolvido_ant,
                 (count(*) filter (where data >= ${dia(1)} and data < ${dia(2)}))::int as pedidos_faturados,
                 coalesce(sum(valor) filter (where data >= ${dia(3)} and data < ${dia(1)}), 0) as vendido_ant
            from vf
@@ -126,9 +130,11 @@ export class AdminVendasPainelService {
       ),
       pool.query(
         `/* ranking */
-         with ${cteVendasFaturadas()}
+         with ${cteVendasFaturadas()}, ${cteDevolucoes()}
          select * from (
            select vd.id, vd.nome,
+                  (select coalesce(sum(d.valor), 0) from dv d
+                    where d.vendedor_id = vd.id and d.data >= ${dia(1)} and d.data < ${dia(2)}) as devolvido,
                   (select coalesce(sum(f.valor), 0) from vf f
                     where f.vendedor_id = vd.id and f.data >= ${dia(1)} and f.data < ${dia(2)}) as vendido,
                   (select count(*)::int from vf f
@@ -139,7 +145,7 @@ export class AdminVendasPainelService {
              from vendedores vd
             where vd.ativo
          ) r
-         order by r.vendido desc, r.nome`,
+         order by (r.vendido - r.devolvido) desc, r.nome`,
         [ini, fim],
       ),
       pool.query(
@@ -158,8 +164,12 @@ export class AdminVendasPainelService {
       // Metas: SEMPRE do mês corrente (e a base do mês anterior), qualquer que seja o filtro `periodo`.
       pool.query(
         `/* meta */
-         with ${cteVendasFaturadas()}
+         with ${cteVendasFaturadas()}, ${cteDevolucoes()}
          select vd.id,
+                (select coalesce(sum(d.valor), 0) from dv d
+                  where d.vendedor_id = vd.id and d.data >= ${dia(2)} and d.data < ${dia(3)}) as devolvido_mes,
+                (select coalesce(sum(d.valor), 0) from dv d
+                  where d.vendedor_id = vd.id and d.data >= ${dia(1)} and d.data < ${dia(2)}) as devolvido_ant,
                 (select coalesce(sum(f.valor), 0) from vf f
                   where f.vendedor_id = vd.id and f.data >= ${dia(2)} and f.data < ${dia(3)}) as vendido_mes,
                 (select coalesce(sum(f.valor), 0) from vf f
@@ -177,7 +187,10 @@ export class AdminVendasPainelService {
     const f = fat.rows[0];
     const e = ext.rows[0];
     const pedidos = n(a.pedidos);
-    const vendido = dinheiro(n(f.vendido));
+    const faturado = dinheiro(n(f.vendido));
+    const devolvido = dinheiro(n(f.devolvido));
+    // Vendido = líquido: faturado no período menos as devoluções que entraram no período.
+    const vendido = dinheiro(faturado - devolvido);
     const pedidosFaturados = n(f.pedidos_faturados);
     const variacao = (atual: number, anterior: number) =>
       anterior === 0 ? null : pct1(((atual - anterior) / anterior) * 100);
@@ -187,8 +200,8 @@ export class AdminVendasPainelService {
     const percentual = lerPercentualMeta(met.rows[0]?.percentual);
     const metaPorVendedor = new Map(
       met.rows.map((r) => {
-        const vendidoMes = dinheiro(n(r.vendido_mes));
-        const base = escolherBaseMeta(r.erp_ant, n(r.vendido_ant));
+        const vendidoMes = dinheiro(n(r.vendido_mes) - n(r.devolvido_mes));
+        const base = escolherBaseMeta(r.erp_ant, n(r.vendido_ant) - n(r.devolvido_ant));
         const m = calcularMeta(base.valor, vendidoMes, percentual);
         return [String(r.id), { vendidoMes, metaMes: m.metaMes, atingidoPct: m.atingidoPct }] as const;
       }),
@@ -208,9 +221,11 @@ export class AdminVendasPainelService {
         pedidos,
         pedidosFaturados,
         vendido,
-        ticketMedio: pedidosFaturados ? dinheiro(vendido / pedidosFaturados) : 0,
+        faturado,
+        devolvido,
+        ticketMedio: pedidosFaturados ? dinheiro(faturado / pedidosFaturados) : 0,
         variacaoPedidosPct: variacao(pedidos, n(a.pedidos_ant)),
-        variacaoVendidoPct: variacao(vendido, dinheiro(n(f.vendido_ant))),
+        variacaoVendidoPct: variacao(vendido, dinheiro(n(f.vendido_ant) - n(f.devolvido_ant))),
         positivacao: {
           clientesCarteira: carteira,
           clientesPositivados: positivados,
@@ -248,7 +263,9 @@ export class AdminVendasPainelService {
       ranking: rnk.rows.map((r) => ({
         vendedorId: r.id,
         nome: r.nome,
-        vendido: dinheiro(n(r.vendido)),
+        vendido: dinheiro(n(r.vendido) - n(r.devolvido)),
+        faturado: dinheiro(n(r.vendido)),
+        devolvido: dinheiro(n(r.devolvido)),
         pedidos: n(r.pedidos),
         pedidosFaturados: n(r.pedidos_faturados),
         // Sempre do mês corrente, qualquer que seja o `periodo` (vendido/pedidos acima seguem o período).

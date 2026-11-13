@@ -40,7 +40,7 @@ e `E2E_BASE_URL=http://localhost:3011`). Com a chave desligada o spec inteiro pu
 
 ## Antes de abrir ao público
 
-- **`CHECKOUT_LIGADO`:** só ligar depois de (a) a migração 039 aplicada no banco do tenant, (b) a API publicada com o cabeçalho `X-Canal` e a volta do 3DS para o site, (c) `SITE_URL_<TENANT>` configurada na API e (d) um pedido real de valor baixo testado em PIX e em cartão. Depois de trocar, rebuild e restart do site.
+- **`CHECKOUT_LIGADO`:** só ligar depois de (a) a migração 040 (`040_origem_site.sql`) aplicada no banco do tenant, (b) a API publicada com o cabeçalho `X-Canal` e a volta do 3DS para o site, (c) `SITE_URL_<TENANT>` configurada na API e (d) um pedido real de valor baixo testado em PIX e em cartão. Depois de trocar, rebuild e restart do site.
 
 - **Limite de requisições no Caddy.** A busca (`/busca?q=`) não usa cache e cada consulta chega ao banco; ponha rate limiting no Caddy.
 - **`Strict-Transport-Security` no Caddy**, depois de confirmar que o https funciona em todos os caminhos.

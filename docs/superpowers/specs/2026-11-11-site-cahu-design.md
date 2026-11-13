@@ -95,7 +95,7 @@ cookies e token, `lib/formato` é função pura e testável, componentes não bu
 Duas, pequenas e compatíveis com o app atual:
 
 1. **Origem do pedido.** `pedidos.origem` hoje aceita `app_cliente` e `vendedor`
-   (migração 034). Nova migração (039) acrescenta `site` ao `check`. `POST /v1/pedidos` passa
+   (migração 034). Nova migração (040, `040_origem_site.sql`) acrescenta `site` ao `check`. `POST /v1/pedidos` passa
    a aceitar o cabeçalho opcional `X-Canal: site`; sem ele o valor continua `app_cliente`.
    A retaguarda mostra a origem na lista e no detalhe do pedido.
 2. **Retorno do cartão (3DS).** A página `GET /v1/pagamentos/3ds/:tenant/:resultado` hoje diz

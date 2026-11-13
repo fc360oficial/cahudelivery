@@ -14,4 +14,4 @@ alter table pedidos validate constraint pedidos_origem_check;
 
 reset lock_timeout;
 
-insert into schema_migrations (versao) values ('039') on conflict do nothing;
+insert into schema_migrations (versao) values ('040') on conflict do nothing;

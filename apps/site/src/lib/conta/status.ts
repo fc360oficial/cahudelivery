@@ -35,6 +35,9 @@ const CADASTRO: Record<string, Rotulo> = {
   excluido: { rotulo: 'Excluído', tom: 'perigo' },
 };
 
+/** Cadastro ainda não liberado para fechar pedido: só "pendente", como no app (carrinho_screen.dart). */
+export const cadastroEmAnalise = (status: string | null | undefined): boolean => status === 'pendente';
+
 export function situacaoCadastro(status: string | null | undefined): Rotulo {
   return (status && CADASTRO[status]) || desconhecido(status);
 }

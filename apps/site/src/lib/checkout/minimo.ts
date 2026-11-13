@@ -1,3 +1,5 @@
+import { cadastroEmAnalise } from '@/lib/conta/status';
+
 /** Barra do pedido mínimo do carrinho (mesma conta do app: carrinho_screen.dart). */
 export interface BarraMinimo {
   temMinimo: boolean;
@@ -28,7 +30,7 @@ export type MotivoBloqueio = 'vazio' | 'minimo' | 'em-analise';
  */
 export function podeFinalizar(e: { itens: number; atingiu: boolean; statusCadastro: string | null }): { pode: boolean; motivo: MotivoBloqueio | null } {
   if (e.itens <= 0) return { pode: false, motivo: 'vazio' };
-  if (e.statusCadastro === 'pendente') return { pode: false, motivo: 'em-analise' };
+  if (cadastroEmAnalise(e.statusCadastro)) return { pode: false, motivo: 'em-analise' };
   if (!e.atingiu) return { pode: false, motivo: 'minimo' };
   return { pode: true, motivo: null };
 }

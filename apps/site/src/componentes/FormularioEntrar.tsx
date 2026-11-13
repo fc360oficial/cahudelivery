@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
+import { cadastroEmAnalise } from '@/lib/conta/status';
 import { destinoInterno } from '@/lib/sessao/credenciais';
 import { useSessao, type ResultadoEntrada } from './SessaoProvider';
 import estilos from '@/app/entrar/entrar.module.css';
@@ -68,7 +69,7 @@ export function FormularioEntrar({ appNome, whatsapp }: { appNome: string; whats
       return;
     }
     const destino = destinoInterno(new URLSearchParams(window.location.search).get('voltar'));
-    if (r.status && r.status !== 'ativo') setDestinoEmAnalise(destino);
+    if (cadastroEmAnalise(r.status)) setDestinoEmAnalise(destino);
     else router.push(destino);
   };
 

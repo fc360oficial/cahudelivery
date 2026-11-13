@@ -96,6 +96,12 @@ export function identificacaoLegal(politica: string | null): string | null {
   return /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/.test(linha) && linha.length <= 160 ? linha : null;
 }
 
+/** Prazos de boleto da retaguarda (config 'condicoes_boleto'); sem lista, "À vista" como no app. */
+function condicoesBoleto(v: unknown): string[] {
+  const lista = Array.isArray(v) ? v.filter((c): c is string => typeof c === 'string' && c.trim() !== '').map((c) => c.trim()) : [];
+  return lista.length > 0 ? lista : ['À vista'];
+}
+
 export function normalizarConfig(b: Bruto): ConfigLoja {
   const tema = (b.tema ?? {}) as Bruto;
   const cfg = (b.configuracoes ?? {}) as Bruto;
@@ -114,6 +120,10 @@ export function normalizarConfig(b: Bruto): ConfigLoja {
     formasPagamento: Array.isArray(cfg.formas_pagamento)
       ? cfg.formas_pagamento.filter((f): f is string => typeof f === 'string' && f.trim() !== '')
       : [],
+    cartaoOnline: cfg.cartao_online === true,
+    // Aviso "cartão em breve" só com o aviso ligado e o cartão fora das formas (cartao_em_breve.dart).
+    cartaoEmBreve: cfg.cartao_em_breve === true && Array.isArray(cfg.formas_pagamento) && !cfg.formas_pagamento.includes('cartao'),
+    condicoesBoleto: condicoesBoleto(cfg.condicoes_boleto),
     politicaPrivacidade: txt(cfg.politica_privacidade),
     politicaCancelamento: txt(cfg.politica_cancelamento),
     identificacaoLegal: identificacaoLegal(txt(cfg.politica_privacidade)) ?? identificacaoLegal(txt(cfg.politica_cancelamento)),

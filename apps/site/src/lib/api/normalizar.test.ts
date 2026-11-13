@@ -58,6 +58,19 @@ describe('normalizarHome', () => {
 });
 
 describe('normalizarConfig', () => {
+  it('cartão online, cartão "em breve" e condições do boleto como o app lê', () => {
+    const c = (configuracoes: Record<string, unknown>) => normalizarConfig({ appNome: 'A', distribuidora: 'B', configuracoes });
+    expect(c({ cartao_online: true }).cartaoOnline).toBe(true);
+    expect(c({ cartao_online: 'true' }).cartaoOnline).toBe(false);
+    // "Em breve" só com o aviso ligado E o cartão fora das formas aceitas (cartao_em_breve.dart).
+    expect(c({ cartao_em_breve: true, formas_pagamento: ['pix'] }).cartaoEmBreve).toBe(true);
+    expect(c({ cartao_em_breve: true, formas_pagamento: ['pix', 'cartao'] }).cartaoEmBreve).toBe(false);
+    expect(c({ cartao_em_breve: true }).cartaoEmBreve).toBe(false);
+    expect(c({ condicoes_boleto: ['À vista', '30 dias', '', 3, ' 30/60 dias '] }).condicoesBoleto).toEqual(['À vista', '30 dias', '30/60 dias']);
+    expect(c({ condicoes_boleto: [] }).condicoesBoleto).toEqual(['À vista']);
+    expect(c({}).condicoesBoleto).toEqual(['À vista']);
+  });
+
   it('lê tema e configurações com valores padrão seguros', () => {
     const c = normalizarConfig({
       appNome: 'CAHU Delivery', distribuidora: 'CAHU',
@@ -75,6 +88,7 @@ describe('normalizarConfig', () => {
       logoUrl: 'http://x/l.png', limiteEstoqueBaixo: 5, contatoWhatsapp: '(81) 99999-0000',
       pedidoMinimo: 100, horarioSemana: '08:00-19:00', horarioSabado: '08:00-13:00',
       formasPagamento: ['pix', 'cartao'],
+      cartaoOnline: false, cartaoEmBreve: false, condicoesBoleto: ['À vista'],
       politicaPrivacidade: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90 ("nós")\n\nTexto da política.',
       politicaCancelamento: 'Texto do cancelamento.',
       identificacaoLegal: 'LOJA EXEMPLO LTDA — CNPJ 12.345.678/0001-90',

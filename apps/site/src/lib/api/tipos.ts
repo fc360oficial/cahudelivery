@@ -82,6 +82,12 @@ export interface ConfigLoja {
   horarioSabado: string | null;
   /** Formas aceitas, como a retaguarda grava: 'pix', 'cartao', 'boleto'… */
   formasPagamento: string[];
+  /** Cartão pago online (provedor de cartão ligado na retaguarda); senão é cartão na entrega. */
+  cartaoOnline: boolean;
+  /** Mostrar o cartão travado "em breve" no checkout. */
+  cartaoEmBreve: boolean;
+  /** Prazos de boleto que o cliente pode escolher. */
+  condicoesBoleto: string[];
   politicaPrivacidade: string | null;
   politicaCancelamento: string | null;
   /** Razão social e CNPJ, tirados da primeira linha das políticas ("EMPRESA LTDA — CNPJ …"). */

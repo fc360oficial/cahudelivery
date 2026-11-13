@@ -1,0 +1,80 @@
+/* Fechamento do pedido: etapas em cima, conteúdo da etapa + resumo fixo ao lado no computador. */
+.pagina { padding-block: 40px 56px; display: flex; flex-direction: column; gap: 24px; }
+.pagina h1 { font-size: 36px; }
+
+.passos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 28px; }
+.passos li { display: flex; align-items: center; gap: 10px; color: var(--tinta-suave); font-weight: 600; font-size: 15px; }
+.numero {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--fundo-suave); border: 1px solid var(--linha-forte); font-size: 13px; font-weight: 800;
+}
+.passoAtual, .passoFeito { color: var(--tinta) !important; }
+.passoAtual .numero { background: var(--destaque); border-color: var(--destaque); color: var(--sobre-destaque); }
+.passoFeito .numero { background: var(--tinta); border-color: var(--tinta); color: #ffffff; }
+
+.grade { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; align-items: start; }
+.etapa { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+.etapa h2 { font-size: 22px; }
+.etapa h2:focus { outline: none; }
+
+.opcoes, .opcoesLado, .condicoes { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.opcoesLado { flex-direction: row; flex-wrap: wrap; }
+.opcoesLado > label { flex: 1 1 200px; }
+.legenda { padding: 0; margin-bottom: 4px; font-weight: 700; font-size: 14px; }
+.opcao, .opcaoAtiva {
+  display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; cursor: pointer;
+  border: 1px solid var(--linha); border-radius: var(--raio-m); background: #ffffff;
+}
+.opcaoAtiva { border: 2px solid var(--tinta); padding: 13px 15px; }
+.opcao input, .opcaoAtiva input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--tinta); flex-shrink: 0; }
+.opcao > span, .opcaoAtiva > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.descricao { font-size: 13.5px; color: var(--tinta-suave); overflow-wrap: anywhere; }
+.comCondicoes { display: flex; flex-direction: column; gap: 10px; }
+.condicoes { flex-direction: row; flex-wrap: wrap; gap: 8px; padding-left: 16px; }
+.condicoes .legenda { width: 100%; }
+.chip, .chipAtivo {
+  display: inline-flex; align-items: center; min-height: 38px; padding: 0 16px; border-radius: var(--raio-pilula);
+  border: 1px solid var(--linha-forte); background: #ffffff; font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.chipAtivo { border-color: var(--tinta); background: var(--destaque); color: var(--sobre-destaque); }
+.chip:focus-within, .chipAtivo:focus-within { outline: 2px solid var(--tinta); outline-offset: 2px; }
+.saldo { flex-direction: row; align-items: flex-start; cursor: pointer; }
+.saldo input { width: 18px; height: 18px; margin: 2px 0 0; accent-color: var(--tinta); }
+.saldo > span { display: flex; flex-direction: column; gap: 2px; }
+.emBreve { opacity: 0.85; }
+.texto {
+  width: 100%; padding: 12px 14px; border: 1px solid var(--linha-forte); border-radius: var(--raio-p);
+  background: #ffffff; font: inherit; font-size: 16px; resize: vertical;
+}
+.texto:focus { outline: 2px solid var(--tinta); outline-offset: 1px; border-color: var(--tinta); }
+
+.itens { list-style: none; margin: 0; }
+.itens li { display: flex; align-items: baseline; gap: 10px; }
+.qtd { color: var(--tinta-suave); font-weight: 700; font-size: 14px; min-width: 36px; }
+.nome { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.resumo {
+  position: sticky; top: 196px; display: flex; flex-direction: column; gap: 14px; padding: 24px;
+  border-radius: var(--raio-g); background: var(--fundo-suave);
+}
+.resumo h2 { font-size: 18px; }
+.contas { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.contas div { display: flex; justify-content: space-between; gap: 16px; }
+.contas dt { color: var(--tinta-suave); }
+.contas dd { margin: 0; font-weight: 600; }
+.desconto dt, .desconto dd { color: var(--positivo); }
+.total { padding-top: 10px; border-top: 1px solid var(--linha); }
+.total dt { color: var(--tinta); font-weight: 700; }
+.total dd { font-family: var(--fonte-titulo), sans-serif; font-size: 24px; font-weight: 800; }
+.minimo { margin: 0; color: var(--alerta); font-size: 14px; font-weight: 600; }
+.editar { font-size: 14px; font-weight: 600; }
+
+@media (max-width: 960px) {
+  .grade { grid-template-columns: minmax(0, 1fr); }
+  .resumo { position: static; order: -1; }
+}
+
+@media (max-width: 640px) {
+  .pagina h1 { font-size: 28px; }
+  .resumo { padding: 18px; }
+}

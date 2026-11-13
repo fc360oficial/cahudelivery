@@ -7,9 +7,9 @@ import { useDadosConta, useEnviarConta } from './api-conta';
 import { Aviso, Carregando, ErroCarga, Vazio } from './Partes';
 import estilos from './Conta.module.css';
 
-type Campos = Omit<Endereco, 'id'>;
+export type Campos = Omit<Endereco, 'id'>;
 
-const VAZIO: Campos = {
+export const ENDERECO_VAZIO: Campos = {
   apelido: '', cep: '', logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '', padrao: false,
 };
 
@@ -34,8 +34,8 @@ function Campo(props: {
 }
 
 /** Incluir/editar. CEP com 8 dígitos preenche rua, bairro, cidade e UF (busca pelo servidor do site). */
-function FormularioEndereco({ inicial, id, aoSalvar, aoCancelar }: {
-  inicial: Campos; id: string | null; aoSalvar: () => void; aoCancelar: () => void;
+export function FormularioEndereco({ inicial, id, aoSalvar, aoCancelar }: {
+  inicial: Campos; id: string | null; aoSalvar: (salvo: Endereco | null) => void; aoCancelar: () => void;
 }) {
   const enviar = useEnviarConta();
   const [c, setC] = useState<Campos>({ ...inicial, apelido: inicial.apelido ?? '', complemento: inicial.complemento ?? '' });
@@ -75,10 +75,10 @@ function FormularioEndereco({ inicial, id, aoSalvar, aoCancelar }: {
     setSalvando(true);
     setErro(null);
     const corpo = { ...c, uf: c.uf.trim().toUpperCase() };
-    const r = id ? await enviar(`/api/conta/enderecos/${id}`, 'PUT', corpo) : await enviar('/api/conta/enderecos', 'POST', corpo);
+    const r = id ? await enviar<Endereco>(`/api/conta/enderecos/${id}`, 'PUT', corpo) : await enviar<Endereco>('/api/conta/enderecos', 'POST', corpo);
     setSalvando(false);
     if (!r.ok) return setErro(r.mensagem);
-    aoSalvar();
+    aoSalvar(r.dados && typeof r.dados === 'object' && typeof r.dados.id === 'string' ? r.dados : null);
   };
 
   return (
@@ -149,7 +149,7 @@ export function Enderecos() {
         <FormularioEndereco
           key={editando === 'novo' ? 'novo' : editando.id}
           id={editando === 'novo' ? null : editando.id}
-          inicial={editando === 'novo' ? VAZIO : editando}
+          inicial={editando === 'novo' ? ENDERECO_VAZIO : editando}
           aoSalvar={salvo}
           aoCancelar={() => setEditando(null)}
         />

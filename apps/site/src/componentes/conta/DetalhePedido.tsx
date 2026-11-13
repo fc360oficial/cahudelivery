@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useCarrinho } from '@/componentes/CarrinhoProvider';
 import { aguardaPagamento, rotuloFormaPagamento, statusPagamentoOnline, statusPedido } from '@/lib/conta/status';
@@ -41,6 +41,7 @@ export function DetalhePedido({ id, appNome }: { id: string; appNome: string }) 
   const enviar = useEnviarConta();
   const { recarregar: recarregarCarrinho } = useCarrinho();
   const router = useRouter();
+  const novo = useSearchParams().get('novo') === '1';
   const [repetindo, setRepetindo] = useState(false);
   const [erroRepetir, setErroRepetir] = useState<string | null>(null);
 
@@ -70,6 +71,8 @@ export function DetalhePedido({ id, appNome }: { id: string; appNome: string }) 
     <>
       {voltar}
       <h1>Pedido nº {p.numero}</h1>
+      {/* ?novo=1 vem do /finalizar: só um recado, nada de pagamento depende dele. */}
+      {novo && <Aviso tipo="sucesso">Recebemos seu pedido.</Aviso>}
 
       <div className={estilos.acoes}>
         <button type="button" className={estilos.primario} onClick={repetir} disabled={repetindo}>

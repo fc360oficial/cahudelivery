@@ -15,8 +15,19 @@ export interface OpcoesApi {
   deviceId?: string;
   /** Access token do cliente logado (vira Authorization: Bearer). */
   token?: string;
-  /** IP do visitante, para o limite de tentativas da API (vira X-Forwarded-For). Só em auth/*. */
+  /** IP do visitante (vira X-Forwarded-For): limite de tentativas em auth/*, aceite e antifraude/3DS em pedidos. */
   ipCliente?: string;
+  /** User-Agent do navegador do visitante (aceite do pedido e 3DS). Cortado em 255, como a API guarda. */
+  userAgent?: string;
+  /** 'site' em POST pedidos e pagar-cartao: origem do pedido e volta do 3DS para o site. */
+  canal?: 'site';
+}
+
+/** Só texto imprimível numa linha: nada de CR/LF (injeção de cabeçalho) nem valor vazio. */
+function userAgentSeguro(v: string | undefined): string | undefined {
+  if (!v || /[\x00-\x1F\x7F]/.test(v)) return undefined;
+  const t = v.trim().slice(0, 255);
+  return t || undefined;
 }
 
 const base = () => (process.env.API_URL ?? 'http://localhost:3000/v1').replace(/\/+$/, '');
@@ -31,6 +42,9 @@ export async function chamarApi<T>(caminho: string, op: OpcoesApi = {}): Promise
   if (op.deviceId) headers['X-Device-Id'] = op.deviceId;
   if (op.token) headers.Authorization = `Bearer ${op.token}`;
   if (op.ipCliente) headers['X-Forwarded-For'] = op.ipCliente;
+  const userAgent = userAgentSeguro(op.userAgent);
+  if (userAgent) headers['User-Agent'] = userAgent;
+  if (op.canal) headers['X-Canal'] = op.canal;
   if (op.corpo !== undefined) headers['Content-Type'] = 'application/json';
 
   const init: RequestInit & { next?: { revalidate: number } } = {

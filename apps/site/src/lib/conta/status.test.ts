@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  aguardaPagamento, rotuloFormaPagamento, situacaoCadastro, statusPagamentoOnline, statusPedido,
+  aguardaPagamento, cadastroEmAnalise, rotuloFormaPagamento, situacaoCadastro, statusPagamentoOnline, statusPedido,
 } from './status';
 
 describe('statusPedido', () => {
@@ -29,6 +29,13 @@ describe('aguardaPagamento', () => {
   it('só no AGUARDANDO_PAGAMENTO', () => {
     expect(aguardaPagamento('AGUARDANDO_PAGAMENTO')).toBe(true);
     expect(aguardaPagamento('RECEBIDO')).toBe(false);
+  });
+});
+
+describe('cadastroEmAnalise', () => {
+  it('só "pendente" é em análise (regra do app); aprovado, ativo e o resto não', () => {
+    expect(cadastroEmAnalise('pendente')).toBe(true);
+    for (const s of ['aprovado', 'ativo', 'bloqueado', null, undefined, '']) expect(cadastroEmAnalise(s)).toBe(false);
   });
 });
 

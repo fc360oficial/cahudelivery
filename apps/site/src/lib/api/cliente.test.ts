@@ -45,6 +45,29 @@ describe('chamarApi', () => {
     expect(h['X-Forwarded-For']).toBe('200.1.2.3');
   });
 
+  it('pedido e pagamento do site: X-Canal site e o User-Agent do navegador (cortado em 255)', async () => {
+    const fetchFalso = vi.fn(async () => resposta(200, {}));
+    vi.stubGlobal('fetch', fetchFalso);
+    await chamarApi('/pedidos', { metodo: 'POST', corpo: {}, token: 't', canal: 'site', userAgent: `Mozilla/5.0 ${'x'.repeat(400)}` });
+    const [, init] = fetchFalso.mock.calls[0] as unknown as [string, RequestInit];
+    const h = init.headers as Record<string, string>;
+    expect(h['X-Canal']).toBe('site');
+    expect(h['User-Agent']).toHaveLength(255);
+    expect(h['User-Agent'].startsWith('Mozilla/5.0 ')).toBe(true);
+  });
+
+  it('User-Agent com quebra de linha ou vazio não é repassado', async () => {
+    const fetchFalso = vi.fn(async () => resposta(200, {}));
+    vi.stubGlobal('fetch', fetchFalso);
+    await chamarApi('/pedidos', { userAgent: 'a\r\nX-Injetado: 1' });
+    await chamarApi('/pedidos', { userAgent: '   ' });
+    for (const chamada of fetchFalso.mock.calls as unknown as [string, RequestInit][]) {
+      const h = chamada[1].headers as Record<string, string>;
+      expect(h).not.toHaveProperty('User-Agent');
+      expect(h).not.toHaveProperty('X-Canal');
+    }
+  });
+
   it('sem token nem ipCliente não manda esses cabeçalhos', async () => {
     const fetchFalso = vi.fn(async () => resposta(200, {}));
     vi.stubGlobal('fetch', fetchFalso);

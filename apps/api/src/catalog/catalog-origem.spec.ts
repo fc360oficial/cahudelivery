@@ -22,7 +22,7 @@ describe('CatalogService — popularidade só com pedidos do app do cliente', ()
     await rodar(() => svc.home());
     const maisVendidos = sqls(query).filter((s) => s.includes('join pedidos pe'));
     expect(maisVendidos).toHaveLength(1);
-    expect(maisVendidos[0]).toContain("origem = 'app_cliente'");
+    expect(maisVendidos[0]).toContain("origem in ('app_cliente','site')");
   });
 
   it('relacionados: toda leitura de pedido_itens passa por pedidos app_cliente', async () => {
@@ -31,7 +31,7 @@ describe('CatalogService — popularidade só com pedidos do app do cliente', ()
     const lidas = sqls(query).filter((s) => s.includes('pedido_itens'));
     expect(lidas.length).toBeGreaterThanOrEqual(3);
     for (const s of lidas) {
-      expect(s).toContain("origem = 'app_cliente'");
+      expect(s).toContain("origem in ('app_cliente','site')");
     }
   });
 });

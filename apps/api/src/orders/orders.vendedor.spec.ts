@@ -45,18 +45,18 @@ describe('OrdersService — o app do cliente só enxerga pedidos de origem app_c
   it('listar, detalhe (pedido do vendedor = não encontrado), notas e repetir filtram a origem', async () => {
     const l = montar([]);
     await l.rodar(() => l.svc.listar('cli-1', 1));
-    expect(sqlDa(l.query)).toContain("p.origem = 'app_cliente'");
+    expect(sqlDa(l.query)).toContain("p.origem in ('app_cliente','site')");
     const d = montar([]);
     await expect(d.rodar(() => d.svc.detalhe('cli-1', 'ped-v'))).rejects.toBeInstanceOf(NotFoundException);
-    expect(sqlDa(d.query)).toContain("p.origem = 'app_cliente'");
+    expect(sqlDa(d.query)).toContain("p.origem in ('app_cliente','site')");
     const n = montar([]);
     await n.rodar(() => n.svc.notas('cli-1', 1));
-    expect(sqlDa(n.query)).toContain("p.origem = 'app_cliente'");
+    expect(sqlDa(n.query)).toContain("p.origem in ('app_cliente','site')");
     const r = montar([{ id: 'carr-1' }]);
     (r.svc as unknown as { catalog: unknown }).catalog = { tabelaPrecoDe: async () => null };
     await r.rodar(() => r.svc.repetir('cli-1', 'ped-1'));
     const ins = r.query.mock.calls.map((c) => String((c as unknown[])[0])).find((s) => s.includes('insert into carrinho_itens'));
-    expect(ins).toContain("p.origem = 'app_cliente'");
+    expect(ins).toContain("p.origem in ('app_cliente','site')");
   });
 
   it('validarRiscoCartao conta só pedidos anteriores do app do cliente', async () => {
@@ -70,6 +70,6 @@ describe('OrdersService — o app do cliente só enxerga pedidos de origem app_c
     await runComTenant({ tenant: TENANT as never, pool: { query } as never }, () =>
       (svc as unknown as { validarRiscoCartao(c: string, s: number): Promise<void> }).validarRiscoCartao('cli-1', 10));
     const contagem = query.mock.calls.map((c) => String((c as unknown[])[0])).find((s) => s.includes('count(*)'));
-    expect(contagem).toContain("origem = 'app_cliente'");
+    expect(contagem).toContain("origem in ('app_cliente','site')");
   });
 });

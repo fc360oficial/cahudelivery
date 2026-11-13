@@ -96,7 +96,7 @@ export class AdminEntregasController {
     @UploadedFiles() arquivos: { canhoto?: Express.Multer.File[]; foto?: Express.Multer.File[] },
   ) {
     const { pool, tenant } = tenantCtx();
-    const ped = await pool.query(`select status from pedidos where id = $1 and origem = 'app_cliente'`, [id]);
+    const ped = await pool.query(`select status from pedidos where id = $1 and origem in ('app_cliente','site')`, [id]);
     if (!ped.rows[0]) throw new NotFoundException('Pedido não encontrado');
     if (ped.rows[0].status === 'CANCELADO' || ped.rows[0].status === 'AGUARDANDO_PAGAMENTO' || ped.rows[0].status === 'AGUARDANDO_VENDEDOR') {
       throw new BadRequestException('Pedido cancelado, sem pagamento ou retido não pode ser marcado como entregue');
@@ -160,7 +160,7 @@ export class AdminEntregasController {
   async fotoEntrega(@Param('id', ParseUUIDPipe) id: string, @Param('tipo') tipo: string, @Res() res: Response) {
     const { pool, tenant } = tenantCtx();
     if (tipo !== 'canhoto' && tipo !== 'foto') throw new NotFoundException();
-    const { rows } = await pool.query(`select foto_canhoto, foto_entrega from pedido_entregas where pedido_id = $1 and pedido_id in (select id from pedidos where origem = 'app_cliente')`, [id]);
+    const { rows } = await pool.query(`select foto_canhoto, foto_entrega from pedido_entregas where pedido_id = $1 and pedido_id in (select id from pedidos where origem in ('app_cliente','site'))`, [id]);
     const nome: string | null = tipo === 'canhoto' ? rows[0]?.foto_canhoto : rows[0]?.foto_entrega;
     // Nome vem do nosso banco, mas confere o formato antes de montar caminho de disco.
     if (!nome || !/^[0-9a-f-]+-(canhoto|foto)-[a-z0-9]+-[0-9a-f]+\.[a-z]+$/.test(nome)) throw new NotFoundException();
@@ -179,7 +179,7 @@ export class AdminEntregasController {
     if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores podem estornar');
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor from pagamentos where pedido_id = $1 and metodo = 'cartao' and status in ('pago','estorno_solicitado') and pedido_id in (select id from pedidos where origem = 'app_cliente')
+      `select id, provedor from pagamentos where pedido_id = $1 and metodo = 'cartao' and status in ('pago','estorno_solicitado') and pedido_id in (select id from pedidos where origem in ('app_cliente','site'))
         order by criado_em desc limit 1`,
       [id],
     );
@@ -244,7 +244,7 @@ export class AdminEntregasController {
   private async reservaDoPedido(pedidoId: string) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor from pagamentos where pedido_id = $1 and status = 'autorizado' and pedido_id in (select id from pedidos where origem = 'app_cliente') order by criado_em desc limit 1`,
+      `select id, provedor from pagamentos where pedido_id = $1 and status = 'autorizado' and pedido_id in (select id from pedidos where origem in ('app_cliente','site')) order by criado_em desc limit 1`,
       [pedidoId],
     );
     if (!rows[0]) throw new BadRequestException('Pedido sem reserva de cartão em aberto');
@@ -262,7 +262,7 @@ export class AdminEntregasController {
     if (req.admin.papel !== 'admin') throw new ForbiddenException('Apenas administradores podem registrar devolução');
     const { pool } = tenantCtx();
     const { rows } = await pool.query(
-      `select id from pagamentos where pedido_id = $1 and metodo = 'pix' and status in ('pago','creditado') and pedido_id in (select id from pedidos where origem = 'app_cliente')
+      `select id from pagamentos where pedido_id = $1 and metodo = 'pix' and status in ('pago','creditado') and pedido_id in (select id from pedidos where origem in ('app_cliente','site'))
         order by criado_em desc limit 1`,
       [id],
     );
@@ -293,7 +293,7 @@ export class AdminEntregasController {
       `select p.id, p.numero, p.status, p.criado_em, p.total, p.subtotal, p.forma_pagamento, p.tipo_entrega,
               p.endereco_snapshot_json, p.aceite_json, p.observacoes,
               c.razao_social, c.nome_fantasia, c.documento, c.email, c.telefone, c.criado_em as cliente_desde,
-              (select count(*)::int from pedidos x where x.cliente_id = c.id and x.origem = 'app_cliente' and x.status in ('FATURADO','ENTREGUE') and x.id <> p.id) as pedidos_anteriores,
+              (select count(*)::int from pedidos x where x.cliente_id = c.id and x.origem in ('app_cliente','site') and x.status in ('FATURADO','ENTREGUE') and x.id <> p.id) as pedidos_anteriores,
               (select json_agg(json_build_object('descricao', i.descricao_snapshot, 'quantidade', i.quantidade,
                   'precoUnit', i.preco_unit, 'total', i.total)) from pedido_itens i where i.pedido_id = p.id) as itens,
               (select json_agg(json_build_object('status', e.status, 'detalhe', e.detalhe, 'origem', e.origem, 'em', e.criado_em)
@@ -314,7 +314,7 @@ export class AdminEntregasController {
               (select json_agg(json_build_object('valor', e.valor, 'destino', e.destino, 'status', e.status, 'codigo', e.codigo,
                   'mensagem', e.mensagem, 'motivo', e.motivo, 'em', e.criado_em) order by e.criado_em)
                  from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
-         from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1 and p.origem = 'app_cliente'`,
+         from pedidos p join clientes c on c.id = p.cliente_id where p.id = $1 and p.origem in ('app_cliente','site')`,
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');

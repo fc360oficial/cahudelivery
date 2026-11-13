@@ -6,6 +6,7 @@ import { PagamentosService } from '../pagamentos/pagamentos.service';
 import { ProvedoresService } from '../pagamentos/provedores.service';
 import { Contexto3ds, DadosCartao, ehProvedorCartao } from '../pagamentos/provedor-pagamento';
 import { urlsRetorno3ds } from '../pagamentos/tres-ds.controller';
+import type { OrigemPedidoCliente } from './origem-pedido';
 
 export type DonoCarrinho = { clienteId?: string; deviceId?: string };
 
@@ -105,6 +106,8 @@ export class OrdersService {
       usarSaldo?: boolean;
     },
     origem: { ip: string | null; userAgent: string | null } = { ip: null, userAgent: null },
+    // Só grava de onde veio o pedido (app ou site); nenhuma regra abaixo depende disso.
+    origemPedido: OrigemPedidoCliente = 'app_cliente',
   ) {
     const { pool, tenant } = tenantCtx();
     const cliente = await pool.query(`select status from clientes where id = $1`, [clienteId]);
@@ -192,8 +195,8 @@ export class OrdersService {
       const pagarOnline = !!provedorTenant && valorACobrar > 0;
       const statusInicial = pagarOnline ? 'AGUARDANDO_PAGAMENTO' : 'RECEBIDO';
       const ped = await client.query(
-        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado, status, aceite_json)
-         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9,$10) returning id, numero, status, criado_em`,
+        `insert into pedidos (cliente_id, endereco_snapshot_json, forma_pagamento, tipo_entrega, subtotal, total, observacoes, condicao_pagamento, valor_saldo_usado, status, aceite_json, origem)
+         values ($1,$2,$3,$4,$5,$5,$6,$7,$8,$9,$10,$11) returning id, numero, status, criado_em`,
         [
           clienteId,
           enderecoJson,
@@ -205,6 +208,7 @@ export class OrdersService {
           valorSaldoUsado,
           statusInicial,
           JSON.stringify(await this.aceite(origem)),
+          origemPedido,
         ],
       );
       const pedidoId = ped.rows[0].id;
@@ -411,7 +415,7 @@ export class OrdersService {
     const minimoPedidos = valor('cartao_pedidos_anteriores');
     if (minimoPedidos > 0) {
       const feitos = await pool.query(
-        `select count(*)::int as n from pedidos where cliente_id = $1 and origem = 'app_cliente' and status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`,
+        `select count(*)::int as n from pedidos where cliente_id = $1 and origem in ('app_cliente','site') and status in ('FATURADO','EM_SEPARACAO','SAIU_ENTREGA','ENTREGUE')`,
         [clienteId],
       );
       if (feitos.rows[0].n < minimoPedidos) {
@@ -456,7 +460,7 @@ export class OrdersService {
               (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
                       'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
                  from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
-         from pedidos p where p.cliente_id = $1 and p.origem = 'app_cliente'
+         from pedidos p where p.cliente_id = $1 and p.origem in ('app_cliente','site')
            and p.status <> 'AGUARDANDO_VENDEDOR'
            and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)
         order by p.criado_em desc limit 20 offset $2`,
@@ -472,7 +476,7 @@ export class OrdersService {
               n.numero_nf, n.chave_acesso, n.pdf_url, n.xml_url, n.emitida_em
          from pedidos p
          join pedido_notas n on n.pedido_id = p.id
-        where p.cliente_id = $1 and p.origem = 'app_cliente'
+        where p.cliente_id = $1 and p.origem in ('app_cliente','site')
         order by n.emitida_em desc
         limit 20 offset $2`,
       [clienteId, (pagina - 1) * 20],
@@ -494,7 +498,7 @@ export class OrdersService {
         (select json_build_object('id', g.id, 'metodo', g.metodo, 'status', g.status, 'valor', g.valor,
                 'copiaCola', g.copia_cola, 'expiraEm', g.expira_em, 'pagoEm', g.pago_em)
            from pagamentos g where g.pedido_id = p.id order by g.criado_em desc limit 1) as pagamento
-         from pedidos p where p.id = $1 and p.cliente_id = $2 and p.origem = 'app_cliente'
+         from pedidos p where p.id = $1 and p.cliente_id = $2 and p.origem in ('app_cliente','site')
            and p.status <> 'AGUARDANDO_VENDEDOR'
            and not (p.status = 'CANCELADO' and p.retencao_json is not null and p.retencao_json->>'confirmadoEm' is null)`,
       [pedidoId, clienteId],
@@ -513,7 +517,7 @@ export class OrdersService {
       `insert into carrinho_itens (carrinho_id, produto_id, quantidade, preco_unit_snapshot)
        select $1, i.produto_id, i.quantidade, i.preco_unit
          from pedido_itens i
-         join pedidos p on p.id = i.pedido_id and p.cliente_id = $2 and p.origem = 'app_cliente'
+         join pedidos p on p.id = i.pedido_id and p.cliente_id = $2 and p.origem in ('app_cliente','site')
          join produtos pr on pr.id = i.produto_id and pr.ativo
         where i.pedido_id = $3
        on conflict (carrinho_id, produto_id) do update set quantidade = excluded.quantidade`,

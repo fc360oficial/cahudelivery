@@ -15,7 +15,7 @@ export async function creditarIndicacao(pool: Queryable, pedidoId: string) {
   const { rows } = await pool.query(
     `select c.id as indicado_id, c.nome_fantasia as indicado_nome, c.indicado_por_cliente_id
        from pedidos p join clientes c on c.id = p.cliente_id
-      where p.id = $1 and p.origem = 'app_cliente' and c.indicado_por_cliente_id is not null and c.indicacao_creditada_em is null`,
+      where p.id = $1 and p.origem in ('app_cliente','site') and c.indicado_por_cliente_id is not null and c.indicacao_creditada_em is null`,
     [pedidoId],
   );
   const r = rows[0];

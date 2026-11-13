@@ -21,18 +21,18 @@ export class AdminService {
     const [hoje, porStatus, mes, topProdutos, clientes, falhas] = await Promise.all([
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento
-           from pedidos where origem = 'app_cliente' and criado_em::date = current_date and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
+           from pedidos where origem in ('app_cliente','site') and criado_em::date = current_date and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
       ),
-      pool.query(`select status, count(*)::int as qtd from pedidos where origem = 'app_cliente' group by status`),
+      pool.query(`select status, count(*)::int as qtd from pedidos where origem in ('app_cliente','site') group by status`),
       pool.query(
         `select count(*)::int as pedidos, coalesce(sum(total),0) as faturamento,
                 coalesce(avg(total),0) as ticket_medio
-           from pedidos where origem = 'app_cliente' and criado_em > now() - interval '30 days' and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
+           from pedidos where origem in ('app_cliente','site') and criado_em > now() - interval '30 days' and status not in ('CANCELADO','AGUARDANDO_VENDEDOR')`,
       ),
       pool.query(
         `select i.descricao_snapshot as produto, sum(i.quantidade)::numeric as qtd, sum(i.total) as valor
            from pedido_itens i join pedidos p on p.id = i.pedido_id
-          where p.origem = 'app_cliente' and p.criado_em > now() - interval '30 days' and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
+          where p.origem in ('app_cliente','site') and p.criado_em > now() - interval '30 days' and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
           group by 1 order by valor desc limit 5`,
       ),
       pool.query(
@@ -42,13 +42,13 @@ export class AdminService {
                 count(*) filter (where status = 'bloqueado')::int as bloqueados,
                 count(*) filter (where status <> 'excluido' and criado_em > now() - interval '30 days')::int as novos_30d,
                 count(*) filter (where status <> 'excluido'
-                                   and exists (select 1 from pedidos p where p.cliente_id = clientes.id and p.origem = 'app_cliente'
+                                   and exists (select 1 from pedidos p where p.cliente_id = clientes.id and p.origem in ('app_cliente','site')
                                                   and p.status not in ('CANCELADO','AGUARDANDO_VENDEDOR')
                                                   and p.criado_em > now() - interval '30 days'))::int as compraram_30d
            from clientes`,
       ),
       pool.query(
-        `select count(*)::int as qtd from pedidos where origem = 'app_cliente' and status = 'FALHA_INTEGRACAO'`,
+        `select count(*)::int as qtd from pedidos where origem in ('app_cliente','site') and status = 'FALHA_INTEGRACAO'`,
       ),
     ]);
     const c = clientes.rows[0];
@@ -72,7 +72,7 @@ export class AdminService {
 
   async pedidos(f: { status?: string; busca?: string; pagina: number }) {
     const { pool } = tenantCtx();
-    const cond: string[] = ["p.origem = 'app_cliente'"];
+    const cond: string[] = ["p.origem in ('app_cliente','site')"];
     const params: unknown[] = [];
     if (f.status) {
       params.push(f.status);
@@ -114,7 +114,7 @@ export class AdminService {
             'mensagem', e.mensagem, 'motivo', e.motivo, 'origem', e.origem, 'em', e.criado_em) order by e.criado_em)
            from pagamento_estornos e join pagamentos g on g.id = e.pagamento_id where g.pedido_id = p.id) as estornos
          from pedidos p join clientes c on c.id = p.cliente_id
-         left join vendedores v on v.id = p.vendedor_id where p.id = $1 and p.origem = 'app_cliente'`,
+         left join vendedores v on v.id = p.vendedor_id where p.id = $1 and p.origem in ('app_cliente','site')`,
       [id],
     );
     if (!rows[0]) throw new NotFoundException('Pedido não encontrado');
@@ -136,7 +136,7 @@ export class AdminService {
   async consultarPagamento(pedidoId: string) {
     const { pool, tenant } = tenantCtx();
     const { rows } = await pool.query(
-      `select id, provedor, provedor_ref, expira_em, metodo, status, captura from pagamentos where pedido_id = $1 and pedido_id in (select id from pedidos where origem = 'app_cliente') order by criado_em desc limit 1`,
+      `select id, provedor, provedor_ref, expira_em, metodo, status, captura from pagamentos where pedido_id = $1 and pedido_id in (select id from pedidos where origem in ('app_cliente','site')) order by criado_em desc limit 1`,
       [pedidoId],
     );
     if (!rows[0]) throw new NotFoundException('Pedido sem pagamento online');
@@ -160,7 +160,7 @@ export class AdminService {
     const { pool, tenant } = tenantCtx();
     const pt = await this.provedores.obter(tenant.slug);
     if (!pt || pt.provedor.nome !== 'mock') throw new BadRequestException('Só disponível com provedor mock');
-    const { rows } = await pool.query(`select id, valor from pagamentos where pedido_id = $1 and status = 'pendente' and pedido_id in (select id from pedidos where origem = 'app_cliente')`, [pedidoId]);
+    const { rows } = await pool.query(`select id, valor from pagamentos where pedido_id = $1 and status = 'pendente' and pedido_id in (select id from pedidos where origem in ('app_cliente','site'))`, [pedidoId]);
     if (!rows[0]) throw new NotFoundException('Sem pagamento pendente');
     await this.pagamentos.confirmarPago(pool, rows[0].id, Number(rows[0].valor), new Date());
     return { status: 'pago' };
@@ -169,7 +169,7 @@ export class AdminService {
   /** Reenfileira um pedido com falha de integração para novo envio ao ERP. */
   async reenviarErp(id: string, usuarioId: string) {
     const { pool } = tenantCtx();
-    const ped = await pool.query(`select status from pedidos where id = $1 and origem = 'app_cliente'`, [id]);
+    const ped = await pool.query(`select status from pedidos where id = $1 and origem in ('app_cliente','site')`, [id]);
     if (!ped.rows[0]) throw new NotFoundException('Pedido não encontrado');
     if (ped.rows[0].status !== 'FALHA_INTEGRACAO') {
       throw new BadRequestException('Só é possível reenviar pedidos com falha de integração');
@@ -215,7 +215,7 @@ export class AdminService {
     params.push((f.pagina - 1) * 25);
     const { rows } = await pool.query(
       `select id, tipo, documento, nome_fantasia, email, telefone, status, criado_em, tabela_preco_id,
-        (select count(*)::int from pedidos p where p.cliente_id = clientes.id and p.origem = 'app_cliente') as pedidos,
+        (select count(*)::int from pedidos p where p.cliente_id = clientes.id and p.origem in ('app_cliente','site')) as pedidos,
         coalesce(cc.senha_provisoria, true) as aguardando_acesso, cc.senha_definida_em, cc.ultimo_login_em,
         (select k.expira_em from cliente_codigos_acesso k
           where k.cliente_id = clientes.id and k.usado_em is null and k.expira_em > now()) as codigo_expira_em

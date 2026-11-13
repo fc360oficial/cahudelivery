@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { formaInterna } from './vendas-pedidos.service';
+import { origemParaContrato } from '../orders/origem-pedido';
 
 const n = (v: unknown): number => Number(v);
 const nOuNulo = (v: unknown): number | null => (v == null ? null : Number(v));
@@ -132,8 +133,9 @@ export class VendasSyncService {
         categoriaId: p.categoria_id, estoque: n(p.estoque), imagemUrl: p.imagem_url,
       })),
       precos: precos.rows.map((p) => ({ produtoId: p.produto_id, tabelaId: p.tabela_preco_id, preco: n(p.preco) })),
+      // Pedido do site chega ao app do vendedor como app_cliente (o app só conhece app_cliente e vendedor).
       historico: historico.rows.map((h) => ({
-        pedidoId: h.id, numero: n(h.numero), clienteId: h.cliente_id, criadoEm: h.criado_em, total: n(h.total), status: h.status, origem: h.origem,
+        pedidoId: h.id, numero: n(h.numero), clienteId: h.cliente_id, criadoEm: h.criado_em, total: n(h.total), status: h.status, origem: origemParaContrato(h.origem),
         itens: (h.itens ?? []).map((i: { produtoId: string; quantidade: unknown; precoUnit: unknown }) => ({
           produtoId: i.produtoId, quantidade: n(i.quantidade), precoUnit: n(i.precoUnit),
         })),

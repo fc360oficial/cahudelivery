@@ -18,6 +18,7 @@ import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, 
 import type { Request } from 'express';
 import { JwtAuthGuard, OptionalAuthGuard, ClienteLogado } from '../auth/jwt.guard';
 import { DonoCarrinho, OrdersService } from './orders.service';
+import { origemDoCanal } from './origem-pedido';
 
 type ReqCliente = Request & { cliente: ClienteLogado };
 type ReqClienteOpt = Request & { cliente?: ClienteLogado };
@@ -103,11 +104,16 @@ export class OrdersController {
 
   @Post('pedidos')
   @UseGuards(JwtAuthGuard)
-  criar(@Req() req: ReqCliente, @Body() dto: CriarPedidoDto) {
-    return this.orders.criarPedido(req.cliente.clienteId, dto, {
-      ip: ipv4DoCliente(req) ?? req.ip ?? null,
-      userAgent: String(req.headers['user-agent'] ?? '').slice(0, 255) || null,
-    });
+  criar(@Req() req: ReqCliente, @Body() dto: CriarPedidoDto, @Headers('x-canal') canal?: string) {
+    return this.orders.criarPedido(
+      req.cliente.clienteId,
+      dto,
+      {
+        ip: ipv4DoCliente(req) ?? req.ip ?? null,
+        userAgent: String(req.headers['user-agent'] ?? '').slice(0, 255) || null,
+      },
+      origemDoCanal(canal),
+    );
   }
 
   @Get('pedidos')

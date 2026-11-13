@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { XMLParser } from 'fast-xml-parser';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { creditarIndicacao } from '../orders/creditar-indicacao';
+import { origemParaContrato } from '../orders/origem-pedido';
 import { urlNota } from '../notas/assinatura';
 import { PedidoFaturadoDto, NotaFiscalDto } from './pedido-faturado.dto';
 
@@ -137,7 +138,8 @@ export class DlinksPedidosService {
         itens: r.itens ?? [],
         valorAbatidoSaldo: Number(r.valor_saldo_usado) || 0,
         pagamentoOnline: r.pagamento_online ?? undefined,
-        origem: r.origem,
+        // Pedido do site vai como app_cliente: o contrato com o Dlinks só tem app_cliente e vendedor.
+        origem: origemParaContrato(r.origem),
         vendedor: r.vendedor_codigo ? { codigo: r.vendedor_codigo, nome: r.vendedor_nome } : undefined,
         tabelaPreco: r.tabela_codigo ? { codigo: r.tabela_codigo, nome: r.tabela_nome } : undefined,
         condicaoPagamentoCodigo: undefined,

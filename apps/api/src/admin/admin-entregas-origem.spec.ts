@@ -2,7 +2,7 @@ import { runComTenant } from '../tenancy/tenant-context';
 import { AdminEntregasController } from './admin-entregas.controller';
 
 const TENANT = { id: 'tnt-1', slug: 'cahu', nomeFantasia: 'CAHU' };
-const PRED = "origem = 'app_cliente'";
+const PRED = "origem in ('app_cliente','site')";
 
 // Pedido de vendedor: toda consulta que carrega o predicado de origem volta vazia.
 function montar() {
@@ -50,6 +50,6 @@ describe('AdminEntregasController — só pedido do Delivery', () => {
   it('dossiê', async () => {
     const { ctl, query, rodar } = montar();
     await expect(rodar(() => ctl.dossie(ID))).rejects.toThrow();
-    expect(sqls(query)[0]).toContain("p.origem = 'app_cliente'");
+    expect(sqls(query)[0]).toContain("p.origem in ('app_cliente','site')");
   });
 });

@@ -23,7 +23,7 @@ describe('AdminService.dashboard — só números do Delivery (origem app_client
     await rodar(() => svc.dashboard());
     const sobrePedidos = query.mock.calls.map((c) => String((c as unknown[])[0])).filter((s) => /(from|join) pedidos/.test(s));
     expect(sobrePedidos.length).toBeGreaterThanOrEqual(6);
-    for (const s of sobrePedidos) expect(s).toContain("origem = 'app_cliente'");
+    for (const s of sobrePedidos) expect(s).toContain("origem in ('app_cliente','site')");
   });
 });
 
@@ -33,7 +33,7 @@ describe('AdminService.pedidos — sempre só Delivery', () => {
       const { svc, query, rodar } = montar();
       await rodar(() => svc.pedidos({ origem, pagina: 1 } as never));
       const [sql, params] = chamada(query);
-      expect(sql).toContain("p.origem = 'app_cliente'");
+      expect(sql).toContain("p.origem in ('app_cliente','site')");
       expect(params).toEqual([0]);
     }
   });
@@ -50,11 +50,11 @@ describe('AdminService.pedidos — sempre só Delivery', () => {
 });
 
 describe('AdminService — buscas por id só enxergam pedido do Delivery', () => {
-  const PRED = "origem = 'app_cliente'";
+  const PRED = "origem in ('app_cliente','site')";
   it('detalhe do pedido', async () => {
     const { svc, query, rodar } = montar([{ id: 'p1', origem: 'app_cliente', pagamento: null }]);
     await rodar(() => svc.pedido('p1'));
-    expect(chamada(query)[0]).toContain("p.origem = 'app_cliente'");
+    expect(chamada(query)[0]).toContain("p.origem in ('app_cliente','site')");
   });
   it('reenviarErp, consultarPagamento e simularPagamento', async () => {
     const a = montar();
@@ -72,6 +72,6 @@ describe('AdminService — buscas por id só enxergam pedido do Delivery', () =>
     const { svc, query, rodar } = montar();
     await rodar(() => svc.clientes({ pagina: 1 }));
     const sqls = query.mock.calls.map((c) => String((c as unknown[])[0]));
-    expect(sqls.some((q) => q.includes("p.cliente_id = clientes.id and p.origem = 'app_cliente'"))).toBe(true);
+    expect(sqls.some((q) => q.includes("p.cliente_id = clientes.id and p.origem in ('app_cliente','site')"))).toBe(true);
   });
 });

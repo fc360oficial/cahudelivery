@@ -4,7 +4,7 @@ describe('creditarIndicacao — só pedido do app do cliente credita', () => {
   it('o select filtra por origem app_cliente e, sem linha, nada é inserido', async () => {
     const query = jest.fn(async () => ({ rows: [] }));
     await creditarIndicacao({ query } as never, 'ped-1');
-    expect(String((query.mock.calls[0] as unknown[])[0])).toContain("p.origem = 'app_cliente'");
+    expect(String((query.mock.calls[0] as unknown[])[0])).toContain("p.origem in ('app_cliente','site')");
     expect(query.mock.calls.some(([sql]) => String(sql).includes('carteira_movimentos'))).toBe(false);
   });
 

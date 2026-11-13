@@ -1,0 +1,12 @@
+# Site de vendas da CAHU (apps/site, Next.js) no Servidor_BI. Importado pelo Caddyfile do Econômico
+# (C:\fc360\claude_code_\Caddyfile → import C:/cahudelivery/infra/caddy/*.caddy).
+# O site roda no serviço FluxoSite, só em 127.0.0.1:3020; quem atende a internet é este bloco.
+# Depois de alterar: caddy validate + caddy reload (nunca restart: o Econômico usa o mesmo Caddy).
+#
+# O Caddy repassa X-Forwarded-For/-Proto/-Host com os valores reais da conexão (sem trusted_proxies
+# ele ignora o que o visitante mandar). O site depende disso para o limite de tentativas por IP e
+# para marcar os cookies como Secure. Não configurar trusted_proxies aqui.
+cahuloja.duckdns.org {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:3020
+}

@@ -44,7 +44,12 @@ export function destinoInterno(voltar: string | null | undefined): string {
   try {
     const url = new URL(voltar, ORIGEM_FALSA);
     if (url.origin !== ORIGEM_FALSA) return '/';
-    return url.pathname + url.search + url.hash;
+    // "/.//x" resolve para o caminho "//x", que sozinho voltaria a apontar para outro site.
+    if (url.pathname.startsWith('//')) return '/';
+    const destino = url.pathname + url.search + url.hash;
+    // Conferência final: o texto devolvido, resolvido de novo, tem que continuar no site.
+    if (new URL(destino, ORIGEM_FALSA).origin !== ORIGEM_FALSA) return '/';
+    return destino;
   } catch {
     return '/';
   }

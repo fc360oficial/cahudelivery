@@ -21,6 +21,17 @@ describe('destinoInterno', () => {
       expect(destinoInterno(v), JSON.stringify(v)).toBe('/');
     }
   });
+  it('rejeita caminho que, depois de resolvido, começa com duas barras (viraria outro site)', () => {
+    for (const v of ['/.//evil.com', '/..//evil.com', '/a/..//evil.com', '/%2e%2e//evil.com', '/.%2e//evil.com', '/.//', '/./../..//evil.com/x?y#z']) {
+      expect(destinoInterno(v), JSON.stringify(v)).toBe('/');
+    }
+  });
+  it('o que devolve nunca sai do site quando resolvido contra um endereço real', () => {
+    const entradas = ['/carrinho', '/c/x-1?ordem=preco_asc#topo', '/.//evil.com', '/@evil.com', '/?voltar=//evil.com', '/#//evil.com', '/%2F/evil.com', '/a/../b'];
+    for (const v of entradas) {
+      expect(new URL(destinoInterno(v), 'https://loja.exemplo/entrar').origin, JSON.stringify(v)).toBe('https://loja.exemplo');
+    }
+  });
   it('mantém caminho, busca e âncora válidos', () => {
     expect(destinoInterno('/c/x-1?ordem=preco_asc#topo')).toBe('/c/x-1?ordem=preco_asc#topo');
   });

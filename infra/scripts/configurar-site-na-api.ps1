@@ -37,13 +37,23 @@ if ($linhas.Count -lt 3) { throw "Li só $($linhas.Count) variáveis do $Servico
 $outras = @($linhas | Where-Object { $_ -notmatch ("^" + [regex]::Escape($nome) + "=") })
 $novas = $outras + "$nome=$Url"
 
+# Cópia de segurança das variáveis atuais, só na pasta do Administrador (tem senhas: não copiar para outro lugar).
+$copia = Join-Path $env:USERPROFILE ("fluxoapi-variaveis-antes-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".txt")
+[IO.File]::WriteAllLines($copia, [string[]]$linhas)
+Write-Host ">> Cópia de segurança das variáveis atuais em $copia"
+
 Write-Host ">> $Servico tem $($linhas.Count) variáveis: $(($linhas | ForEach-Object { $_.Split('=')[0] }) -join ', ')"
 & $nssm set $Servico AppEnvironmentExtra @novas | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'O nssm recusou a gravação. Nada foi alterado.' }
 
 [Console]::OutputEncoding = [Text.Encoding]::Unicode
 try { $depois = @(& $nssm get $Servico AppEnvironmentExtra | ForEach-Object { "$_".Trim() } | Where-Object { $_ -match '^[A-Za-z_][A-Za-z0-9_]*=' }) } finally { [Console]::OutputEncoding = $anterior }
-if ($depois.Count -ne $novas.Count) { throw "Conferência falhou: gravei $($novas.Count) variáveis e li $($depois.Count). Confira com: nssm get $Servico AppEnvironmentExtra" }
+# Conferência: cada variável que existia tem que continuar idêntica. Se alguma mudou, desfaz na hora.
+$perdidas = @($outras | Where-Object { $depois -cnotcontains $_ })
+if ($depois.Count -ne $novas.Count -or $perdidas.Count -gt 0) {
+  & $nssm set $Servico AppEnvironmentExtra @linhas | Out-Null
+  throw "Conferência falhou ($($perdidas.Count) variável(is) diferente(s) depois da gravação). Voltei as variáveis ao que eram; a cópia está em $copia. NÃO reinicie a API e avise."
+}
 
 Write-Host ''
 Write-Host "PRONTO: $nome=$Url gravada no $Servico ($($depois.Count) variáveis no total)." -ForegroundColor Green

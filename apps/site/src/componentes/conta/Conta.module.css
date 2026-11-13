@@ -136,7 +136,7 @@
 .campo input:focus { outline: 2px solid var(--tinta); outline-offset: 1px; border-color: var(--tinta); }
 .campo input:read-only { background: var(--fundo-suave); }
 .dica { font-size: 13px; color: var(--tinta-suave); }
-.marcar { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
+.marcar { display: flex; flex-direction: row; align-items: center; cursor: pointer; gap: 10px; font-weight: 600; font-size: 14px; }
 .marcar input { width: 20px; height: 20px; }
 
 /* Endereços */

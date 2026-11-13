@@ -29,3 +29,7 @@
 @media (max-width: 480px) {
   .qr { width: 100%; max-width: 260px; height: auto; aspect-ratio: 1; }
 }
+
+.avisoCartao { margin: 0; padding: 12px 16px; border-radius: var(--raio-p); background: #fdecea; color: var(--perigo); font-size: 14px; }
+.cartaoForm { display: flex; flex-direction: column; gap: 14px; }
+.ligacao { padding: 0; border: 0; background: none; color: var(--tinta); font-weight: 600; font-size: 14px; text-decoration: underline; cursor: pointer; }

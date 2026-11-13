@@ -224,6 +224,58 @@ test('página do pedido: PIX pendente mostra QR e copia-e-cola e muda sozinha pa
   expect(consultas).toBe(depois);
 });
 
+// Também sem provedor de cartão na API local. Só a resposta do GET do pedido é reescrita no
+// navegador ("aguardando cartão"); o POST do cartão e a conferência do 3DS vão de verdade pelas
+// rotas do site até a API, que responde o real: este pedido não tem pagamento com cartão (404).
+test('página do pedido: cartão pendente (simulado) – formulário, recusa real da API e volta do 3DS forjada não mostra "pago"', async ({ page, request }) => {
+  const cpf = await criarClienteAprovado(request);
+  await entrar(page, cpf, '/carrinho');
+  const id = await pedidoPeloSite(page, request);
+  await page.route(`**/api/conta/pedidos/${id}`, async (rota) => {
+    const real = await rota.fetch();
+    const pedido = (await real.json()) as Record<string, unknown>;
+    await rota.fulfill({
+      response: real,
+      json: { ...pedido, status: 'AGUARDANDO_PAGAMENTO', formaPagamento: 'cartao', pagamento: { metodo: 'cartao', status: 'pendente', valor: pedido.total, expiraEm: new Date(Date.now() + 20 * 60_000).toISOString(), pagoEm: null, copiaCola: null } },
+    });
+  });
+  const enviados: string[] = [];
+  page.on('request', (r) => { if (r.url().includes('/pagar-cartao')) enviados.push(r.url()); });
+
+  await page.goto(`/conta/pedidos/${id}`);
+  await expect(page.getByRole('heading', { name: /com cartão de crédito$/ })).toBeVisible();
+  const form = page.getByRole('form', { name: 'Pagar com cartão de crédito' });
+  await expect(form.getByLabel('Número do cartão')).toHaveAttribute('autocomplete', 'cc-number');
+  await expect(form.getByLabel('Nome impresso no cartão')).toHaveAttribute('autocomplete', 'cc-name');
+  await expect(form.getByLabel('Validade (MM/AA)')).toHaveAttribute('autocomplete', 'cc-exp');
+  await expect(form.getByLabel('Código de segurança (CVV)')).toHaveAttribute('autocomplete', 'cc-csc');
+
+  // Número com erro de digitação: barrado no navegador, nada enviado.
+  await form.getByLabel('Número do cartão').fill('4111111111111112');
+  await form.getByLabel('Nome impresso no cartão').fill('Maria Teste');
+  await form.getByLabel('Validade (MM/AA)').fill('1230');
+  await form.getByLabel('Código de segurança (CVV)').fill('123');
+  await form.getByRole('button', { name: /^Pagar/ }).click();
+  await expect(form.getByRole('alert')).toHaveText('Confira o número do cartão.');
+  expect(enviados).toHaveLength(0);
+
+  // Cartão de teste válido: vai pela rota do site até a API, que recusa de verdade.
+  await form.getByLabel('Número do cartão').fill('4111111111111111');
+  await expect(form.getByLabel('Número do cartão')).toHaveValue('4111 1111 1111 1111');
+  await form.getByRole('button', { name: /^Pagar/ }).click();
+  await expect(form.getByRole('alert')).toHaveText('Este pedido não tem pagamento com cartão em aberto. A página foi atualizada.');
+  await expect(form.getByLabel('Código de segurança (CVV)')).toHaveValue(''); // CVV não fica na tela
+  expect(enviados.some((u) => u.endsWith(`/api/conta/pedidos/${id}/pagar-cartao`))).toBe(true);
+  expect(enviados.join(' ')).not.toContain('4111'); // nada do cartão na URL
+
+  // Volta do banco forjada (?pagamento=ok): a página confere com a API e NÃO mostra "pago".
+  await page.goto(`/conta/pedidos/${id}?pagamento=ok`);
+  await expect(page).toHaveURL(new RegExp(`/conta/pedidos/${id}$`));
+  await expect(page.getByText('O banco não confirmou a compra. Tente de novo, use outro cartão ou pague com PIX.')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: 'Pagamento confirmado' })).toHaveCount(0);
+  expect(enviados.some((u) => u.endsWith('/pagar-cartao/confirmar'))).toBe(true);
+});
+
 test('pedido abaixo do mínimo: recusa da API', async ({ page, request }) => {
   const cfg = (await (await request.get(`${API}/config`, { headers: { 'X-Tenant': TENANT } })).json()) as {
     configuracoes?: { pedido_minimo?: { valor?: unknown } };

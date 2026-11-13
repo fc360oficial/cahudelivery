@@ -81,6 +81,16 @@ async function pedidoNaApi(context: BrowserContext, request: APIRequestContext, 
 
 test.skip(!existsSync(PSQL), `psql não encontrado em ${PSQL} (defina E2E_PSQL)`);
 
+// Estes testes fecham pedidos: o site em teste precisa subir com CHECKOUT_LIGADO=true. Desligado,
+// /finalizar mostra o aviso do app no lugar do fluxo, e aí o spec inteiro pula com o motivo.
+test.beforeEach(async ({ request }) => {
+  const html = await (await request.get('/finalizar')).text();
+  test.skip(
+    html.includes('Fechamento do pedido pelo site em breve'),
+    'checkout DESLIGADO no site em teste: suba o next dev com CHECKOUT_LIGADO=true (ver README, seção Testes)',
+  );
+});
+
 test('cliente aprovado fecha o pedido: entrega em endereço novo, PIX, confirmar e página do pedido', async ({ page, request, context }) => {
   const cpf = await criarClienteAprovado(request);
   const produto = await produtoComEstoque(request);

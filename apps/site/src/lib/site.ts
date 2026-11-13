@@ -22,3 +22,17 @@ export function enderecoEmpresa(): string | null {
 export function vendeBebidaAlcoolica(): boolean {
   return process.env.VENDE_BEBIDA_ALCOOLICA === 'true';
 }
+
+/**
+ * Chave de implantação do fechamento de pedido pelo site (criar pedido e pagar com cartão).
+ * Só `CHECKOUT_LIGADO=true` liga; ausente ou qualquer outro valor = desligado. Lida no servidor
+ * na hora de renderizar: trocar o valor exige rebuild/restart do site (como SITE_INDEXAVEL).
+ */
+export function checkoutLigado(): boolean {
+  return process.env.CHECKOUT_LIGADO === 'true';
+}
+
+/** Aviso mostrado no lugar do fechamento quando a chave está desligada. */
+export function avisoCheckoutDesligado(appNome: string): string {
+  return `Fechamento do pedido pelo site em breve. Por enquanto finalize pelo app ${appNome}: seu carrinho já está lá.`;
+}

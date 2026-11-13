@@ -33,10 +33,11 @@ const chamar = () => POST(pedido(corpoValido), { params: Promise.resolve({ id: I
 describe('POST /api/conta/pedidos/[id]/pagar-cartao', () => {
   let cliente = 0;
   beforeEach(() => {
+    process.env.CHECKOUT_LIGADO = 'true';
     pote.clear();
     pote.set('fc_acesso', jwt(`cliente-${++cliente}`)); // cliente novo por teste: o limite é por cliente
   });
-  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); delete process.env.CHECKOUT_LIGADO; });
 
   it('manda à API o cartão limpo, o dispositivo, X-Canal site, IP e User-Agent; devolve só o resultado', async () => {
     const fetchFalso = vi.fn(async () => resposta(201, { status: 'autenticar', urlAutenticacao: 'https://3ds.banco.com/x', mensagem: 'Conclua' }));
@@ -100,6 +101,33 @@ describe('POST /api/conta/pedidos/[id]/pagar-cartao', () => {
     const fetchFalso = vi.fn();
     vi.stubGlobal('fetch', fetchFalso);
     expect((await POST(pedido({ ...corpoValido, cvv: '1' }), { params: Promise.resolve({ id: ID }) })).status).toBe(400);
+    expect((await POST(pedido(corpoValido, 'https://outro.com'), { params: Promise.resolve({ id: ID }) })).status).toBe(403);
+    expect(fetchFalso).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/conta/pedidos/[id]/pagar-cartao com CHECKOUT_LIGADO desligado', () => {
+  beforeEach(() => { pote.clear(); pote.set('fc_acesso', jwt('cliente-desligado')); });
+  afterEach(() => { vi.unstubAllGlobals(); delete process.env.CHECKOUT_LIGADO; });
+
+  it('503 com a mensagem antes de validar o corpo e sem chamar pagar-cartao na API', async () => {
+    const fetchFalso = vi.fn(async (url: string) =>
+      url.endsWith('/config') ? resposta(200, { appNome: 'CAHU Delivery' }) : resposta(201, { status: 'pago' }));
+    vi.stubGlobal('fetch', fetchFalso);
+    for (const corpo of [corpoValido, { lixo: true }]) {
+      const r = await POST(pedido(corpo), { params: Promise.resolve({ id: ID }) });
+      expect(r.status).toBe(503);
+      expect(await r.json()).toEqual({ mensagem: 'O fechamento de pedido pelo site ainda não está disponível. Finalize pelo app CAHU Delivery.' });
+    }
+    const caminhos = fetchFalso.mock.calls.map(([url]) => String(url));
+    expect(caminhos.some((u) => u.includes('/pagar-cartao'))).toBe(false);
+    // Nada do cartão saiu do site.
+    expect(fetchFalso.mock.calls.flat().map(String).join(' ')).not.toContain('4111');
+  });
+
+  it('Origin de fora continua 403', async () => {
+    const fetchFalso = vi.fn();
+    vi.stubGlobal('fetch', fetchFalso);
     expect((await POST(pedido(corpoValido, 'https://outro.com'), { params: Promise.resolve({ id: ID }) })).status).toBe(403);
     expect(fetchFalso).not.toHaveBeenCalled();
   });

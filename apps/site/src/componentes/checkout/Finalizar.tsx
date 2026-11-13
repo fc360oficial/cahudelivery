@@ -18,6 +18,7 @@ import type { Carteira, Endereco } from '@/lib/conta/tipos';
 import { formatarCep } from '@/lib/formato/documentos';
 import { UUID_INTEIRO } from '@/lib/formato/caminhos';
 import { formatarPreco } from '@/lib/formato/preco';
+import { avisoCheckoutDesligado } from '@/lib/site';
 import conta from '@/componentes/conta/Conta.module.css';
 import estilos from './Finalizar.module.css';
 
@@ -28,6 +29,9 @@ interface Props {
   condicoesBoleto: string[];
   pedidoMinimo: number | null;
   whatsapp: string | null;
+  /** CHECKOUT_LIGADO lido no servidor; desligado = só o aviso do app, sem o fluxo. */
+  checkoutLigado: boolean;
+  appNome: string;
 }
 
 const PASSOS = ['Entrega', 'Pagamento', 'Revisão'] as const;
@@ -68,13 +72,19 @@ async function pedidosRecentes(): Promise<{ id: string; criadoEm: string | null 
 export function Finalizar(props: Props) {
   const { carregado, logado } = useSessao();
   const router = useRouter();
+  const { checkoutLigado, appNome } = props;
   useEffect(() => {
-    if (carregado && !logado) router.replace(ENTRAR);
-  }, [carregado, logado, router]);
+    if (checkoutLigado && carregado && !logado) router.replace(ENTRAR);
+  }, [checkoutLigado, carregado, logado, router]);
   return (
     <div className={`conteudo ${estilos.pagina}`}>
       <h1>Finalizar pedido</h1>
-      {carregado && logado ? <Checkout {...props} /> : <Carregando />}
+      {!checkoutLigado ? (
+        <div className={conta.estado}>
+          <p>{avisoCheckoutDesligado(appNome)}</p>
+          <Link href="/carrinho" className={conta.secundario}>Voltar ao carrinho</Link>
+        </div>
+      ) : carregado && logado ? <Checkout {...props} /> : <Carregando />}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { chamarApi, ErroApi, TEMPO_LIMITE_PAGAMENTO_MS } from '@/lib/api/cliente';
 import { buscarConfig } from '@/lib/api/catalogo';
+import { recusaCheckoutDesligado } from '@/lib/checkout/chave';
 import { normalizarPedidoCriado, validarPedido } from '@/lib/checkout/pedido';
 import { normalizarPaginaPedidos } from '@/lib/conta/normalizar-conta';
 import { corpoInvalido, lerCorpo, respostaJson, rotaDaConta } from '@/lib/conta/rota-conta';
@@ -26,9 +27,12 @@ export async function GET(req: Request) {
  * "criar pedido lê o carrinho depois da trava do cliente"); antes disso, dois envios simultâneos
  * podiam criar dois pedidos. Por isso a tela também nunca reenvia sozinha e, quando a resposta
  * não chega (rede, 5xx, tempo esgotado = 504), confere carrinho e "Meus pedidos" antes de liberar.
+ * Com CHECKOUT_LIGADO desligado: 503 antes de validar e sem chamar POST /pedidos.
  */
 export async function POST(req: Request) {
   return rotaDaConta(req, async (token) => {
+    const desligado = await recusaCheckoutDesligado();
+    if (desligado) return desligado;
     const corpo = await lerCorpo(req);
     const config = await buscarConfig();
     const dados = validarPedido(corpo, config.condicoesBoleto);

@@ -48,3 +48,18 @@ describe('dados da instalação para o rodapé', () => {
     delete process.env.VENDE_BEBIDA_ALCOOLICA;
   });
 });
+
+describe('chave do fechamento de pedido', () => {
+  it('checkoutLigado só com CHECKOUT_LIGADO=true; ausente ou qualquer outro valor = desligado', async () => {
+    const { checkoutLigado } = await import('./site');
+    delete process.env.CHECKOUT_LIGADO;
+    expect(checkoutLigado()).toBe(false);
+    for (const v of ['', 'false', '1', 'TRUE', 'sim', ' true']) {
+      process.env.CHECKOUT_LIGADO = v;
+      expect(checkoutLigado()).toBe(false);
+    }
+    process.env.CHECKOUT_LIGADO = 'true';
+    expect(checkoutLigado()).toBe(true);
+    delete process.env.CHECKOUT_LIGADO;
+  });
+});

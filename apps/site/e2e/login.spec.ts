@@ -77,9 +77,16 @@ test('entrar: senha errada, login, carrinho do visitante passa para o cliente, s
   // O item adicionado como visitante continua no carrinho (agora o do cliente).
   await page.goto('/carrinho');
   await expect(page.getByText(nome).first()).toBeVisible();
-  // Cadastro novo nasce "em análise": aviso do app e "Finalizar pedido" desabilitado.
-  await expect(page.getByText('Seu cadastro está em análise')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Finalizar pedido' })).toBeDisabled();
+  // Checkout desligado (CHECKOUT_LIGADO): no lugar do botão, o aviso de finalizar pelo app.
+  // Ligado: cadastro novo nasce "em análise": aviso do app e "Finalizar pedido" desabilitado.
+  const desligado = page.getByText(/^Fechamento do pedido pelo site em breve\. Por enquanto finalize pelo app .+: seu carrinho já está lá\.$/);
+  await expect(desligado.or(page.getByText('Seu cadastro está em análise'))).toBeVisible();
+  if (await desligado.isVisible()) {
+    await expect(page.getByRole('button', { name: 'Finalizar pedido' })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Finalizar pedido' })).toHaveCount(0);
+  } else {
+    await expect(page.getByRole('button', { name: 'Finalizar pedido' })).toBeDisabled();
+  }
 
   // Sair volta a mostrar "Entrar".
   await page.getByRole('button', { name: /Olá/ }).click();

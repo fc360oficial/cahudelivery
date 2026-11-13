@@ -1,4 +1,5 @@
 import { chamarApi, TEMPO_LIMITE_PAGAMENTO_MS } from '@/lib/api/cliente';
+import { recusaCheckoutDesligado } from '@/lib/checkout/chave';
 import { resultadoCartao, validarPagamentoCartao, type ResultadoCartao } from '@/lib/checkout/cartao';
 import { criarLimite, sujeitoDoJwt } from '@/lib/conta/limite-tentativas';
 import { corpoInvalido, lerCorpo, naoEncontrado, respostaJson, rotaDaConta } from '@/lib/conta/rota-conta';
@@ -26,6 +27,8 @@ const contaComoRecusa = (r: ResultadoCartao) => r.status === 'recusado';
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return rotaDaConta(req, async (token) => {
+    const desligado = await recusaCheckoutDesligado();
+    if (desligado) return desligado;
     const { id } = await params;
     if (!UUID_INTEIRO.test(id)) return naoEncontrado();
     const dados = validarPagamentoCartao(await lerCorpo(req), new Date());

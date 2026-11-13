@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Finalizar } from '@/componentes/checkout/Finalizar';
 import { buscarConfig } from '@/lib/api/catalogo';
-import { linkWhatsapp } from '@/lib/site';
+import { checkoutLigado, linkWhatsapp } from '@/lib/site';
 
 // Página só do cliente logado: casca no servidor (config pública da loja), dados pelas rotas
 // /api/conta/* no navegador, como as páginas de /conta. Nunca indexada, nunca em cache.
@@ -18,6 +18,8 @@ export default async function PaginaFinalizar() {
       condicoesBoleto={config.condicoesBoleto}
       pedidoMinimo={config.pedidoMinimo}
       whatsapp={linkWhatsapp(config.contatoWhatsapp)}
+      checkoutLigado={checkoutLigado()}
+      appNome={config.appNome}
     />
   );
 }

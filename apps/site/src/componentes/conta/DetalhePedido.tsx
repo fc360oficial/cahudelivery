@@ -37,7 +37,7 @@ export function ArquivosNota({ pedidoId, nota }: { pedidoId: string; nota: Pick<
   );
 }
 
-export function DetalhePedido({ id }: { id: string }) {
+export function DetalhePedido({ id, checkoutLigado, appNome }: { id: string; checkoutLigado: boolean; appNome: string }) {
   const carga = useDadosConta<PedidoDetalhe>(`/api/conta/pedidos/${id}`);
   const enviar = useEnviarConta();
   const { recarregar: recarregarCarrinho } = useCarrinho();
@@ -86,7 +86,7 @@ export function DetalhePedido({ id }: { id: string }) {
       </div>
       {erroRepetir && <Aviso tipo="erro">{erroRepetir}</Aviso>}
 
-      <BlocoPagamento pedido={p} aoAtualizar={carga.definir} />
+      <BlocoPagamento pedido={p} aoAtualizar={carga.definir} checkoutLigado={checkoutLigado} appNome={appNome} />
 
       <div className={estilos.grade}>
         <section className={estilos.cartao} aria-labelledby="pedido-status">

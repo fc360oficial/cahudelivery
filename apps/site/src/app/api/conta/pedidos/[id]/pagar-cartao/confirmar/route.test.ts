@@ -22,8 +22,8 @@ const chamar = () =>
   }), { params: Promise.resolve({ id: ID }) });
 
 describe('POST /api/conta/pedidos/[id]/pagar-cartao/confirmar', () => {
-  beforeEach(() => { pote.clear(); pote.set('fc_acesso', jwt); });
-  afterEach(() => vi.unstubAllGlobals());
+  beforeEach(() => { process.env.CHECKOUT_LIGADO = 'true'; pote.clear(); pote.set('fc_acesso', jwt); });
+  afterEach(() => { vi.unstubAllGlobals(); delete process.env.CHECKOUT_LIGADO; });
 
   it('creditado passa como está (a tela mostra "valor virou crédito")', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => resposta(201, { status: 'creditado' })));
@@ -33,5 +33,20 @@ describe('POST /api/conta/pedidos/[id]/pagar-cartao/confirmar', () => {
   it('status fora da lista vira desconhecido', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => resposta(201, { status: 'qualquer' })));
     expect(await (await chamar()).json()).toEqual({ status: 'desconhecido' });
+  });
+});
+
+describe('POST /api/conta/pedidos/[id]/pagar-cartao/confirmar com CHECKOUT_LIGADO desligado', () => {
+  beforeEach(() => { pote.clear(); pote.set('fc_acesso', jwt); });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('503 com a mensagem, sem chamar confirmar na API', async () => {
+    const fetchFalso = vi.fn(async (url: string) =>
+      url.endsWith('/config') ? resposta(200, { appNome: 'CAHU Delivery' }) : resposta(201, { status: 'pago' }));
+    vi.stubGlobal('fetch', fetchFalso);
+    const r = await chamar();
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ mensagem: 'O fechamento de pedido pelo site ainda não está disponível. Finalize pelo app CAHU Delivery.' });
+    expect(fetchFalso.mock.calls.some(([url]) => String(url).includes('/confirmar'))).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { chamarApi } from '@/lib/api/cliente';
+import { recusaCheckoutDesligado } from '@/lib/checkout/chave';
 import { naoEncontrado, respostaJson, rotaDaConta } from '@/lib/conta/rota-conta';
 import { UUID_INTEIRO } from '@/lib/formato/caminhos';
 
@@ -12,6 +13,8 @@ const STATUS = new Set(['pago', 'pendente', 'recusado', 'expirado', 'cancelado',
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   return rotaDaConta(req, async (token) => {
+    const desligado = await recusaCheckoutDesligado();
+    if (desligado) return desligado;
     const { id } = await params;
     if (!UUID_INTEIRO.test(id)) return naoEncontrado();
     const r = await chamarApi<{ status?: unknown }>(`/pedidos/${id.toLowerCase()}/pagar-cartao/confirmar`, { metodo: 'POST', corpo: {}, token });

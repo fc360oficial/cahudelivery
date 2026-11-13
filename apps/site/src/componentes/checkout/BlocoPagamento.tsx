@@ -55,9 +55,12 @@ const TENTATIVAS_SE_FALHOU = 3;
  * (telaDoPagamento); enquanto espera o pagamento, consulta /api/conta/pedidos/[id] a cada 5 s
  * (recuando em falha, parando com a aba escondida ou quando o pagamento termina). Em prazo
  * encerrado ou PIX gerando a consulta tem teto (proximaConsulta): depois de 30 min para e
- * mostra "Atualizar".
+ * mostra "Atualizar". Com CHECKOUT_LIGADO desligado o PIX continua (só leitura), mas o cartão
+ * pendente manda pagar pelo app: nada de formulário nem de conferência do 3DS pelo site.
  */
-export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe; aoAtualizar: (p: PedidoDetalhe) => void }) {
+export function BlocoPagamento({ pedido, aoAtualizar, checkoutLigado, appNome }: {
+  pedido: PedidoDetalhe; aoAtualizar: (p: PedidoDetalhe) => void; checkoutLigado: boolean; appNome: string;
+}) {
   const [agora, setAgora] = useState(() => Date.now());
   const [semCodigo, setSemCodigo] = useState(0);
   const tela = telaDoPagamento(pedido, agora, semCodigo);
@@ -123,8 +126,8 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
     conferiu.current = true;
     router.replace(caminho, { scroll: false }); // tira a dica da URL: recarregar a página não repete
     // A dica só encurta a espera; quem decide é sempre o status que a API devolve.
-    if (ehCartao) void conferirCartao(dica === 'falhou' ? TENTATIVAS_SE_FALHOU : TENTATIVAS_CONFERENCIA);
-  }, [dica, ehCartao, caminho, router, conferirCartao]);
+    if (ehCartao && checkoutLigado) void conferirCartao(dica === 'falhou' ? TENTATIVAS_SE_FALHOU : TENTATIVAS_CONFERENCIA);
+  }, [dica, ehCartao, checkoutLigado, caminho, router, conferirCartao]);
 
   // Desde quando a tela está em prazo encerrado / PIX gerando (base do teto da consulta).
   useEffect(() => {
@@ -191,7 +194,9 @@ export function BlocoPagamento({ pedido, aoAtualizar }: { pedido: PedidoDetalhe;
     <Quadro tom="alerta" titulo={`Pague ${preco(t.valor)} com cartão de crédito`}>
       {tempoRestante(t.expiraEm, agora) && <p className={estilos.prazo} role="timer" aria-live="off">Prazo para pagar: {tempoRestante(t.expiraEm, agora)}</p>}
       {aviso && <p className={estilos.avisoCartao} role="alert">{aviso}</p>}
-      {conferindo ? (
+      {!checkoutLigado ? (
+        <p>Pague com cartão pelo app {appNome}</p>
+      ) : conferindo ? (
         <p role="status">Conferindo o pagamento com o banco…</p>
       ) : (
         <>

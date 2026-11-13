@@ -4,12 +4,20 @@ import Link from 'next/link';
 import { barraDoMinimo, podeFinalizar } from '@/lib/checkout/minimo';
 import { rotuloEmbalagem } from '@/lib/formato/embalagem';
 import { formatarPreco } from '@/lib/formato/preco';
+import { avisoCheckoutDesligado } from '@/lib/site';
 import { BotaoAdicionar } from './BotaoAdicionar';
 import { useCarrinho } from './CarrinhoProvider';
 import { useSessao } from './SessaoProvider';
 import estilos from '@/app/carrinho/carrinho.module.css';
 
-export function ItensCarrinho({ pedidoMinimo }: { pedidoMinimo: number | null }) {
+interface Props {
+  pedidoMinimo: number | null;
+  /** CHECKOUT_LIGADO lido no servidor; desligado = aviso do app no lugar de "Finalizar pedido". */
+  checkoutLigado: boolean;
+  appNome: string;
+}
+
+export function ItensCarrinho({ pedidoMinimo, checkoutLigado, appNome }: Props) {
   const { carrinho, carregado, erro, recarregar } = useCarrinho();
   if (!carregado) {
     return (
@@ -50,7 +58,7 @@ export function ItensCarrinho({ pedidoMinimo }: { pedidoMinimo: number | null })
           </li>
         ))}
       </ul>
-      <ResumoCarrinho subtotal={carrinho.subtotal} itens={carrinho.itens.length} pedidoMinimo={pedidoMinimo} />
+      <ResumoCarrinho subtotal={carrinho.subtotal} itens={carrinho.itens.length} pedidoMinimo={pedidoMinimo} checkoutLigado={checkoutLigado} appNome={appNome} />
     </div>
   );
 }
@@ -59,7 +67,7 @@ export function ItensCarrinho({ pedidoMinimo }: { pedidoMinimo: number | null })
 export const TEXTO_EM_ANALISE =
   'Seu cadastro ainda está sendo analisado pela distribuidora. Entre em contato para agilizar a aprovação antes de fechar pedidos.';
 
-function ResumoCarrinho({ subtotal, itens, pedidoMinimo }: { subtotal: number; itens: number; pedidoMinimo: number | null }) {
+function ResumoCarrinho({ subtotal, itens, pedidoMinimo, checkoutLigado, appNome }: { subtotal: number; itens: number } & Props) {
   const sessao = useSessao();
   const barra = barraDoMinimo(subtotal, pedidoMinimo);
   const decisao = podeFinalizar({ itens, atingiu: barra.atingiu, statusCadastro: sessao.status });
@@ -81,7 +89,9 @@ function ResumoCarrinho({ subtotal, itens, pedidoMinimo }: { subtotal: number; i
         <div><dt>Subtotal</dt><dd>{formatarPreco(subtotal)}</dd></div>
         <div className={estilos.total}><dt>Total</dt><dd><strong>{formatarPreco(subtotal)}</strong></dd></div>
       </dl>
-      {sessao.carregado && (sessao.logado ? (
+      {sessao.carregado && (sessao.logado ? !checkoutLigado ? (
+        <p>{avisoCheckoutDesligado(appNome)}</p>
+      ) : (
         <>
           {decisao.motivo === 'em-analise' && (
             <p className={estilos.emAnalise} role="status"><strong>Seu cadastro está em análise</strong>{TEXTO_EM_ANALISE}</p>

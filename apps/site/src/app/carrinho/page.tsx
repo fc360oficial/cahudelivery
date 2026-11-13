@@ -10,7 +10,7 @@ export default async function PaginaCarrinho() {
   return (
     <div className={`conteudo ${estilos.pagina}`}>
       <h1>Seu carrinho</h1>
-      <ItensCarrinho appNome={config.appNome} />
+      <ItensCarrinho pedidoMinimo={config.pedidoMinimo} />
     </div>
   );
 }

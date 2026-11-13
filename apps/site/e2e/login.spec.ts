@@ -77,7 +77,9 @@ test('entrar: senha errada, login, carrinho do visitante passa para o cliente, s
   // O item adicionado como visitante continua no carrinho (agora o do cliente).
   await page.goto('/carrinho');
   await expect(page.getByText(nome).first()).toBeVisible();
-  await expect(page.getByText(/Fechamento do pedido pelo site em breve/)).toBeVisible();
+  // Cadastro novo nasce "em análise": aviso do app e "Finalizar pedido" desabilitado.
+  await expect(page.getByText('Seu cadastro está em análise')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Finalizar pedido' })).toBeDisabled();
 
   // Sair volta a mostrar "Entrar".
   await page.getByRole('button', { name: /Olá/ }).click();

@@ -10,8 +10,22 @@
 .subtotalItem { min-width: 110px; text-align: right; font-family: var(--fonte-titulo), sans-serif; font-size: 18px; }
 .resumo { flex: 1 1 320px; min-width: 0; background: var(--fundo-suave); border-radius: var(--raio-g); padding: 32px; display: flex; flex-direction: column; gap: 16px; }
 .resumo p { margin: 0; color: var(--tinta-suave); }
-.total { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.contas { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.contas div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+.contas dt { color: var(--tinta-suave); }
+.contas dd { margin: 0; font-weight: 600; }
+.total { padding-top: 8px; border-top: 1px solid var(--linha); }
+.total dt { color: var(--tinta); font-weight: 700; }
 .total strong { font-family: var(--fonte-titulo), sans-serif; font-size: 28px; }
+.minimo { display: flex; flex-direction: column; gap: 8px; }
+.resumo .minimoFalta { color: var(--alerta); font-weight: 600; font-size: 14px; }
+.resumo .minimoOk { color: var(--positivo); font-weight: 600; font-size: 14px; }
+.trilho { height: 8px; border-radius: var(--raio-pilula); background: #ffffff; overflow: hidden; }
+.preenchido, .preenchidoOk { height: 100%; border-radius: inherit; background: var(--alerta); transition: width 0.2s; }
+.preenchidoOk { background: var(--positivo); }
+.resumo .emAnalise { padding: 12px 16px; border-radius: var(--raio-p); background: #ffffff; border-left: 4px solid var(--alerta); color: var(--tinta); font-size: 14px; }
+.emAnalise strong { display: block; margin-bottom: 2px; }
 .vazio { display: flex; flex-direction: column; align-items: flex-start; gap: 16px; color: var(--tinta-suave); }
-.botaoDestaque { display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 28px; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque); font-weight: 700; text-decoration: none; }
+.botaoDestaque { display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 28px; border: 0; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--sobre-destaque); font-weight: 700; font-size: 16px; text-decoration: none; cursor: pointer; }
+.botaoDestaque:disabled { opacity: 0.5; cursor: not-allowed; }
 .botao { display: inline-flex; align-items: center; height: 52px; padding: 0 28px; border-radius: var(--raio-pilula); background: var(--tinta); color: #ffffff; font-weight: 600; text-decoration: none; }

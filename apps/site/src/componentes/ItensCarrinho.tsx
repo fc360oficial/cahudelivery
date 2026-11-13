@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { barraDoMinimo, podeFinalizar } from '@/lib/checkout/minimo';
 import { rotuloEmbalagem } from '@/lib/formato/embalagem';
 import { formatarPreco } from '@/lib/formato/preco';
 import { BotaoAdicionar } from './BotaoAdicionar';
@@ -8,9 +9,8 @@ import { useCarrinho } from './CarrinhoProvider';
 import { useSessao } from './SessaoProvider';
 import estilos from '@/app/carrinho/carrinho.module.css';
 
-export function ItensCarrinho({ appNome }: { appNome: string }) {
+export function ItensCarrinho({ pedidoMinimo }: { pedidoMinimo: number | null }) {
   const { carrinho, carregado, erro, recarregar } = useCarrinho();
-  const sessao = useSessao();
   if (!carregado) {
     return (
       <div className={estilos.vazio}>
@@ -50,14 +50,51 @@ export function ItensCarrinho({ appNome }: { appNome: string }) {
           </li>
         ))}
       </ul>
-      <aside className={estilos.resumo}>
-        <div className={estilos.total}><span>Subtotal</span><strong>{formatarPreco(carrinho.subtotal)}</strong></div>
-        {sessao.carregado && (sessao.logado ? (
-          <p>Fechamento do pedido pelo site em breve. Por enquanto finalize pelo app {appNome}: seu carrinho já está lá.</p>
-        ) : (
-          <Link href="/entrar?voltar=/carrinho" className={estilos.botaoDestaque}>Entrar para finalizar</Link>
-        ))}
-      </aside>
+      <ResumoCarrinho subtotal={carrinho.subtotal} itens={carrinho.itens.length} pedidoMinimo={pedidoMinimo} />
     </div>
+  );
+}
+
+/** Texto do app (carrinho_screen.dart) para quem ainda está em análise. */
+export const TEXTO_EM_ANALISE =
+  'Seu cadastro ainda está sendo analisado pela distribuidora. Entre em contato para agilizar a aprovação antes de fechar pedidos.';
+
+function ResumoCarrinho({ subtotal, itens, pedidoMinimo }: { subtotal: number; itens: number; pedidoMinimo: number | null }) {
+  const sessao = useSessao();
+  const barra = barraDoMinimo(subtotal, pedidoMinimo);
+  const decisao = podeFinalizar({ itens, atingiu: barra.atingiu, statusCadastro: sessao.status });
+  return (
+    <aside className={estilos.resumo} aria-label="Resumo do pedido">
+      {barra.temMinimo && (
+        <div className={estilos.minimo}>
+          <p className={barra.atingiu ? estilos.minimoOk : estilos.minimoFalta} role="status">
+            {barra.atingiu
+              ? 'Pedido mínimo atingido!'
+              : `Faltam ${formatarPreco(barra.falta)} para o mínimo de ${formatarPreco(barra.minimo)}`}
+          </p>
+          <div className={estilos.trilho} aria-hidden="true">
+            <div className={barra.atingiu ? estilos.preenchidoOk : estilos.preenchido} style={{ width: `${Math.round(barra.progresso * 100)}%` }} />
+          </div>
+        </div>
+      )}
+      <dl className={estilos.contas}>
+        <div><dt>Subtotal</dt><dd>{formatarPreco(subtotal)}</dd></div>
+        <div className={estilos.total}><dt>Total</dt><dd><strong>{formatarPreco(subtotal)}</strong></dd></div>
+      </dl>
+      {sessao.carregado && (sessao.logado ? (
+        <>
+          {decisao.motivo === 'em-analise' && (
+            <p className={estilos.emAnalise} role="status"><strong>Seu cadastro está em análise</strong>{TEXTO_EM_ANALISE}</p>
+          )}
+          {decisao.pode ? (
+            <Link href="/finalizar" className={estilos.botaoDestaque}>Finalizar pedido</Link>
+          ) : (
+            <button type="button" className={estilos.botaoDestaque} disabled>Finalizar pedido</button>
+          )}
+        </>
+      ) : (
+        <Link href="/entrar?voltar=/carrinho" className={estilos.botaoDestaque}>Entrar para finalizar</Link>
+      ))}
+    </aside>
   );
 }

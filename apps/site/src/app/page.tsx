@@ -1,6 +1,6 @@
 import { AtalhosCategoria } from '@/componentes/AtalhosCategoria';
 import { AvisoDesatualizado } from '@/componentes/AvisoDesatualizado';
-import { Banners } from '@/componentes/Banners';
+import { Abertura } from '@/componentes/Abertura';
 import { Vantagens } from '@/componentes/Vantagens';
 import { Vitrine, VitrinePatrocinada } from '@/componentes/Vitrine';
 import { buscarCategorias, buscarConfig, buscarHome } from '@/lib/api/catalogo';
@@ -17,9 +17,9 @@ export default async function PaginaInicial() {
   return (
     <>
       <AvisoDesatualizado geradoEm={Date.now()} />
-      <Banners banners={home.banners} />
+      <Abertura banners={home.banners} config={config} />
       <AtalhosCategoria categorias={categorias} />
-      <div style={{ marginTop: 32 }}><Vantagens config={config} /></div>
+      <div style={{ marginTop: 28 }}><Vantagens config={config} /></div>
       <div className="conteudo" style={{ display: 'flex', flexDirection: 'column', gap: 48, paddingBlock: 40 }}>
         {secoes.length === 0 && <p>Nenhum produto disponível no momento.</p>}
         {secoes.map((s) =>

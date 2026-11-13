@@ -1,4 +1,4 @@
-.carrossel { position: relative; margin-top: 20px; }
+.carrossel { position: relative; }
 .trilho {
   display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
   border-radius: var(--raio-m); background: var(--destaque);
@@ -12,8 +12,8 @@
   box-shadow: 0 4px 14px rgba(20, 20, 20, 0.22); transition: transform 0.2s;
 }
 .seta:hover { transform: translateY(-50%) scale(1.06); }
-.anterior { left: -16px; }
-.proximo { right: -16px; }
+.anterior { left: 12px; }
+.proximo { right: 12px; }
 .bolinhas { position: absolute; left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 4px; }
 .bolinha, .bolinhaAtiva {
   width: 24px; height: 24px; padding: 0; border: 0; background: transparent; cursor: pointer;

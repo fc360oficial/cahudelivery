@@ -1,8 +1,5 @@
-import Link from 'next/link';
 import type { ConfigLoja } from '@/lib/api/tipos';
 import { formatarPreco } from '@/lib/formato/preco';
-import { linkWhatsapp } from '@/lib/site';
-import { SoVisitante } from './SoVisitante';
 import estilos from './Vantagens.module.css';
 
 const ICONES = {
@@ -16,7 +13,7 @@ function Item({ icone, titulo, texto }: { icone: keyof typeof ICONES; titulo: st
   return (
     <li className={estilos.item}>
       <span className={estilos.icone} aria-hidden="true">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d={ICONES[icone]} />
         </svg>
       </span>
@@ -25,36 +22,19 @@ function Item({ icone, titulo, texto }: { icone: keyof typeof ICONES; titulo: st
   );
 }
 
-/** Boas-vindas para quem ainda não entrou: explica como a loja funciona e chama para o login ou
- *  para virar cliente. Só afirma o que a configuração da loja confirma. Some para o cliente logado. */
+/** Faixa de confiança: só afirma o que a configuração da loja confirma. */
 export function Vantagens({ config }: { config: ConfigLoja }) {
-  const whatsapp = linkWhatsapp(config.contatoWhatsapp);
   const horario = [config.horarioSemana && `Seg a sex ${config.horarioSemana}`, config.horarioSabado && `sáb ${config.horarioSabado}`]
     .filter(Boolean).join(' · ');
   return (
-    <SoVisitante>
-      <section className="conteudo" aria-label="Como comprar">
-        <div className={estilos.painel}>
-          <div className={estilos.chamada}>
-            <span className={estilos.sobre}>Atacado para o seu comércio</span>
-            <h2>Abasteça a sua loja <span>sem sair do balcão.</span></h2>
-            <p>Veja os preços, monte o pedido e receba com nota fiscal no seu CNPJ.</p>
-            <div className={estilos.acoes}>
-              <Link href="/entrar" className={estilos.primario}>Já sou cliente: entrar</Link>
-              {whatsapp && (
-                <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={estilos.secundario}>Quero ser cliente</a>
-              )}
-            </div>
-          </div>
-          <ul className={estilos.lista}>
-            <Item icone="caixa" titulo="Preço de atacado" texto="Valor da caixa e da unidade em todo produto" />
-            <Item icone="loja" titulo="Venda para lojistas"
-              texto={config.pedidoMinimo != null ? `Pedido a partir de ${formatarPreco(config.pedidoMinimo)}` : 'Compra exclusiva para CNPJ'} />
-            <Item icone="nota" titulo="Nota fiscal no seu CNPJ" texto="Em todo pedido faturado" />
-            <Item icone="conversa" titulo="Atendimento no WhatsApp" texto={horario || 'Fale direto com a distribuidora'} />
-          </ul>
-        </div>
-      </section>
-    </SoVisitante>
+    <div className="conteudo">
+      <ul className={estilos.lista} aria-label="Como funciona a compra">
+        <Item icone="caixa" titulo="Preço de atacado" texto="Valor da caixa e da unidade" />
+        <Item icone="loja" titulo="Venda para lojistas"
+          texto={config.pedidoMinimo != null ? `Pedido a partir de ${formatarPreco(config.pedidoMinimo)}` : 'Compra exclusiva para CNPJ'} />
+        <Item icone="nota" titulo="Nota fiscal no seu CNPJ" texto="Em todo pedido faturado" />
+        <Item icone="conversa" titulo="Atendimento no WhatsApp" texto={horario || 'Fale direto com a distribuidora'} />
+      </ul>
+    </div>
   );
 }

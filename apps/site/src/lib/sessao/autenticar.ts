@@ -25,12 +25,20 @@ export async function respostaSessaoExpirou(req: Request): Promise<NextResponse>
   return NextResponse.json({ mensagem: SESSAO_EXPIROU }, { status: 401, headers: SEM_CACHE });
 }
 
+type MapearErro = (status: number, mensagem: string, codigo?: string) => { status: number; corpo: object };
+
 /**
- * Login ou primeiro acesso na API: grava o par de tokens em cookie HttpOnly e devolve ao
- * navegador só `{ logado, status }`. Manda o X-Device-Id (se houver) para a API passar o
+ * Login, primeiro acesso ou cadastro na API: grava o par de tokens em cookie HttpOnly e devolve
+ * ao navegador só `{ logado, status }`. Manda o X-Device-Id (se houver) para a API passar o
  * carrinho do visitante para o cliente, e o IP do visitante para o limite de tentativas.
+ * `mapearErro` decide o que do erro da API chega ao navegador (nunca o corpo bruto).
  */
-export async function autenticar(req: Request, caminho: '/auth/login' | '/auth/primeiro-acesso', corpo: object) {
+export async function autenticar(
+  req: Request,
+  caminho: '/auth/login' | '/auth/primeiro-acesso' | '/auth/registrar',
+  corpo: object,
+  mapearErro: MapearErro = erroDeAutenticacao,
+) {
   try {
     const resposta = await chamarApi<unknown>(caminho, {
       metodo: 'POST',
@@ -45,7 +53,7 @@ export async function autenticar(req: Request, caminho: '/auth/login' | '/auth/p
     return NextResponse.json({ logado: true, status }, { headers: SEM_CACHE });
   } catch (e) {
     const erro = e instanceof ErroApi ? e : new ErroApi(500, 'Erro inesperado.');
-    const { status, corpo: corpoErro } = erroDeAutenticacao(erro.status, erro.message, erro.codigo);
+    const { status, corpo: corpoErro } = mapearErro(erro.status, erro.message, erro.codigo);
     return NextResponse.json(corpoErro, { status, headers: SEM_CACHE });
   }
 }

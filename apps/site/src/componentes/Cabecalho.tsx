@@ -5,6 +5,7 @@ import { formatarPreco } from '@/lib/formato/preco';
 import { linkWhatsapp } from '@/lib/site';
 import { BotaoConta } from './BotaoConta';
 import { ContadorCarrinho } from './ContadorCarrinho';
+import { MenuRecolhivel } from './MenuRecolhivel';
 import estilos from './Cabecalho.module.css';
 
 /** Logo do tenant; sem logo cadastrado, usa o arquivo da instalação em public/marca/logo.png. */
@@ -60,7 +61,7 @@ export function Cabecalho({ config, categorias }: { config: ConfigLoja; categori
       <div className={estilos.nav}>
         <div className={`conteudo ${estilos.navLinha}`}>
           {raizes.length > 0 && (
-            <details className={estilos.mega}>
+            <MenuRecolhivel className={estilos.mega}>
               <summary>
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
                 Todos os departamentos
@@ -79,7 +80,7 @@ export function Cabecalho({ config, categorias }: { config: ConfigLoja; categori
                   );
                 })}
               </div>
-            </details>
+            </MenuRecolhivel>
           )}
           <nav aria-label="Categorias" className={estilos.atalhos}>
             {raizes.map((c) => (

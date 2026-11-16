@@ -16,10 +16,14 @@ const fonteTitulo = Manrope({ subsets: ['latin'], weight: ['700', '800'], variab
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await buscarConfig();
+  const descricao = `Compre no atacado direto da ${config.distribuidora}, com preço por caixa e por unidade.`;
   return {
     metadataBase: new URL(siteUrl()),
     title: { default: config.distribuidora, template: `%s | ${config.distribuidora}` },
-    description: `Compre no atacado direto da ${config.distribuidora}, com preço por caixa e por unidade.`,
+    description: descricao,
+    // Cartão que o WhatsApp monta ao colar o link. A imagem é o opengraph-image.jpg desta pasta;
+    // o ícone da aba e do atalho no celular são favicon.ico, icon.png e apple-icon.png.
+    openGraph: { type: 'website', locale: 'pt_BR', siteName: config.distribuidora, title: config.distribuidora, description: descricao, url: '/' },
     robots: indexavel() ? undefined : { index: false, follow: false },
   };
 }

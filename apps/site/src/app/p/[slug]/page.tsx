@@ -35,10 +35,17 @@ async function produtoDe(slug: string): Promise<Produto | null> {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const produto = await produtoDe((await params).slug);
   if (!produto) return {};
+  const descricao = `${produto.nome}, ${rotuloEmbalagem(produto.unidadeVenda, produto.qtdPorEmbalagem).toLowerCase()}.`;
+  const foto = produto.imagens[0]?.url;
   return {
     title: produto.nome,
-    description: `${produto.nome}, ${rotuloEmbalagem(produto.unidadeVenda, produto.qtdPorEmbalagem).toLowerCase()}.`,
+    description: descricao,
     alternates: { canonical: caminhoProduto(produto) },
+    // Link do produto colado no WhatsApp mostra o próprio produto; sem foto, vale a imagem geral do site.
+    openGraph: {
+      type: 'website', locale: 'pt_BR', title: produto.nome, description: descricao, url: caminhoProduto(produto),
+      ...(foto ? { images: [{ url: foto, alt: produto.nome }] } : {}),
+    },
   };
 }
 

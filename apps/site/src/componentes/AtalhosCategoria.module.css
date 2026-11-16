@@ -4,15 +4,21 @@
   overflow-x: auto; scrollbar-width: none;
 }
 .lista::-webkit-scrollbar { display: none; }
-.lista li { flex: 1 0 104px; display: flex; justify-content: center; }
+.lista li { flex: 1 0 116px; display: flex; justify-content: center; }
 .atalho { display: flex; flex-direction: column; align-items: center; gap: 10px; text-decoration: none; text-align: center; }
 .foto {
-  width: 104px; height: 104px; border-radius: 50%; overflow: hidden; background: var(--fundo-suave);
+  width: 116px; height: 116px; border-radius: 50%; overflow: hidden; background: var(--fundo-suave);
   border: 3px solid transparent; display: flex; align-items: center; justify-content: center;
   font-family: var(--fonte-titulo), sans-serif; font-weight: 800; font-size: 34px; color: var(--tinta-suave);
   transition: border-color 0.2s, transform 0.2s;
 }
-.foto img { width: 100%; height: 100%; object-fit: cover; }
+/*
+ * A foto da categoria é a do cartão largo do app (900x600, com o nome escrito numa faixa embaixo).
+ * Inteira num círculo pequeno, os produtos ficam miúdos e o nome sai cortado. Por isso o círculo
+ * mostra só a parte de cima, mais de perto: o topo da foto, ampliado 1,6x (a faixa do nome fica de
+ * fora; o nome já aparece embaixo do círculo).
+ */
+.foto img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.6); transform-origin: 50% 0; }
 .fotoOferta { background: var(--tinta); color: var(--destaque); }
 .atalho:hover .foto { border-color: var(--destaque); transform: translateY(-3px); }
 .nome { font-weight: 600; font-size: 14px; line-height: 1.25; }
@@ -26,6 +32,6 @@
   .secao { margin-top: 18px; }
   .lista { gap: 6px; }
   .lista li { flex: 0 0 74px; }
-  .foto { width: 62px; height: 62px; }
+  .foto { width: 68px; height: 68px; }
   .nome { font-size: 12px; }
 }

@@ -1,5 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { DlinksAuthMiddleware } from './dlinks-auth.middleware';
+import { DlinksEntregasController } from './dlinks-entregas.controller';
+import { DlinksEntregasService } from './dlinks-entregas.service';
 import { DlinksPedidosController } from './dlinks-pedidos.controller';
 import { DlinksPedidosService } from './dlinks-pedidos.service';
 import { DlinksSyncController } from './dlinks-sync.controller';
@@ -8,11 +10,13 @@ import { DlinksVendedoresController } from './dlinks-vendedores.controller';
 import { DlinksVendedoresService } from './dlinks-vendedores.service';
 
 @Module({
-  controllers: [DlinksPedidosController, DlinksSyncController, DlinksVendedoresController],
-  providers: [DlinksPedidosService, DlinksSyncService, DlinksVendedoresService],
+  controllers: [DlinksPedidosController, DlinksSyncController, DlinksVendedoresController, DlinksEntregasController],
+  providers: [DlinksPedidosService, DlinksSyncService, DlinksVendedoresService, DlinksEntregasService],
 })
 export class DlinksModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(DlinksAuthMiddleware).forRoutes(DlinksPedidosController, DlinksSyncController, DlinksVendedoresController);
+    consumer
+      .apply(DlinksAuthMiddleware)
+      .forRoutes(DlinksPedidosController, DlinksSyncController, DlinksVendedoresController, DlinksEntregasController);
   }
 }

@@ -1,14 +1,18 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 import { tenantCtx } from '../tenancy/tenant-context';
+import { ipDoSocket, ipEncaminhado } from './ip-cliente';
 
 const JANELA_MINUTOS = 15;
 const MAX_POR_CONTA = 5;
 const MAX_POR_IP = 30; // maior: vários clientes podem sair pelo mesmo IP
 
-/** IP do cliente atrás do Caddy, que grava o X-Forwarded-For. */
+/**
+ * IP do cliente: o que o Caddy (ou o site) gravou no X-Forwarded-For; para quem chega direto na
+ * porta da API, o endereço da própria conexão (ver ipEncaminhado).
+ */
 export function ipDaRequisicao(req: Request): string {
-  return String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim() || req.ip || 'desconhecido';
+  return ipEncaminhado(req) || ipDoSocket(req) || req.ip || 'desconhecido';
 }
 
 /** Limite de erros em login e código de acesso, por conta (doc:/admin:) e por IP (ip:). */

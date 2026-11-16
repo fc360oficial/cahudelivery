@@ -16,6 +16,7 @@ import {
 import { Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, Min, ValidateNested } from 'class-validator';
 import type { Request } from 'express';
+import { ipDoSocket, ipEncaminhado } from '../auth/ip-cliente';
 import { JwtAuthGuard, OptionalAuthGuard, ClienteLogado } from '../auth/jwt.guard';
 import { DonoCarrinho, OrdersService } from './orders.service';
 import { origemDoCanal } from './origem-pedido';
@@ -60,12 +61,12 @@ class PagarCartaoDto {
 /**
  * IPv4 do cliente atrás do Caddy (X-Forwarded-For, primeiro da lista). A Rede
  * só aceita IPv4 no 3DS; IPv6 sem IPv4 mapeado vira null e o serviço decide.
- * O endereço do socket só vale quando não veio X-Forwarded-For: com o
- * encaminhado presente, o socket é o proxy ou o site (127.0.0.1), não o cliente.
+ * O endereço do socket só vale quando não há encaminhado confiável: com ele
+ * presente, o socket é o proxy ou o site (127.0.0.1), não o cliente. O cabeçalho
+ * de quem chega direto na porta da API é ignorado (ver ipEncaminhado).
  */
 export function ipv4DoCliente(req: Request): string | null {
-  const xff = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
-  const ip = (xff || req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+  const ip = (ipEncaminhado(req) || ipDoSocket(req)).replace(/^::ffff:/, '');
   return /^\d{1,3}(\.\d{1,3}){3}$/.test(ip) ? ip : null;
 }
 

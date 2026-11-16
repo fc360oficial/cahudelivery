@@ -42,8 +42,8 @@ e `E2E_BASE_URL=http://localhost:3011`). Com a chave desligada o spec inteiro pu
 
 - **`CHECKOUT_LIGADO`:** só ligar depois de (a) a migração 040 (`040_origem_site.sql`) aplicada no banco do tenant, (b) a API publicada com o cabeçalho `X-Canal` e a volta do 3DS para o site, (c) `SITE_URL_<TENANT>` configurada na API e (d) um pedido real de valor baixo testado em PIX e em cartão. Depois de trocar, rebuild e restart do site.
 
-- **Limite de requisições no Caddy.** A busca (`/busca?q=`) não usa cache e cada consulta chega ao banco; ponha rate limiting no Caddy.
-- **`Strict-Transport-Security` no Caddy**, depois de confirmar que o https funciona em todos os caminhos.
+- **Limite da busca: feito no próprio site** (`lib/catalogo/limite-busca.ts`): 60 consultas por minuto por IP; acima disso a página responde "Muitas buscas em pouco tempo" sem ir à API. O Caddy sem plugin não limita requisições; as demais rotas seguem sem limite.
+- **`Strict-Transport-Security`: feito no próprio site** (`next.config.ts`, só em produção, 180 dias), sem mexer no Caddy.
 - **`PUBLIC_URL` da API** precisa ser o host público em https. As URLs de imagem já gravadas com IP local (fotos de produtos, banners, logo) precisam ser corrigidas; senão quebram fora da rede e viram conteúdo misto em https.
 - **`SITE_INDEXAVEL`:** o `robots.txt` lê a variável a cada requisição, mas o `noindex` das páginas é gravado no build e só se renova com a revalidação. Depois de trocar o valor, faça rebuild e reinicie o site.
 - O cookie do carrinho só é `Secure` quando a requisição chega em https (cabeçalho `x-forwarded-proto: https` do Caddy); em http puro (ex.: teste na rede local) ele é gravado sem `Secure`.

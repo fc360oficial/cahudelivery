@@ -26,6 +26,9 @@ const config: NextConfig = {
         { key: 'X-Frame-Options', value: 'DENY' },
         { key: 'X-Content-Type-Options', value: 'nosniff' },
         { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        // Navegador que já entrou por https não volta a tentar http por 180 dias. Só em produção:
+        // o cabeçalho é ignorado em http (rede local, E2E), mas não há por que mandá-lo no dev.
+        ...(dev ? [] : [{ key: 'Strict-Transport-Security', value: 'max-age=15552000' }]),
       ],
     }];
   },

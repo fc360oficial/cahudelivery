@@ -122,6 +122,9 @@ class CarrinhoService extends ChangeNotifier {
       (_forma?.exigeCredito ?? false) ? _cliente?.creditoDisponivel : null;
 
   /// Aviso (não bloqueio): o total passa do crédito disponível. O servidor decide.
+  /// Cliente com título vencido: o pedido não pode ser enviado, em nenhuma forma (o servidor também recusa).
+  bool get bloqueadoPorTitulo => _cliente?.temTituloVencido ?? false;
+
   bool get passaDoLimite => creditoDisponivel != null && total > creditoDisponivel!;
 
   int get itensAcimaDoEstoque => _itens.where((i) => i.acimaDoEstoque).length;

@@ -91,7 +91,7 @@ class _ClientePageState extends State<ClientePage> {
             ),
           );
         }
-        final pode = !c.bloqueado && c.temCadastroErp;
+        final pode = c.motivoSemPedido == null;
         final agora = _s!.agora();
         return _casca(
           SingleChildScrollView(
@@ -119,9 +119,7 @@ class _ClientePageState extends State<ClientePage> {
                 if (!pode) ...[
                   CaixaAviso(
                     tom: TomAviso.erro,
-                    texto: c.bloqueado
-                        ? 'Cliente bloqueado. Não é possível fazer pedido. Fale com o supervisor.'
-                        : 'Cliente ainda sem cadastro no ERP. Não é possível vender.',
+                    texto: c.motivoSemPedido!,
                   ),
                   const SizedBox(height: 10),
                 ],

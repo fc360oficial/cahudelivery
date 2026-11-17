@@ -571,10 +571,10 @@ void main() {
 
   for (final escala in [1.0, 1.3]) {
     final sufixo = escala == 1.0 ? '' : ' (fonte 1,3x)';
-    testWidgets('Catálogo avulso: tabela no alto lembrada, preço da tabela, busca e somente leitura$sufixo', (t) async {
+    testWidgets('Catálogo avulso: sem tabela e sem preço, busca e somente leitura$sufixo', (t) async {
       await montar(t, const CatalogoPage(), escala: escala);
       expect(find.text('Catálogo'), findsOneWidget);
-      expect(find.byKey(const Key('seletor-tabela')), findsOneWidget);
+      expect(find.byKey(const Key('seletor-tabela')), findsNothing);
       expect(find.byKey(const Key('catalogo-novo-pedido')), findsOneWidget);
       expect(find.text('Arroz 5kg'), findsOneWidget);
       expect(find.text('Adicionar'), findsNothing, reason: 'catálogo avulso é só consulta');
@@ -594,27 +594,12 @@ void main() {
       await t.pump(const Duration(milliseconds: 300));
       await assentar(t);
 
-      // trocar de tabela muda o preço e fica lembrado
-      await t.tap(find.byKey(const Key('seletor-tabela')));
-      await assentar(t);
-      expect(find.textContaining('R\$ 11,00', findRichText: true), findsOneWidget, reason: 'a 1ª tabela por nome é a só-PIX');
-      expect(find.text('sem preço nesta tabela'), findsOneWidget); // Açúcar
-      await t.tap(find.text('Retirada 7 dias').last);
-      await assentar(t);
-      expect(find.textContaining('R\$ 9,00', findRichText: true), findsOneWidget); // Arroz na tabela de retirada
+      // sem tabela não há preço: cada produto mostra só a embalagem
+      expect(find.textContaining('R\$', findRichText: true), findsNothing);
       expect(find.text('sem preço nesta tabela'), findsNothing);
-      expect(await t.runAsync(() => s.meta.ler('catalogo_tabela')), Ids.tabRetirada);
+      expect(find.textContaining('Vendido por unidade'), findsWidgets);
     });
   }
-
-  testWidgets('Catálogo avulso abre com a última tabela usada', (t) async {
-    await montar(t, const SizedBox());
-    await t.runAsync(() => s.meta.gravar('catalogo_tabela', Ids.tabEntrega));
-    await t.pumpWidget(arvore(const CatalogoPage(), 1.0));
-    await assentar(t);
-    expect(find.text('Entrega boleto 14 dias'), findsWidgets);
-    expect(find.textContaining('R\$ 5,50', findRichText: true), findsOneWidget); // Feijão na tabela de entrega com boleto
-  });
 
   for (final escala in [1.0, 1.3]) {
     final sufixo = escala == 1.0 ? '' : ' (fonte 1,3x)';
@@ -710,7 +695,7 @@ void main() {
     await t.ensureVisible(find.text('Catálogo'));
     await t.tap(find.text('Catálogo'));
     await assentar(t);
-    expect(find.byKey(const Key('seletor-tabela')), findsOneWidget);
+    expect(find.byKey(const Key('busca-catalogo')), findsOneWidget);
   });
 
   test('o corpo do pedido recusado fica íntegro para a edição (sanidade do helper de teste)', () {

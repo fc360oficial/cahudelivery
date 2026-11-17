@@ -6,6 +6,7 @@ import '../clientes/clientes_page.dart';
 import '../../widgets/barra_navegacao.dart';
 import '../inicio/inicio_page.dart';
 import '../mais/mais_page.dart';
+import '../metas/metas_page.dart';
 import '../pedidos/pedidos_page.dart';
 
 export '../../widgets/barra_navegacao.dart' show AbaVendas;
@@ -54,6 +55,7 @@ class HomeShellState extends State<HomeShell> {
       AbaVendas.inicio: const InicioPage(),
       AbaVendas.clientes: const ClientesPage(),
       AbaVendas.pedidos: const PedidosPage(),
+      AbaVendas.metas: const MetasPage(),
       AbaVendas.mais: const MaisPage(),
     };
     // Cada aba desenha o próprio topo (Início com a marca, as outras com barra azul e seta de voltar).

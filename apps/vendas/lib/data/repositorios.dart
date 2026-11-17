@@ -14,7 +14,9 @@ class ClientesRepository {
   Database get _db => _banco.db;
 
   static const _select = '''
-    SELECT c.*, (SELECT MAX(h.criado_em) FROM historico h WHERE h.cliente_id = c.id) AS ultima_compra
+    SELECT c.*, (SELECT MAX(h.criado_em) FROM historico h WHERE h.cliente_id = c.id) AS ultima_compra,
+           (SELECT COUNT(*) FROM titulos t WHERE t.cliente_id = c.id AND t.status = 'ABERTO'
+              AND t.vencimento < date('now', 'localtime')) AS titulos_vencidos
       FROM clientes c''';
 
   /// Busca por nome (fantasia/razão, sem acento), código do ERP (prefixo) ou
@@ -29,7 +31,8 @@ class ClientesRepository {
       final digitos = t.replaceAll(RegExp(r'\D'), '');
       final partes = [r"c.nome_busca LIKE ? ESCAPE '\'"];
       args.add(nome);
-      if (digitos.isNotEmpty) {
+      // CNPJ/CPF/código só quando o termo é número (com ou sem pontuação): "Mercado 24h" busca só por nome.
+      if (digitos.isNotEmpty && !RegExp(r'[A-Za-zÀ-ÿ]').hasMatch(t)) {
         partes.add(r"c.documento LIKE ? ESCAPE '\'");
         args.add('%$digitos%');
         partes.add('c.erp_cliente_id = ?');

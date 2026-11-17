@@ -10,8 +10,8 @@ import '../../widgets/comuns.dart';
 import '../pedido/etapa_catalogo.dart';
 import '../pedido/iniciar_pedido.dart';
 
-/// Catálogo avulso (Início > Catálogo): só consulta. Foto, nome, estoque e o preço da tabela
-/// escolhida no alto (a última usada fica lembrada). "Novo pedido" abre o fluxo normal.
+/// Catálogo avulso (Início > Catálogo): só consulta. Foto, nome, embalagem e estoque de todos os
+/// produtos. Não tem tabela nem preço: preço só existe dentro de um pedido. "Novo pedido" abre o fluxo normal.
 class CatalogoPage extends StatefulWidget {
   const CatalogoPage({super.key});
 
@@ -21,13 +21,10 @@ class CatalogoPage extends StatefulWidget {
 
 class _CatalogoPageState extends State<CatalogoPage> {
   static const _pagina = 30;
-  static const chaveTabela = 'catalogo_tabela';
   final _busca = TextEditingController();
   final _rolagem = ScrollController();
   Timer? _espera;
-  List<TabelaComFormas> _tabelas = const [];
   List<Categoria> _categorias = const [];
-  String? _tabelaId;
   String? _categoria;
   final List<ProdutoComPreco> _lista = [];
   bool _iniciando = true;
@@ -60,17 +57,10 @@ class _CatalogoPageState extends State<CatalogoPage> {
   Future<void> _iniciar() async {
     final s = _s;
     try {
-      final tabelas = await s.tabelas.listar();
       final categorias = await s.produtos.categorias();
-      final lembrada = await s.meta.ler(chaveTabela);
-      final id = tabelas.any((t) => t.tabela.id == lembrada)
-          ? lembrada
-          : (tabelas.isEmpty ? null : tabelas.first.tabela.id);
       if (!mounted) return;
       setState(() {
-        _tabelas = tabelas;
         _categorias = categorias;
-        _tabelaId = id;
         _iniciando = false;
       });
       await _carregar(reiniciar: true);
@@ -102,7 +92,6 @@ class _CatalogoPageState extends State<CatalogoPage> {
       final r = await _s.produtos.buscar(
         termo: _busca.text,
         categoriaId: _categoria,
-        tabelaId: _tabelaId,
         limite: _pagina,
         deslocamento: reiniciar ? 0 : _lista.length,
       );
@@ -120,13 +109,6 @@ class _CatalogoPageState extends State<CatalogoPage> {
         _carregando = false;
       });
     }
-  }
-
-  Future<void> _trocarTabela(String? id) async {
-    if (id == null || id == _tabelaId) return;
-    setState(() => _tabelaId = id);
-    await _s.meta.gravar(chaveTabela, id);
-    await _carregar(reiniciar: true);
   }
 
   void _escolherCategoria(String? id) {
@@ -166,42 +148,12 @@ class _CatalogoPageState extends State<CatalogoPage> {
   }
 
   Widget _conteudo() {
-    if (_tabelas.isEmpty && _erro == null) {
-      return const EstadoVazio(
-        key: Key('catalogo-sem-tabelas'),
-        icone: Icons.inventory_2_outlined,
-        titulo: 'Catálogo vazio',
-        texto: 'Sincronize o aplicativo para baixar as tabelas e os produtos.',
-      );
-    }
     return Column(
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Column(
             children: [
-              DropdownButtonFormField<String>(
-                key: const Key('seletor-tabela'),
-                initialValue: _tabelaId,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Tabela de preço',
-                  prefixIcon: Icon(Icons.sell_outlined),
-                ),
-                items: [
-                  for (final t in _tabelas)
-                    DropdownMenuItem(
-                      value: t.tabela.id,
-                      child: Text(
-                        t.tabela.nome,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
-                onChanged: _trocarTabela,
-              ),
-              const SizedBox(height: 8),
               CampoBusca(
                 chave: const Key('busca-catalogo'),
                 controlador: _busca,
@@ -266,6 +218,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
       controlador: _rolagem,
       itens: _lista,
       temMais: _temMais,
+      mostrarPreco: false,
     );
   }
 }

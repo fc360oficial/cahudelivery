@@ -42,6 +42,26 @@ void main() {
       expect((await r.buscar(termo: cnpjFormatado)).map((c) => c.id), contains(base.id));
     });
 
+    test('busca por razão social; termo com letra e número não casa com documento', () async {
+      final r = ClientesRepository(banco);
+      final base = carga.clientes.firstWhere((c) => (c.razaoSocial ?? '').length >= 6);
+      final achados = await r.buscar(termo: base.razaoSocial!.substring(0, 6).toUpperCase());
+      expect(achados.map((c) => c.id), contains(base.id));
+      expect(await r.buscar(termo: 'zzzz ${base.documento.substring(0, 4)}'), isEmpty);
+    });
+
+    test('título vencido marca o cliente; título no prazo não', () async {
+      final r = ClientesRepository(banco);
+      await banco.db.delete('titulos');
+      final a = carga.clientes[0].id, b = carga.clientes[1].id;
+      Future<void> titulo(String cliente, String venc) => banco.db.insert(
+          'titulos', {'cliente_id': cliente, 'numero': 'T-$venc', 'valor': 100, 'vencimento': venc, 'status': 'ABERTO'});
+      await titulo(a, '2000-01-01');
+      await titulo(b, '2999-01-01');
+      expect((await r.porId(a))!.temTituloVencido, isTrue);
+      expect((await r.porId(b))!.temTituloVencido, isFalse);
+    });
+
     test('porId devolve endereço, crédito e última compra do histórico', () async {
       final h = carga.historico.first;
       final c = (await ClientesRepository(banco).porId(h.clienteId))!;

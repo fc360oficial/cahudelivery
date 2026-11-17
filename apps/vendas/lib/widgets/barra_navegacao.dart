@@ -4,9 +4,9 @@ import '../core/tema.dart';
 import '../features/shell/home_shell.dart';
 
 /// Abas da barra inferior.
-enum AbaVendas { inicio, clientes, pedidos, mais }
+enum AbaVendas { inicio, clientes, pedidos, metas, mais }
 
-/// Barra inferior da referência: Início, Clientes, Pedidos e Mais. O item ativo fica azul com um
+/// Barra inferior: Início, Clientes, Pedidos, Metas e Mais. O item ativo fica azul com um
 /// traço azul curto embaixo.
 class BarraNavegacao extends StatelessWidget {
   const BarraNavegacao({super.key, required this.atual, required this.aoTocar});
@@ -27,6 +27,7 @@ class BarraNavegacao extends StatelessWidget {
       Icons.assignment_rounded,
       'Pedidos',
     ),
+    (AbaVendas.metas, Icons.flag_outlined, Icons.flag_rounded, 'Metas'),
     (
       AbaVendas.mais,
       Icons.more_horiz_rounded,

@@ -15,12 +15,14 @@ import 'package:fluxo_vendas/app_servicos.dart';
 import 'package:fluxo_vendas/core/tema.dart';
 import 'package:fluxo_vendas/core/token_store.dart';
 import 'package:fluxo_vendas/data/banco_local.dart';
+import 'package:fluxo_vendas/data/modelos.dart' show ProdutoComPreco;
 import 'package:fluxo_vendas/data/pedido_local.dart';
 import 'package:fluxo_vendas/features/catalogo/catalogo_page.dart';
 import 'package:fluxo_vendas/features/clientes/cliente_page.dart';
 import 'package:fluxo_vendas/features/login/login_page.dart';
 import 'package:fluxo_vendas/features/orcamentos/orcamento_detalhe_page.dart';
 import 'package:fluxo_vendas/features/orcamentos/orcamentos_page.dart';
+import 'package:fluxo_vendas/features/pedido/produto_page.dart';
 import 'package:fluxo_vendas/features/pedido/novo_pedido_page.dart';
 import 'package:fluxo_vendas/features/pedido/resultado_envio_page.dart';
 import 'package:fluxo_vendas/features/pedidos/pedido_detalhe_page.dart';
@@ -275,6 +277,14 @@ void main() {
         preparar: (t) => carrinho(t, tabela: 'tab-vista', forma: 'f-pix', itens: {'p1': 2, 'p5': 1}));
   });
 
+  testWidgets('06b novo pedido: produto', (t) async {
+    late ProdutoComPreco item;
+    await tela(t, '06b-novo-pedido-produto.png', () => ProdutoPage(item: item, carrinho: s.carrinho), preparar: (t) async {
+      await carrinho(t, tabela: 'tab-vista', forma: 'f-pix', itens: {'p1': 2});
+      await t.runAsync(() async => item = (await s.produtos.porId('p1', tabelaId: 'tab-vista'))!);
+    });
+  });
+
   testWidgets('07 pedido: revisão', (t) async {
     await tela(t, '07-pedido-revisao.png', () => const NovoPedidoPage(etapaInicial: EtapaPedido.revisao),
         preparar: (t) => carrinho(t, tabela: 'tab-vista', forma: 'f-pix', itens: {'p1': 2, 'p2': 1, 'p5': 2}));
@@ -326,6 +336,10 @@ void main() {
 
   testWidgets('13 catálogo', (t) async {
     await tela(t, '13-catalogo.png', () => const CatalogoPage());
+  });
+
+  testWidgets('15 metas', (t) async {
+    await tela(t, '15-metas.png', () => const HomeShell(abaInicial: AbaVendas.metas), empilhada: false);
   });
 
   testWidgets('14 mais', (t) async {

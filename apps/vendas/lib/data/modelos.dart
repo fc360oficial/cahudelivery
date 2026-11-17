@@ -43,6 +43,7 @@ class Cliente {
     required this.pedidosEmTransito,
     this.endereco,
     this.ultimaCompra,
+    this.titulosVencidos = 0,
   });
 
   final String id;
@@ -61,6 +62,20 @@ class Cliente {
 
   /// Data do último pedido no histórico local (preenchida só pelas consultas do repositório).
   final DateTime? ultimaCompra;
+
+  /// Títulos em aberto com vencimento passado. Com algum, o cliente não pode ter pedido novo
+  /// (regra do dono: bloqueia em qualquer tabela e forma de pagamento).
+  final int titulosVencidos;
+  bool get temTituloVencido => titulosVencidos > 0;
+
+  /// Por que o cliente não pode receber pedido; nulo quando pode.
+  String? get motivoSemPedido => bloqueado
+      ? 'Cliente bloqueado: não é possível fazer pedido. Fale com o supervisor.'
+      : !temCadastroErp
+          ? 'Cliente sem cadastro no ERP: não é possível vender.'
+          : temTituloVencido
+              ? 'Cliente com título vencido: não é possível fazer pedido até regularizar.'
+              : null;
 
   /// limite − em aberto − pedidos a prazo ainda não faturados. Nulo se não há limite.
   double? get creditoDisponivel => limiteCredito == null ? null : limiteCredito! - emAberto - pedidosEmTransito;
@@ -125,6 +140,7 @@ class Cliente {
                 cep: r['end_cep'] as String?)
             : null,
         ultimaCompra: r['ultima_compra'] == null ? null : DateTime.parse(r['ultima_compra'] as String),
+        titulosVencidos: (r['titulos_vencidos'] as num? ?? 0).toInt(),
       );
 }
 
@@ -401,6 +417,7 @@ class ResumoVendedor {
     required this.pedidosHoje,
     required this.ticketMedioHoje,
     required this.vendidoMes,
+    this.devolvidoMes = 0,
     this.pedidosMes = 0,
     this.pedidosFaturadosMes = 0,
     required this.clientesCarteira,
@@ -411,7 +428,8 @@ class ResumoVendedor {
   });
 
   /// `vendidoHoje` e `vendidoMes` são o que o ERP FATUROU (regra do dono: só o faturado é "vendido").
-  final double vendidoHoje, ticketMedioHoje, vendidoMes;
+  /// `vendidoMes` já vem LÍQUIDO: faturado no mês menos `devolvidoMes` (devoluções que entraram no mês).
+  final double vendidoHoje, ticketMedioHoje, vendidoMes, devolvidoMes;
   final int pedidosHoje, pedidosMes, pedidosFaturadosMes, clientesCarteira, clientesPositivadosMes, pedidosRetidos, orcamentosAbertos;
 
   /// Nulo em API antiga (sem o campo `meta`).
@@ -422,6 +440,7 @@ class ResumoVendedor {
         pedidosHoje: (j['pedidosHoje'] as num? ?? 0).toInt(),
         ticketMedioHoje: _d(j['ticketMedioHoje']),
         vendidoMes: _d(j['vendidoMes']),
+        devolvidoMes: _d(j['devolvidoMes']),
         pedidosMes: (j['pedidosMes'] as num? ?? 0).toInt(),
         pedidosFaturadosMes: (j['pedidosFaturadosMes'] as num? ?? 0).toInt(),
         clientesCarteira: (j['clientesCarteira'] as num? ?? 0).toInt(),
@@ -436,6 +455,7 @@ class ResumoVendedor {
         'pedidosHoje': pedidosHoje,
         'ticketMedioHoje': ticketMedioHoje,
         'vendidoMes': vendidoMes,
+        'devolvidoMes': devolvidoMes,
         'pedidosMes': pedidosMes,
         'pedidosFaturadosMes': pedidosFaturadosMes,
         'clientesCarteira': clientesCarteira,

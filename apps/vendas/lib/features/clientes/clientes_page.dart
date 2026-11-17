@@ -11,7 +11,7 @@ import '../shell/home_shell.dart';
 import 'cliente_page.dart';
 
 /// Aba Clientes ("Minha carteira"): a carteira do vendedor, com busca por nome, código ou documento
-/// e os filtros Todos, Ativos e Inativos.
+/// e os filtros Todos, Sem venda no mês, Ativos e Inativos.
 class ClientesPage extends StatefulWidget {
   const ClientesPage({super.key});
 
@@ -21,17 +21,27 @@ class ClientesPage extends StatefulWidget {
 
 enum _Filtro {
   todos('Todos'),
+  semVenda('Sem venda no mês'),
   ativos('Ativos'),
   inativos('Inativos');
 
   const _Filtro(this.rotulo);
   final String rotulo;
 
-  bool aceita(Cliente c) => switch (this) {
+  /// "Sem venda no mês": nenhum pedido válido do cliente desde o dia 1 do mês de [agora].
+  bool aceita(Cliente c, DateTime agora) => switch (this) {
     _Filtro.todos => true,
+    _Filtro.semVenda => semVendaNoMes(c, agora),
     _Filtro.ativos => !c.bloqueado,
     _Filtro.inativos => c.bloqueado,
   };
+}
+
+/// Verdadeiro quando o cliente não tem pedido (não cancelado) no mês corrente.
+bool semVendaNoMes(Cliente c, DateTime agora) {
+  final u = c.ultimaCompra?.toLocal();
+  final a = agora.toLocal();
+  return u == null || u.isBefore(DateTime(a.year, a.month));
 }
 
 class _ClientesPageState extends State<ClientesPage> {
@@ -91,7 +101,9 @@ class _ClientesPageState extends State<ClientesPage> {
   Widget build(BuildContext context) {
     final temBusca = _busca.text.trim().isNotEmpty;
     final filtrando = temBusca || _filtro != _Filtro.todos;
-    final visiveis = _lista?.where(_filtro.aceita).toList();
+    final agora = _s!.agora();
+    final visiveis = _lista?.where((c) => _filtro.aceita(c, agora)).toList();
+    final semVenda = _lista?.where((c) => semVendaNoMes(c, agora)).length;
     return Column(
       children: [
         TopoTela(
@@ -112,7 +124,7 @@ class _ClientesPageState extends State<ClientesPage> {
             chave: const Key('busca-clientes'),
             controlador: _busca,
             foco: _foco,
-            dica: 'Buscar cliente...',
+            dica: 'Nome, razão social, CNPJ ou CPF',
             aoMudar: _aoDigitar,
           ),
         ),
@@ -125,7 +137,7 @@ class _ClientesPageState extends State<ClientesPage> {
             children: [
               for (final f in _Filtro.values)
                 ChipFiltro(
-                  rotulo: f.rotulo,
+                  rotulo: f == _Filtro.semVenda && semVenda != null ? '${f.rotulo} ($semVenda)' : f.rotulo,
                   ativo: f == _filtro,
                   aoTocar: () => setState(() => _filtro = f),
                 ),
@@ -259,13 +271,20 @@ class LinhaCliente extends StatelessWidget {
                     ),
                     if (partes.isNotEmpty)
                       Text(partes.join(' · '), style: suave),
-                    if (avisoBloqueio && (c.bloqueado || !c.temCadastroErp))
+                    if (c.temTituloVencido && !avisoBloqueio)
+                      const Text(
+                        'Título vencido: sem pedido novo',
+                        style: TextStyle(
+                          color: Cores.erro,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    if (avisoBloqueio && c.motivoSemPedido != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),
                         child: Text(
-                          c.bloqueado
-                              ? 'Cliente bloqueado: não é possível fazer pedido.'
-                              : 'Cliente sem cadastro no ERP: não é possível vender.',
+                          c.motivoSemPedido!,
                           style: const TextStyle(
                             color: Cores.erro,
                             fontWeight: FontWeight.w600,

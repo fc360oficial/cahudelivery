@@ -161,6 +161,16 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
               ),
               const SizedBox(height: 12),
             ],
+            if (cart.bloqueadoPorTitulo) ...[
+              const CaixaAviso(
+                key: Key('aviso-titulo-vencido'),
+                tom: TomAviso.atencao,
+                texto:
+                    'Cliente com título vencido: não é possível enviar pedido até regularizar. '
+                    'Você pode salvar como orçamento.',
+              ),
+              const SizedBox(height: 12),
+            ],
             if (disp != null) ...[
               CaixaAviso(
                 key: const Key('aviso-credito'),
@@ -387,7 +397,7 @@ class _EtapaRevisaoState extends State<EtapaRevisao> {
             const SizedBox(height: 18),
             FilledButton.icon(
               key: const Key('enviar-pedido'),
-              onPressed: _ocupado || cart.vazio
+              onPressed: _ocupado || cart.vazio || cart.bloqueadoPorTitulo
                   ? null
                   : () => _concluir(orcamento: false),
               icon: _ocupado

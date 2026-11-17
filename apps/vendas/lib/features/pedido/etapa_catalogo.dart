@@ -10,6 +10,7 @@ import '../../services/carrinho_service.dart';
 import '../../widgets/comuns.dart';
 import '../../widgets/foto_produto.dart';
 import '../../widgets/seletor_quantidade.dart';
+import 'produto_page.dart';
 
 export '../../widgets/foto_produto.dart' show FotoProduto;
 
@@ -98,6 +99,8 @@ class _EtapaCatalogoState extends State<EtapaCatalogo> {
         termo: _busca.text,
         categoriaId: _categoria,
         tabelaId: tabelaId,
+        // No pedido só entra o que tem estoque; o catálogo completo fica na tela Catálogo.
+        somenteComEstoque: true,
         limite: _pagina,
         deslocamento: reiniciar ? 0 : _lista.length,
       );
@@ -302,11 +305,15 @@ class GradeProdutos extends StatelessWidget {
     required this.itens,
     required this.temMais,
     this.carrinho,
+    this.mostrarPreco = true,
   });
   final ScrollController controlador;
   final List<ProdutoComPreco> itens;
   final bool temMais;
   final CarrinhoService? carrinho;
+
+  /// Falso no Catálogo avulso: sem tabela não há preço, o cartão mostra só a embalagem.
+  final bool mostrarPreco;
 
   @override
   Widget build(BuildContext context) {
@@ -321,10 +328,12 @@ class GradeProdutos extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              mainAxisExtent: (carrinho == null ? 186 : 182) + 56 * escala,
+              mainAxisExtent: mostrarPreco
+                  ? (carrinho == null ? 186 : 182) + 74 * escala
+                  : 150 + 80 * escala,
             ),
             delegate: SliverChildBuilderDelegate(
-              (_, i) => CartaoProduto(item: itens[i], carrinho: carrinho),
+              (_, i) => CartaoProduto(item: itens[i], carrinho: carrinho, mostrarPreco: mostrarPreco),
               childCount: itens.length,
             ),
           ),
@@ -341,11 +350,12 @@ class GradeProdutos extends StatelessWidget {
   }
 }
 
-/// Cartão de produto em grade: foto, nome, preço da tabela, estoque e o botão + (vira − qtd + quando
+/// Cartão de produto em grade: foto, nome e preço (tocar abre a tela do produto), estoque e o botão + (vira − qtd + quando
 /// o item está no pedido).
 class CartaoProduto extends StatelessWidget {
-  const CartaoProduto({super.key, required this.item, this.carrinho});
+  const CartaoProduto({super.key, required this.item, this.carrinho, this.mostrarPreco = true});
   final ProdutoComPreco item;
+  final bool mostrarPreco;
 
   /// Nulo = somente leitura (Catálogo avulso): sem quantidade nem botão de adicionar.
   final CarrinhoService? carrinho;
@@ -353,7 +363,7 @@ class CartaoProduto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = item.produto;
-    final semPreco = item.semPreco;
+    final semPreco = mostrarPreco && item.semPreco;
     return ListenableBuilder(
       listenable: carrinho ?? _SemMudanca(),
       builder: (context, _) {
@@ -375,92 +385,140 @@ class CartaoProduto extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(
-                    child: Stack(
-                      children: [
-                        FotoProduto(url: p.imagemUrl, lado: 88, raio: 10),
-                        if (acima)
-                          Positioned(
-                            left: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
+                  Expanded(
+                    child: InkWell(
+                      key: ValueKey('abrir-produto-${p.id}'),
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ProdutoPage(item: item, carrinho: carrinho, mostrarPreco: mostrarPreco),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Center(
+                            child: Stack(
+                              children: [
+                                FotoProduto(
+                                  url: p.imagemUrl,
+                                  lado: 88,
+                                  raio: 10,
+                                ),
+                                if (acima)
+                                  Positioned(
+                                    left: 0,
+                                    top: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Cores.ambar,
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Text(
+                                        'acima do estoque',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            p.nome,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Cores.texto,
+                              fontSize: 13.5,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          if (!mostrarPreco)
+                            Text(
+                              p.qtdPorEmbalagem > 1
+                                  ? '${p.unidade} com ${quantidade(p.qtdPorEmbalagem)} unidades'
+                                  : 'Vendido por unidade',
+                              key: ValueKey('embalagem-${p.id}'),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Cores.textoSuave,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
-                              decoration: BoxDecoration(
-                                color: Cores.ambar,
-                                borderRadius: BorderRadius.circular(8),
+                            )
+                          else if (semPreco)
+                            const Text(
+                              'sem preço nesta tabela',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Cores.erro,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
                               ),
-                              child: const Text(
-                                'acima do estoque',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 10,
+                            )
+                          else
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: moeda(item.preco!),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 16,
+                                        color: Cores.marinho,
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: ' / ${p.unidade}',
+                                      style: const TextStyle(
+                                        color: Cores.textoSuave,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    p.nome,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: Cores.texto,
-                      fontSize: 13.5,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  if (semPreco)
-                    const Text(
-                      'sem preço nesta tabela',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Cores.erro,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    )
-                  else
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: moeda(item.preco!),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 16,
-                                color: Cores.marinho,
+                          if (mostrarPreco && !semPreco && p.qtdPorEmbalagem > 1)
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '${moeda(item.preco! / p.qtdPorEmbalagem)} a unidade · c/ ${quantidade(p.qtdPorEmbalagem)}',
+                                key: ValueKey('unidade-${p.id}'),
+                                style: const TextStyle(
+                                  color: Cores.textoSuave,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                ),
                               ),
                             ),
-                            TextSpan(
-                              text: ' / ${p.unidade}',
-                              style: const TextStyle(
-                                color: Cores.textoSuave,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
-                  const Spacer(),
+                  ),
                   SizedBox(
                     height: 48,
                     child: !semPreco && carrinho != null && qtd > 0
                         ? Center(
-                            child: _ControleQuantidade(
+                            child: ControleQuantidade(
                               qtd: qtd,
                               aoMudar: (v) =>
                                   carrinho.definirQuantidade(item, v),
@@ -524,8 +582,8 @@ class CartaoProduto extends StatelessWidget {
 }
 
 /// − qtd + compacto do cartão em grade (alvos de 44 x 48 dp). Tocar na quantidade abre o campo para digitar.
-class _ControleQuantidade extends StatelessWidget {
-  const _ControleQuantidade({required this.qtd, required this.aoMudar});
+class ControleQuantidade extends StatelessWidget {
+  const ControleQuantidade({super.key, required this.qtd, required this.aoMudar});
   final double qtd;
   final ValueChanged<double> aoMudar;
 

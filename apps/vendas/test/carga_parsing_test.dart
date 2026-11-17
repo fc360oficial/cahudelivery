@@ -55,6 +55,10 @@ void main() {
     expect(r.pedidosRetidos, 1);
     expect(r.orcamentosAbertos, 3);
     expect(ResumoVendedor.fromJson(r.toJson()).vendidoMes, r.vendidoMes);
+    // API antiga não manda devolvidoMes: vale zero. A nova manda, e o valor sobrevive ao cache.
+    expect(r.devolvidoMes, 0);
+    final comDev = ResumoVendedor.fromJson({...r.toJson(), 'vendidoMes': 500, 'devolvidoMes': 500});
+    expect(ResumoVendedor.fromJson(comDev.toJson()).devolvidoMes, 500);
   });
 
   test('resumo de API antiga (sem meta nem pedidosMes) continua valendo', () {

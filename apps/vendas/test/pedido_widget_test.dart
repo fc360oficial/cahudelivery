@@ -191,7 +191,7 @@ void main() {
     await assentar(t);
     expect(find.byKey(const Key('cartao-cliente')), findsOneWidget);
     expect(find.text('Bloqueado'), findsWidgets);
-    expect(find.textContaining('Cliente bloqueado. Não é possível fazer pedido'), findsOneWidget);
+    expect(find.textContaining('Cliente bloqueado: não é possível fazer pedido'), findsOneWidget);
     expect(t.widget<FilledButton>(find.byKey(const Key('novo-pedido-cliente'))).onPressed, isNull);
     await t.tap(find.text('Financeiro'));
     await assentar(t);

@@ -59,16 +59,9 @@ class _EtapaClienteState extends State<EtapaCliente> {
   }
 
   void _tocou(Cliente c) {
-    if (c.bloqueado || !c.temCadastroErp) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            c.bloqueado
-                ? 'Cliente bloqueado: não é possível fazer pedido. Fale com o supervisor.'
-                : 'Cliente sem cadastro no ERP: não é possível vender.',
-          ),
-        ),
-      );
+    final motivo = c.motivoSemPedido;
+    if (motivo != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(motivo)));
       return;
     }
     widget.aoEscolher(c);
@@ -85,7 +78,7 @@ class _EtapaClienteState extends State<EtapaCliente> {
           child: CampoBusca(
             chave: const Key('busca-cliente-pedido'),
             controlador: _busca,
-            dica: 'Buscar cliente...',
+            dica: 'Nome, razão social, CNPJ ou CPF',
             aoMudar: (_) {
               _espera?.cancel();
               _espera = Timer(const Duration(milliseconds: 250), _carregar);

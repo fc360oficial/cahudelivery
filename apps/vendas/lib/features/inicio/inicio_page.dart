@@ -16,7 +16,7 @@ import '../orcamentos/orcamentos_page.dart';
 import '../pedido/iniciar_pedido.dart';
 import '../shell/home_shell.dart';
 
-/// Tela Início: marca e sino, saudação, cartão do faturado do mês com a meta, atalhos grandes,
+/// Tela Início: marca e sino, saudação, cartão com venda do dia, do mês e pedidos do mês, atalhos grandes,
 /// estado da conexão e os destaques (pedidos retidos, fila de envio).
 class InicioPage extends StatefulWidget {
   const InicioPage({super.key});
@@ -387,7 +387,7 @@ class _CurvaTopo extends CustomPainter {
   bool shouldRepaint(_CurvaTopo old) => false;
 }
 
-/// O cartão azul grande: faturado no mês à esquerda, % da meta à direita e a barra amarela embaixo.
+/// O cartão azul grande: venda do dia, venda do mês e quantos pedidos no mês (sem meta).
 class _CartaoMeta extends StatelessWidget {
   const _CartaoMeta({required this.resumo});
   final ResumoVendedor? resumo;
@@ -395,10 +395,26 @@ class _CartaoMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = resumo;
-    final meta = r?.meta;
-    final temMeta = meta?.temMeta ?? false;
-    final pct = meta?.atingidoPct ?? 0;
     const branco70 = Color(0xCCFFFFFF);
+    Widget valor(String chave, String texto, String rotulo) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                texto,
+                key: Key(chave),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            Text(rotulo, style: const TextStyle(color: branco70, fontSize: 14)),
+          ],
+        );
     return Container(
       key: const Key('cartao-meta'),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
@@ -423,36 +439,8 @@ class _CartaoMeta extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.bar_chart_rounded,
-                  size: 46,
-                  color: Cores.amarelo,
-                ),
-                const SizedBox(width: 10),
                 Expanded(
-                  flex: 11,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          r == null ? '—' : moeda(r.vendidoMes),
-                          key: const Key('vendido-mes'),
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const Text(
-                        'Faturado no mês',
-                        style: TextStyle(color: branco70, fontSize: 14),
-                      ),
-                    ],
-                  ),
+                  child: valor('vendido-hoje', r == null ? '—' : moeda(r.vendidoHoje), 'Venda do dia'),
                 ),
                 Container(
                   width: 1,
@@ -460,54 +448,46 @@ class _CartaoMeta extends StatelessWidget {
                   color: Colors.white24,
                 ),
                 Expanded(
-                  flex: 8,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          temMeta ? '${pct.floor()}%' : 'Sem meta',
-                          key: const Key('meta-percentual'),
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        temMeta ? 'da meta' : 'neste mês',
-                        style: const TextStyle(color: branco70, fontSize: 14),
-                      ),
-                    ],
-                  ),
+                  child: valor('vendido-mes', r == null ? '—' : moeda(r.vendidoMes), 'Venda do mês'),
                 ),
               ],
             ),
           ),
-          if (temMeta) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                key: const Key('barra-meta'),
-                value: (pct / 100).clamp(0.0, 1.0),
-                minHeight: 10,
-                backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation(Cores.amarelo),
+          const SizedBox(height: 12),
+          Container(height: 1, color: Colors.white24),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, size: 20, color: Cores.amarelo),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text('Pedidos no mês', style: TextStyle(color: branco70, fontSize: 14)),
               ),
-            ),
-          ],
-          if (r != null) ...[
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Hoje: ${moeda(r.vendidoHoje)} · ${r.pedidosHoje} ${r.pedidosHoje == 1 ? 'pedido enviado' : 'pedidos enviados'}',
-                key: const Key('vendido-hoje'),
-                style: const TextStyle(color: branco70, fontSize: 13),
+              Text(
+                r == null ? '—' : '${r.pedidosMes}',
+                key: const Key('pedidos-mes'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
               ),
+            ],
+          ),
+          if (r != null && r.devolvidoMes > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.assignment_return_rounded, size: 20, color: Cores.amarelo),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Devoluções no mês (já descontadas)',
+                    style: TextStyle(color: branco70, fontSize: 14),
+                  ),
+                ),
+                Text(
+                  moeda(r.devolvidoMes),
+                  key: const Key('devolvido-mes'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+              ],
             ),
           ],
         ],

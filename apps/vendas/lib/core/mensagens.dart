@@ -6,6 +6,7 @@ import 'api_exception.dart';
 const mensagensPorCodigo = <String, String>{
   'CLIENTE_FORA_DA_CARTEIRA': 'Este cliente não faz parte da sua carteira.',
   'CLIENTE_BLOQUEADO': 'Cliente bloqueado. Fale com o supervisor.',
+  'CLIENTE_COM_TITULO_VENCIDO': 'Cliente com título vencido: não é possível fazer pedido até regularizar.',
   'CLIENTE_SEM_CADASTRO_ERP': 'Cliente ainda sem cadastro no ERP. Não é possível vender.',
   'SEM_ENDERECO': 'Cliente sem endereço cadastrado.',
   'FORMA_NAO_PERMITIDA': 'Esta forma de pagamento não é aceita nesta tabela.',

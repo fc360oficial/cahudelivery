@@ -20,3 +20,6 @@
 /* Nome de cliente e bairro podem quebrar em duas linhas: é o que deixa a tabela caber em 1280 sem rolar de lado. */
 .area-vendas .ent-tabela td.ent-quebra { white-space: normal; }
 .area-vendas .ent-tabela td.ent-cliente { min-width: 200px; }
+/* Peso dos produtos */
+.area-vendas .ent-peso-form { display: flex; gap: 6px; align-items: center; }
+.area-vendas .ent-peso-form input { width: 96px; height: 34px; box-sizing: border-box; background: #fff; border: 1px solid var(--av-borda); border-radius: 8px; padding: 0 10px; color: var(--av-texto); font: inherit; }

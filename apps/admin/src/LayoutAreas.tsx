@@ -51,6 +51,7 @@ const EM_BREVE: Item[] = [
 
 const ITENS_ENTREGAS: Item[] = [
   { para: '/entregas', rotulo: 'Notas a entregar', exato: true, icone: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6" /></> },
+  { para: '/entregas/pesos', rotulo: 'Peso dos produtos', icone: <><path d="M12 3l8 4.500v9L12 21l-8-4.500v-9z" /><path d="M4 7.500l8 4.500 8-4.500M12 12v9" /></> },
   { para: '/entregas/cadastros', rotulo: 'Caminhões e motoristas', icone: <><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.500" cy="18" r="1.700" /><circle cx="17" cy="18" r="1.700" /></> },
 ];
 

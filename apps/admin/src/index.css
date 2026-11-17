@@ -364,3 +364,7 @@ form .rotulo { color: var(--texto-2); font-size: 12.5px; font-weight: 600; text-
   .tabela-wrap-fixa { overflow-x: auto; }
   .tabela-wrap-fixa .tabela-produtos { min-width: 920px; }
 }
+
+/* Pedidos do Delivery: de onde veio (aplicativo ou site) */
+.origem-pedido { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #e9edf3; color: #3d4a63; }
+.origem-pedido.site { background: #fff3c4; color: #7a5200; }

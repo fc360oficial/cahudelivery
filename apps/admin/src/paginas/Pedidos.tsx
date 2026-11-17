@@ -12,7 +12,11 @@ interface LinhaPedido {
   criado_em: string;
   cliente: string;
   documento: string;
+  /** app_cliente (aplicativo) ou site (loja na internet). */
+  origem?: string;
 }
+
+const ORIGEM: Record<string, string> = { app_cliente: 'App', site: 'Site' };
 
 export function Pedidos() {
   const nav = useNavigate();
@@ -50,13 +54,14 @@ export function Pedidos() {
       <div className="tabela-wrap">
         <table>
           <thead>
-            <tr><th>Nº</th><th>Cliente</th><th>Status</th><th>Pagamento</th><th>Total</th><th>ERP</th><th>Data</th></tr>
+            <tr><th>Nº</th><th>Cliente</th><th>Veio de</th><th>Status</th><th>Pagamento</th><th>Total</th><th>ERP</th><th>Data</th></tr>
           </thead>
           <tbody>
             {dados?.map((p) => (
               <tr key={p.id} className="clicavel" onClick={() => nav(`/pedidos/${p.id}`)}>
                 <td><strong>#{p.numero}</strong></td>
                 <td>{p.cliente}</td>
+                <td><span className={`origem-pedido ${p.origem ?? ''}`}>{ORIGEM[p.origem ?? ''] ?? 'App'}</span></td>
                 <td><span className={`badge ${p.status}`}>{STATUS_LABEL[p.status] ?? p.status}</span></td>
                 <td>{PAGAMENTO_LABEL[p.forma_pagamento] ?? p.forma_pagamento.toUpperCase()}</td>
                 <td>{fmtMoeda(p.total)}</td>
@@ -64,7 +69,7 @@ export function Pedidos() {
                 <td>{fmtData(p.criado_em)}</td>
               </tr>
             ))}
-            {dados && !dados.length && <tr><td colSpan={7} className="vazio">Nenhum pedido encontrado</td></tr>}
+            {dados && !dados.length && <tr><td colSpan={8} className="vazio">Nenhum pedido encontrado</td></tr>}
           </tbody>
         </table>
       </div>

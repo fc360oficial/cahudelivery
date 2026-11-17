@@ -44,12 +44,13 @@ export function Solucoes() {
               <span>Força de vendas da equipe externa</span>
             </Link>
           )}
-          <div className="solucao-cartao desativado" aria-disabled="true">
-            <Icone><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.5" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" /></Icone>
-            <strong>Entregas</strong>
-            <span>Rotas e acompanhamento das entregas</span>
-            <em>Em breve</em>
-          </div>
+          {minhas.includes('entregas') && (
+            <Link className="solucao-cartao" to={HOME_DA_SOLUCAO.entregas}>
+              <Icone><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.5" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" /></Icone>
+              <strong>Entregas</strong>
+              <span>Cargas, caminhões e acompanhamento das entregas</span>
+            </Link>
+          )}
         </div>}
         {admin && (
           <section className="solucoes-admin">

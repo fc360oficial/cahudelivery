@@ -1,0 +1,14 @@
+/* Fluxo Entregas: só o que as telas de cadastro do Vendas (cadastros.css) ainda não cobrem. */
+.area-vendas .cad-form select, .area-vendas .cad-form input[type='tel'] {
+  background: #fff; border: 1px solid var(--av-borda); border-radius: 10px; padding: 9px 12px; color: var(--av-texto); font: inherit; min-width: 0;
+}
+/* Campo de texto e lista com a mesma altura, para os rótulos ficarem alinhados na mesma linha. */
+.area-vendas .ent-form input[type='text'], .area-vendas .ent-form input[type='password'],
+.area-vendas .ent-form input[type='tel'], .area-vendas .ent-form select { height: 40px; box-sizing: border-box; padding-top: 0; padding-bottom: 0; }
+.area-vendas .ent-secao { margin-bottom: 26px; }
+.area-vendas .ent-secao-topo { display: flex; gap: 10px 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.area-vendas .ent-secao-topo h2 { margin: 0; font-size: 18px; color: var(--av-marinho); }
+.area-vendas .ent-secao-topo h2 small { font-size: 13.5px; font-weight: 500; color: var(--av-texto-2); margin-left: 6px; }
+/* Nada quebra de linha dentro da tabela: em tela estreita ela rola de lado, como as outras da retaguarda. */
+.area-vendas .ent-tabela th, .area-vendas .ent-tabela td { white-space: nowrap; }
+.area-vendas .ent-acoes-linha { display: flex; gap: 6px; justify-content: flex-end; }

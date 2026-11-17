@@ -15,18 +15,21 @@ export interface Sessao {
   logoUrl?: string | null;
 }
 
-export type Solucao = 'delivery' | 'vendas';
+export type Solucao = 'delivery' | 'vendas' | 'entregas';
 
-/** Lista efetiva de soluções: sessão antiga SEM lista = só Delivery; lista vazia fica vazia; admin = as duas. */
+/** Todas as soluções, na ordem em que aparecem nas telas. */
+export const TODAS_SOLUCOES: Solucao[] = ['delivery', 'vendas', 'entregas'];
+
+/** Lista efetiva de soluções: sessão antiga SEM lista = só Delivery; lista vazia fica vazia; admin = todas. */
 export function solucoesDaSessao(s: Sessao | null = sessao()): Solucao[] {
   if (!s) return [];
-  if (s.papel === 'admin') return ['delivery', 'vendas'];
-  const l = (s.solucoes ?? ['delivery']).filter((x): x is Solucao => x === 'delivery' || x === 'vendas');
-  return l;
+  if (s.papel === 'admin') return [...TODAS_SOLUCOES];
+  const recebidas: string[] = s.solucoes ?? ['delivery'];
+  return TODAS_SOLUCOES.filter((x) => recebidas.includes(x));
 }
 
 /** Página inicial de cada solução. */
-export const HOME_DA_SOLUCAO: Record<Solucao, string> = { delivery: '/', vendas: '/vendas' };
+export const HOME_DA_SOLUCAO: Record<Solucao, string> = { delivery: '/', vendas: '/vendas', entregas: '/entregas' };
 
 /** Solução atual (a salva na sessão, se o usuário ainda tiver acesso; senão a primeira dele). */
 export function solucaoAtual(s: Sessao | null = sessao()): Solucao | null {

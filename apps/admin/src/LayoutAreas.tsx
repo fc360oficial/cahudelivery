@@ -49,6 +49,16 @@ const EM_BREVE: Item[] = [
   { para: '', rotulo: 'Relatórios', icone: <path d="M4 20V10M10 20V4M16 20v-8M3 20h18" /> },
 ];
 
+const ITENS_ENTREGAS: Item[] = [
+  { para: '/entregas', rotulo: 'Caminhões e motoristas', exato: true, icone: <><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.500" cy="18" r="1.700" /><circle cx="17" cy="18" r="1.700" /></> },
+];
+
+const EM_BREVE_ENTREGAS: Item[] = [
+  { para: '', rotulo: 'Montar cargas', icone: <><path d="M12 3l8 4.500v9L12 21l-8-4.500v-9z" /><path d="M4 7.500l8 4.500 8-4.500M12 12v9" /></> },
+  { para: '', rotulo: 'Em rota', icone: <><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z" /><circle cx="12" cy="9.500" r="2.500" /></> },
+  { para: '', rotulo: 'Entregues e comprovantes', icone: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 9l2 2 4-4M9 15h6" /></> },
+];
+
 const ITENS_ADMIN: Item[] = [
   { para: '/admin/usuarios', rotulo: 'Usuários e acessos', icone: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></> },
   { para: '/admin/integracao', rotulo: 'Integração ERP', icone: <><path d="M9 3v5M15 3v5M7 8h10v4a5 5 0 0 1-10 0z" /><path d="M12 17v4" /></> },
@@ -150,6 +160,25 @@ export function LayoutVendas({ children }: { children: React.ReactNode }) {
         <div className="av-marca-card">
           <img src="/fluxo-simbolo.png" alt="" />
           <div className="av-nome-marca"><span className="f">Fluxo</span><span className="v">Vendas</span></div>
+        </div>
+      }
+    >
+      {children}
+    </Casca>
+  );
+}
+
+/** Mesma casca e mesmos estilos do Vendas (área area-vendas): é o mesmo produto. */
+export function LayoutEntregas({ children }: { children: React.ReactNode }) {
+  return (
+    <Casca
+      area="area-vendas"
+      itens={ITENS_ENTREGAS}
+      emBreve={EM_BREVE_ENTREGAS}
+      marca={
+        <div className="av-marca-card">
+          <img src="/fluxo-simbolo.png" alt="" />
+          <div className="av-nome-marca"><span className="f">Fluxo</span><span className="v">Entregas</span></div>
         </div>
       }
     >

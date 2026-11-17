@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { HOME_DA_SOLUCAO, destinoInicial, sessao, solucaoAtual, solucoesDaSessao, trocarSolucao, type Solucao } from './api';
 import { Layout } from './Layout';
-import { LayoutAdmin, LayoutVendas } from './LayoutAreas';
+import { LayoutAdmin, LayoutEntregas, LayoutVendas } from './LayoutAreas';
 import { Banners } from './paginas/Banners';
 import { Carteira } from './paginas/Carteira';
 import { Categorias } from './paginas/Categorias';
@@ -37,6 +37,7 @@ import { VendasCategorias } from './paginas/vendas/Categorias';
 import { VendasProdutos } from './paginas/vendas/Produtos';
 import { VendasTabelas } from './paginas/vendas/Tabelas';
 import { VendasVendedores } from './paginas/vendas/Vendedores';
+import { EntregasCadastros } from './paginas/entregas/Cadastros';
 
 type Area = Solucao | 'admin';
 
@@ -56,11 +57,13 @@ function Protegido({ area = 'delivery', semLayout = false, children }: { area?: 
     return <LayoutAdmin>{children}</LayoutAdmin>;
   }
   if (!lista.includes(area)) {
-    const outra: Solucao = area === 'delivery' ? 'vendas' : 'delivery';
-    return <Navigate to={lista.includes(outra) ? HOME_DA_SOLUCAO[outra] : '/solucoes'} replace />;
+    // A primeira solução do usuário nunca é a área recusada, então o destino não volta para esta guarda.
+    return <Navigate to={lista.length ? HOME_DA_SOLUCAO[lista[0]] : '/solucoes'} replace />;
   }
   if (semLayout) return <>{children}</>;
-  return area === 'vendas' ? <LayoutVendas>{children}</LayoutVendas> : <Layout>{children}</Layout>;
+  if (area === 'vendas') return <LayoutVendas>{children}</LayoutVendas>;
+  if (area === 'entregas') return <LayoutEntregas>{children}</LayoutEntregas>;
+  return <Layout>{children}</Layout>;
 }
 
 const ROTAS: [string, React.ReactNode][] = [
@@ -96,6 +99,10 @@ const ROTAS_VENDAS: [string, React.ReactNode][] = [
   ['/vendas/categorias', <VendasCategorias />],
 ];
 
+const ROTAS_ENTREGAS: [string, React.ReactNode][] = [
+  ['/entregas', <EntregasCadastros />],
+];
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -109,6 +116,9 @@ export default function App() {
         ))}
         {ROTAS_VENDAS.map(([caminho, el]) => (
           <Route key={caminho} path={caminho} element={<Protegido area="vendas">{el}</Protegido>} />
+        ))}
+        {ROTAS_ENTREGAS.map(([caminho, el]) => (
+          <Route key={caminho} path={caminho} element={<Protegido area="entregas">{el}</Protegido>} />
         ))}
         <Route path="/admin/usuarios" element={<Protegido area="admin"><Usuarios /></Protegido>} />
         <Route path="/admin/integracao" element={<Protegido area="admin"><Logs /></Protegido>} />

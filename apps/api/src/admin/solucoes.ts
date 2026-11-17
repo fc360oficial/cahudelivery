@@ -1,8 +1,8 @@
-/** Soluções da retaguarda: cada usuário entra no painel de Delivery e/ou no de Vendas. */
-export const SOLUCOES = ['delivery', 'vendas'] as const;
+/** Soluções da retaguarda: cada usuário entra no painel de Delivery, no de Vendas e/ou no de Entregas. */
+export const SOLUCOES = ['delivery', 'vendas', 'entregas'] as const;
 export type Solucao = (typeof SOLUCOES)[number];
 
-/** Lista efetiva: admin sempre tem as duas; sem lista (token antigo) vale só Delivery. */
+/** Lista efetiva: admin sempre tem todas; sem lista (token antigo) vale só Delivery. */
 export function solucoesEfetivas(papel: string, lista: unknown): Solucao[] {
   if (papel === 'admin') return [...SOLUCOES];
   if (!Array.isArray(lista)) return ['delivery'];
@@ -37,5 +37,8 @@ const ISENTAS = [
 /** Solução exigida pela rota, ou null quando a rota é isenta. */
 export function solucaoExigida(caminho: string): Solucao | null {
   if (ISENTAS.some((p) => dentro(caminho, p))) return null;
-  return dentro(caminho, '/v1/admin/vendas') ? 'vendas' : 'delivery';
+  if (dentro(caminho, '/v1/admin/vendas')) return 'vendas';
+  // Só o prefixo exato: /v1/admin/pedidos/:id/entrega (comprovante) continua sendo do Delivery.
+  if (dentro(caminho, '/v1/admin/entregas')) return 'entregas';
+  return 'delivery';
 }

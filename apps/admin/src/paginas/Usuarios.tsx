@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fmtData, type Solucao } from '../api';
+import { api, fmtData, TODAS_SOLUCOES, type Solucao } from '../api';
 
 interface Usuario { id: string; nome: string; email: string; papel: 'admin' | 'operador'; ativo: boolean; criado_em: string; solucoes?: Solucao[] }
 
-const ROTULO_SOLUCAO: Record<Solucao, string> = { delivery: 'Delivery', vendas: 'Vendas' };
-const TODAS: Solucao[] = ['delivery', 'vendas'];
+const ROTULO_SOLUCAO: Record<Solucao, string> = { delivery: 'Delivery', vendas: 'Vendas', entregas: 'Entregas' };
+const TODAS: Solucao[] = TODAS_SOLUCOES;
 
 const VAZIO = { nome: '', email: '', senha: '', papel: 'operador' as 'admin' | 'operador', solucoes: ['delivery'] as Solucao[] };
 

@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { DatabaseModule } from './database/database.module';
 import { DlinksModule } from './integracoes-dlinks/dlinks.module';
+import { EntregasModule } from './entregas/entregas.module';
 import { GeoModule } from './geo/geo.module';
 import { IntegrationModule } from './integration/integration.module';
 import { MaxipagoModule } from './integracoes-maxipago/maxipago.module';
@@ -18,7 +19,7 @@ import { TenancyMiddleware } from './tenancy/tenant-context';
 import { VendasModule } from './vendas/vendas.module';
 
 @Module({
-  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule, NotasModule, PagamentosModule, VendasModule],
+  imports: [DatabaseModule, IntegrationModule, AuthModule, CatalogModule, OrdersModule, ProfileModule, AdminModule, DlinksModule, GeoModule, MaxipagoModule, MunicipiosModule, NotasModule, PagamentosModule, VendasModule, EntregasModule],
   controllers: [AppController],
   providers: [AppService],
 })

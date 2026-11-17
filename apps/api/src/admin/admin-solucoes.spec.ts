@@ -70,14 +70,14 @@ describe('AdminGuard — acesso por solução', () => {
       true,
     );
   });
-  it('admin sempre tem as duas, mesmo com claim menor', async () => {
+  it('admin sempre tem todas, mesmo com claim menor', async () => {
     const r = await passa(
       { papel: 'admin', solucoes: ['delivery'] },
       '/v1/admin/vendas/x',
     );
     expect(r.ok).toBe(true);
     expect((r.req as { admin: { solucoes: string[] } }).admin.solucoes).toEqual(
-      ['delivery', 'vendas'],
+      ['delivery', 'vendas', 'entregas'],
     );
   });
   it("operador só 'delivery': recusado em Vendas, passa no Delivery", async () => {
@@ -275,11 +275,11 @@ describe('login da retaguarda — solucoes', () => {
       solucoes: ['vendas'],
     });
   });
-  it('admin sempre recebe as duas', async () => {
+  it('admin sempre recebe todas', async () => {
     const { res, jwt } = await logar('admin', ['delivery']);
-    expect(res.solucoes).toEqual(['delivery', 'vendas']);
+    expect(res.solucoes).toEqual(['delivery', 'vendas', 'entregas']);
     expect((jwt.signAsync.mock.calls[0] as unknown[])[0]).toMatchObject({
-      solucoes: ['delivery', 'vendas'],
+      solucoes: ['delivery', 'vendas', 'entregas'],
     });
   });
 });
@@ -325,7 +325,7 @@ describe('usuários da retaguarda — solucoes', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(q).not.toHaveBeenCalled();
   });
-  it('criar grava solucoes; admin grava as duas', async () => {
+  it('criar grava solucoes; admin grava todas', async () => {
     const q = jest.fn(async () => ({ rows: [{ id: 'n' }] }));
     await rodar(q, () =>
       ctl.criarUsuario(
@@ -348,6 +348,7 @@ describe('usuários da retaguarda — solucoes', () => {
     expect((q2.mock.calls[0] as unknown[][])[1]).toContainEqual([
       'delivery',
       'vendas',
+      'entregas',
     ]);
   });
   it('editar sem solucoes não altera a lista de operador', async () => {
@@ -359,7 +360,7 @@ describe('usuários da retaguarda — solucoes', () => {
     expect(sql).toContain('coalesce($6, solucoes)');
     expect(params[5]).toBeNull();
   });
-  it('editar para admin grava as duas', async () => {
+  it('editar para admin grava todas', async () => {
     const q = jest.fn(async () => ({ rows: [{ id: 'n' }] }));
     await rodar(q, () =>
       ctl.editarUsuario(
@@ -371,6 +372,7 @@ describe('usuários da retaguarda — solucoes', () => {
     expect((q.mock.calls[0] as unknown[][])[1]).toContainEqual([
       'delivery',
       'vendas',
+      'entregas',
     ]);
   });
   it('a listagem devolve solucoes', async () => {

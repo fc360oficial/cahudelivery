@@ -23,3 +23,26 @@
 /* Peso dos produtos */
 .area-vendas .ent-peso-form { display: flex; gap: 6px; align-items: center; }
 .area-vendas .ent-peso-form input { width: 96px; height: 34px; box-sizing: border-box; background: #fff; border: 1px solid var(--av-borda); border-radius: 8px; padding: 0 10px; color: var(--av-texto); font: inherit; }
+/* Montar cargas */
+.area-vendas .ent-data { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; font-weight: 600; color: var(--av-texto-2); }
+.area-vendas .ent-data input { background: #fff; border: 1px solid var(--av-borda); border-radius: 10px; padding: 7px 10px; color: var(--av-texto); font: inherit; }
+.area-vendas .cabecalho-acoes { align-items: flex-end; }
+.area-vendas .ent-carga { margin-bottom: 18px; }
+.area-vendas .ent-carga-topo { display: flex; gap: 12px 24px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 14px; }
+.area-vendas .ent-carga-titulo { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.area-vendas .ent-carga-titulo h2 { margin: 0; font-size: 19px; color: var(--av-marinho); }
+.area-vendas .ent-lotacao { min-width: 260px; }
+.area-vendas .ent-lotacao-texto { display: flex; justify-content: space-between; gap: 14px; font-size: 13.5px; font-weight: 600; color: var(--av-texto-2); }
+.area-vendas .ent-barra { height: 8px; border-radius: 999px; background: #e6eaf1; margin-top: 7px; overflow: hidden; }
+.area-vendas .ent-barra div { height: 8px; background: var(--av-azul); }
+.area-vendas .ent-barra div.passou { background: #c02626; }
+.area-vendas .ent-pequeno { font-size: 12.5px; margin-top: 4px; }
+.area-vendas .ent-carga-escolhas { align-items: flex-end; }
+.area-vendas .ent-carga-escolhas label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--av-texto-2); }
+.area-vendas .ent-carga-tabela { box-shadow: none; border: 1px solid var(--av-borda); border-radius: 12px; }
+.area-vendas .ent-carga-acoes { margin-top: 14px; }
+.area-vendas a.cad-btn { text-decoration: none; display: inline-block; }
+.area-vendas .cad-btn.ent-perigo { color: #a61d1d; }
+.area-vendas .ent-acoes-linha select { background: #fff; border: 1px solid var(--av-borda); border-radius: 8px; padding: 5px 8px; color: var(--av-texto); font: inherit; font-size: 13px; }
+.area-vendas .ent-caminhoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.area-vendas .ent-caminhao { display: inline-flex; gap: 8px; align-items: center; background: #fff; border-radius: 12px; padding: 8px 12px; box-shadow: 0 1px 3px rgb(11 31 75 / 0.08); font-size: 14px; }

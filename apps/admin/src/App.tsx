@@ -38,7 +38,9 @@ import { VendasProdutos } from './paginas/vendas/Produtos';
 import { VendasTabelas } from './paginas/vendas/Tabelas';
 import { VendasVendedores } from './paginas/vendas/Vendedores';
 import { EntregasCadastros } from './paginas/entregas/Cadastros';
+import { EntregasMontarCargas } from './paginas/entregas/MontarCargas';
 import { EntregasNotasAEntregar } from './paginas/entregas/NotasAEntregar';
+import { EntregasRomaneio } from './paginas/entregas/Romaneio';
 import { EntregasPesos } from './paginas/entregas/Pesos';
 
 type Area = Solucao | 'admin';
@@ -103,6 +105,7 @@ const ROTAS_VENDAS: [string, React.ReactNode][] = [
 
 const ROTAS_ENTREGAS: [string, React.ReactNode][] = [
   ['/entregas', <EntregasNotasAEntregar />],
+  ['/entregas/cargas', <EntregasMontarCargas />],
   ['/entregas/pesos', <EntregasPesos />],
   ['/entregas/cadastros', <EntregasCadastros />],
 ];
@@ -121,6 +124,8 @@ export default function App() {
         {ROTAS_VENDAS.map(([caminho, el]) => (
           <Route key={caminho} path={caminho} element={<Protegido area="vendas">{el}</Protegido>} />
         ))}
+        {/* Romaneio fora do Layout: página limpa pra imprimir. */}
+        <Route path="/entregas/cargas/:id/romaneio" element={<Protegido area="entregas" semLayout><EntregasRomaneio /></Protegido>} />
         {ROTAS_ENTREGAS.map(([caminho, el]) => (
           <Route key={caminho} path={caminho} element={<Protegido area="entregas">{el}</Protegido>} />
         ))}

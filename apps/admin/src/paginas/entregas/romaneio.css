@@ -1,0 +1,38 @@
+/* Romaneio de entrega: folha A4 deitada. Na tela mostra a folha num fundo cinza; na impressão, só a folha. */
+.rom-tela { min-height: 100vh; background: #dfe4ec; padding: 0 0 32px; font-family: system-ui, 'Segoe UI', Roboto, Arial, sans-serif; color: #14213d; }
+.rom-aviso { padding: 40px; font: 16px system-ui, sans-serif; color: #14213d; }
+.rom-barra { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 24px; background: #0b1f4b; color: #fff; font-size: 15px; }
+.rom-barra button { background: #ffc20e; color: #0b1f4b; border: 0; border-radius: 10px; padding: 9px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+.rom-folha { width: 297mm; height: 210mm; box-sizing: border-box; margin: 24px auto 0; padding: 10mm; background: #fff; box-shadow: 0 2px 10px rgb(11 31 75 / 0.18); display: flex; flex-direction: column; gap: 2mm; overflow: hidden; }
+.rom-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; border-bottom: 2px solid #14213d; padding-bottom: 2mm; }
+.rom-empresa { font-size: 10pt; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+.rom-topo h1 { margin: 0.5mm 0 0; font-size: 19pt; line-height: 1.1; }
+.rom-topo dl { margin: 0; display: grid; grid-template-columns: repeat(4, auto); gap: 0.5mm 6mm; font-size: 9.5pt; }
+.rom-topo dl div { display: flex; gap: 1.5mm; }
+.rom-topo dt::after { content: ':'; }
+.rom-topo dd { margin: 0; font-weight: 700; }
+.rom-declaracao { margin: 0; font-size: 9.5pt; }
+/* Bordas separadas (não colapsadas): com colapso a linha de baixo da última parada some em algumas escalas. */
+.rom-tabela { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; border-top: 1px solid #14213d; border-left: 1px solid #14213d; }
+.rom-tabela .c-n { width: 9mm; } .rom-tabela .c-cliente { width: 77mm; } .rom-tabela .c-notas { width: 30mm; } .rom-tabela .c-vol { width: 13mm; }
+.rom-tabela .c-nome { width: 47mm; } .rom-tabela .c-doc { width: 33mm; } .rom-tabela .c-hora { width: 16mm; }
+.rom-tabela th { text-align: left; font-size: 8.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.2px; padding: 0 1.5mm; height: 6.5mm; border-right: 1px solid #14213d; border-bottom: 1px solid #14213d; background: #e6eaf1; }
+.rom-tabela td { padding: 0 1.5mm; height: 10.6mm; border-right: 1px solid #14213d; border-bottom: 1px solid #14213d; font-size: 10pt; line-height: 1.2; vertical-align: middle; overflow: hidden; }
+.rom-tabela td span { font-size: 9pt; }
+.rom-tabela td.n { text-align: center; font-weight: 700; }
+.rom-tabela td.vol { text-align: right; }
+.rom-rodape { margin-top: auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6mm; font-size: 9.5pt; }
+.rom-rodape div { border-top: 1px solid #14213d; padding-top: 1mm; }
+
+@page { size: A4 landscape; margin: 0; }
+@media print {
+  html, body { background: #fff !important; }
+  .rom-tela { background: #fff; padding: 0; min-height: 0; }
+  .rom-barra { display: none; }
+  .rom-folha { margin: 0; box-shadow: none; break-after: page; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .rom-folha:last-child { break-after: auto; }
+}
+
+/* O index.css da retaguarda tira a borda da última linha de qualquer tabela e pinta a linha no hover: aqui não. */
+.rom-tabela tbody tr:last-child td { border-bottom: 1px solid #14213d; }
+.rom-tabela tbody tr:hover td { background: none; }

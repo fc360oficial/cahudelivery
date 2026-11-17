@@ -1,0 +1,6 @@
+tags:
+  integracao:
+    description: Chamam a API de teste real (precisam de VENDAS_API_INTEGRACAO).
+  imagens:
+    description: Gera as imagens PNG de todas as telas (lentas; dependem das fontes do SDK). Pulado por padrão.
+    skip: "Gera as imagens das telas. Rode: flutter test test/telas_imagens_test.dart --run-skipped"

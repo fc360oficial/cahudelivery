@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AdminGuard } from '../admin/admin.guard';
+import { AcompanhamentoService } from './acompanhamento.service';
 import { CargasService } from './cargas.service';
+import { EntregasAcompanhamentoController } from './entregas-acompanhamento.controller';
 import { EntregasCadastrosController } from './entregas-cadastros.controller';
 import { EntregasCargasController } from './entregas-cargas.controller';
 import { EntregasNotasController } from './entregas-notas.controller';
@@ -14,9 +16,9 @@ import { PesosProdutosService } from './pesos-produtos.service';
 /** Fluxo Entregas: retaguarda da montagem de carga (/admin/entregas) e a API do aplicativo do motorista (/motorista). */
 @Module({
   controllers: [
-    EntregasCadastrosController, EntregasNotasController, EntregasPesosController, EntregasCargasController,
+    EntregasCadastrosController, EntregasNotasController, EntregasPesosController, EntregasCargasController, EntregasAcompanhamentoController,
     MotoristaAuthController, MotoristaController,
   ],
-  providers: [AdminGuard, NotasAEntregarService, PesosProdutosService, CargasService, MotoristaAuthService, MotoristaGuard, MotoristaService],
+  providers: [AdminGuard, AcompanhamentoService, NotasAEntregarService, PesosProdutosService, CargasService, MotoristaAuthService, MotoristaGuard, MotoristaService],
 })
 export class EntregasModule {}

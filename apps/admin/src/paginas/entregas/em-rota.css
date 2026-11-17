@@ -1,0 +1,94 @@
+/* Em rota e Entregues e comprovantes */
+.area-vendas .er-vermelho { color: #b42318; }
+.area-vendas .er-suave { color: var(--av-texto-2); font-size: 13px; }
+.area-vendas .er-filtros .cad-chips { margin: 0; }
+
+.area-vendas .er-alertas { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.area-vendas .er-alerta { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 14px; color: var(--av-texto); cursor: pointer; border: 1px solid transparent; }
+.area-vendas .er-alerta.erro { background: #fde4e1; border-color: #f6c2bb; }
+.area-vendas .er-alerta.aviso { background: #fff3c4; border-color: #f1d98a; }
+.area-vendas .er-alerta:hover { filter: brightness(0.98); border-color: var(--av-marinho); }
+.area-vendas .er-alerta-icone { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; background: #a86b00; }
+.area-vendas .er-alerta.erro .er-alerta-icone { background: #b42318; }
+.area-vendas .er-alerta-hora { margin-left: auto; color: var(--av-texto-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.area-vendas .er-painel { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(330px, 1fr); gap: 16px; align-items: start; }
+.area-vendas .er-mapa-caixa { padding: 0; overflow: hidden; }
+.area-vendas .er-mapa { height: 600px; width: 100%; z-index: 0; }
+.area-vendas .er-legenda { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 10px 14px; border-top: 1px solid var(--av-borda); font-size: 12.5px; color: var(--av-texto-2); }
+.area-vendas .er-legenda i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.er-pino { width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.35); color: #fff; font: 800 12px/21px system-ui, sans-serif; text-align: center; box-sizing: border-box; }
+.er-caminhao { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 2px 8px rgb(0 0 0 / 0.4); display: grid; place-items: center; box-sizing: border-box; }
+.er-caminhao span { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); white-space: nowrap; background: #fff; color: #0b1f4b; font: 700 11.5px system-ui, sans-serif; padding: 2px 6px; border-radius: 6px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
+.er-caminhao.sem-sinal { outline: 3px dashed #b42318; outline-offset: 3px; }
+.er-caminhao.sem-sinal span { color: #b42318; }
+
+.area-vendas .er-lado { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.area-vendas .er-cartao { display: grid; gap: 8px; width: 100%; text-align: left; background: #fff; border: 1px solid var(--av-borda); border-radius: 14px; padding: 14px; font: inherit; color: inherit; cursor: pointer; box-shadow: 0 1px 3px rgb(11 31 75 / 0.06); }
+.area-vendas .er-cartao:hover { border-color: var(--av-amarelo); }
+.area-vendas .er-cam-cabeca { display: flex; align-items: center; gap: 10px; }
+.area-vendas .er-cam-cor { width: 14px; height: 34px; border-radius: 6px; flex: none; }
+.area-vendas .er-cam-nome { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.area-vendas .er-cam-nome strong { color: var(--av-marinho); font-size: 15px; }
+.area-vendas .er-cam-nome small { color: var(--av-texto-2); font-size: 12.5px; }
+.area-vendas .er-agora { font-size: 13.5px; margin: 0; }
+.area-vendas .er-agora.erro { color: #b42318; font-weight: 700; }
+.area-vendas .er-barra { height: 8px; background: #e6eaf1; border-radius: 99px; overflow: hidden; display: flex; }
+.area-vendas .er-barra i { display: block; height: 100%; }
+.area-vendas .er-rodape { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--av-texto-2); font-variant-numeric: tabular-nums; }
+
+.area-vendas .er-detalhe { display: grid; gap: 10px; }
+.area-vendas .er-voltar { justify-self: start; background: none; border: 0; padding: 0; color: var(--av-azul); font: inherit; font-weight: 700; font-size: 13.5px; cursor: pointer; }
+.area-vendas .er-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.area-vendas .er-resumo div { background: var(--av-fundo); border-radius: 10px; padding: 8px 10px; }
+.area-vendas .er-resumo span { display: block; font-size: 11.5px; color: var(--av-texto-2); }
+.area-vendas .er-resumo strong { font-size: 16px; color: var(--av-marinho); font-variant-numeric: tabular-nums; }
+.area-vendas .er-paradas { list-style: none; margin: 0; padding: 0; }
+.area-vendas .er-parada { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; padding: 12px 0; border-top: 1px dashed var(--av-borda); }
+.area-vendas .er-ordem { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
+.area-vendas .er-parada-corpo { display: grid; gap: 4px; min-width: 0; font-size: 13.5px; }
+.area-vendas .er-parada-nome { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.area-vendas .er-parada-nome strong { color: var(--av-marinho); }
+.area-vendas .er-tempos { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--av-texto-2); font-variant-numeric: tabular-nums; }
+.area-vendas .er-tempos b { color: var(--av-texto); }
+.area-vendas .er-nota { font-size: 12.5px; border-radius: 8px; padding: 6px 9px; display: grid; gap: 6px; }
+.area-vendas .er-nota.aviso { background: #fff3c4; color: #6b4a00; }
+.area-vendas .er-nota.erro { background: #fde4e1; color: #b42318; }
+.area-vendas .er-resolver { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.area-vendas .er-resolver input { flex: 1 1 200px; min-width: 0; height: 34px; box-sizing: border-box; border: 1px solid var(--av-borda); border-radius: 8px; padding: 0 10px; font: inherit; font-size: 13px; background: #fff; color: var(--av-texto); }
+.area-vendas .er-resolver .cad-btn { padding: 6px 12px; }
+.area-vendas .er-resolvida { color: #146c34; font-weight: 600; }
+
+.area-vendas .er-fotos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.area-vendas .er-foto { width: 128px; padding: 0; border: 1px solid var(--av-borda); border-radius: 8px; overflow: hidden; background: #f7f9fc; cursor: zoom-in; font: inherit; display: flex; flex-direction: column; text-align: left; }
+.area-vendas .er-foto img { width: 100%; height: 86px; object-fit: cover; display: block; }
+.area-vendas .er-foto-vazia { height: 86px; display: grid; place-items: center; color: var(--av-texto-2); font-size: 12px; }
+.area-vendas .er-foto-rotulo { padding: 4px 6px; font-size: 11.5px; color: var(--av-texto-2); }
+
+.er-modal { position: fixed; inset: 0; z-index: 2000; background: rgb(5 12 30 / 0.82); display: grid; place-items: center; padding: 24px; }
+.er-modal figure { margin: 0; max-width: min(1100px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 8px; }
+.er-modal img { max-width: 100%; max-height: calc(100vh - 110px); object-fit: contain; border-radius: 8px; background: #fff; }
+.er-modal figcaption { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #fff; font-weight: 600; }
+.er-modal figcaption button { background: #fff; color: #0b1f4b; border: 0; border-radius: 8px; padding: 7px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+
+.area-vendas .er-entregues-carga { margin-bottom: 16px; }
+.area-vendas .er-entregues-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 8px; }
+.area-vendas .er-entregues-topo h2 { margin: 0; font-size: 18px; color: var(--av-marinho); }
+.area-vendas .er-entregues-lista { list-style: none; margin: 0; padding: 0; }
+.area-vendas .er-entregue { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px; padding: 12px 0; border-top: 1px solid var(--av-borda); align-items: start; }
+.area-vendas .er-entregue-info { display: grid; gap: 4px; min-width: 0; font-size: 13.5px; }
+.area-vendas .er-entregue .er-fotos { margin-top: 0; justify-content: flex-end; }
+
+@media (max-width: 1180px) {
+  .area-vendas .er-painel { grid-template-columns: 1fr; }
+  .area-vendas .er-mapa { height: 460px; }
+}
+@media (max-width: 700px) {
+  .area-vendas .er-entregue { grid-template-columns: 1fr; }
+  .area-vendas .er-entregue .er-fotos { justify-content: flex-start; }
+  .area-vendas .er-mapa { height: 380px; }
+  .area-vendas .er-alerta-hora { display: none; }
+}
+.area-vendas .er-indicadores { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1180px) { .area-vendas .er-indicadores { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .area-vendas .er-indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

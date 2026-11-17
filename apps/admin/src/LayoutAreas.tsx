@@ -52,13 +52,10 @@ const EM_BREVE: Item[] = [
 const ITENS_ENTREGAS: Item[] = [
   { para: '/entregas', rotulo: 'Notas a entregar', exato: true, icone: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 8h6M9 12h6" /></> },
   { para: '/entregas/cargas', rotulo: 'Montar cargas', icone: <><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.500" cy="18" r="1.700" /><circle cx="17" cy="18" r="1.700" /></> },
+  { para: '/entregas/em-rota', rotulo: 'Em rota', icone: <><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z" /><circle cx="12" cy="9.500" r="2.500" /></> },
+  { para: '/entregas/entregues', rotulo: 'Entregues e comprovantes', icone: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 9l2 2 4-4M9 15h6" /></> },
   { para: '/entregas/pesos', rotulo: 'Peso dos produtos', icone: <><path d="M12 3l8 4.500v9L12 21l-8-4.500v-9z" /><path d="M4 7.500l8 4.500 8-4.500M12 12v9" /></> },
   { para: '/entregas/cadastros', rotulo: 'Caminhões e motoristas', icone: <><circle cx="9" cy="8" r="3.200" /><path d="M3 20c0-3.300 2.700-6 6-6s6 2.700 6 6" /><path d="M16 5.500a3 3 0 0 1 0 5M18 14.300c1.800.800 3 2.500 3 4.700" /></> },
-];
-
-const EM_BREVE_ENTREGAS: Item[] = [
-  { para: '', rotulo: 'Em rota', icone: <><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21z" /><circle cx="12" cy="9.500" r="2.500" /></> },
-  { para: '', rotulo: 'Entregues e comprovantes', icone: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" /><path d="M9 9l2 2 4-4M9 15h6" /></> },
 ];
 
 const ITENS_ADMIN: Item[] = [
@@ -176,7 +173,7 @@ export function LayoutEntregas({ children }: { children: React.ReactNode }) {
     <Casca
       area="area-vendas"
       itens={ITENS_ENTREGAS}
-      emBreve={EM_BREVE_ENTREGAS}
+
       marca={
         <div className="av-marca-card">
           <img src="/fluxo-simbolo.png" alt="" />

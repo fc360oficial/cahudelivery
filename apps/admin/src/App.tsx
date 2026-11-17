@@ -39,6 +39,8 @@ import { VendasTabelas } from './paginas/vendas/Tabelas';
 import { VendasVendedores } from './paginas/vendas/Vendedores';
 import { EntregasCadastros } from './paginas/entregas/Cadastros';
 import { EntregasMontarCargas } from './paginas/entregas/MontarCargas';
+import { EntregasEmRota } from './paginas/entregas/EmRota';
+import { EntregasEntregues } from './paginas/entregas/Entregues';
 import { EntregasNotasAEntregar } from './paginas/entregas/NotasAEntregar';
 import { EntregasRomaneio } from './paginas/entregas/Romaneio';
 import { EntregasPesos } from './paginas/entregas/Pesos';
@@ -106,6 +108,8 @@ const ROTAS_VENDAS: [string, React.ReactNode][] = [
 const ROTAS_ENTREGAS: [string, React.ReactNode][] = [
   ['/entregas', <EntregasNotasAEntregar />],
   ['/entregas/cargas', <EntregasMontarCargas />],
+  ['/entregas/em-rota', <EntregasEmRota />],
+  ['/entregas/entregues', <EntregasEntregues />],
   ['/entregas/pesos', <EntregasPesos />],
   ['/entregas/cadastros', <EntregasCadastros />],
 ];

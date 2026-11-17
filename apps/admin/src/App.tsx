@@ -38,6 +38,7 @@ import { VendasProdutos } from './paginas/vendas/Produtos';
 import { VendasTabelas } from './paginas/vendas/Tabelas';
 import { VendasVendedores } from './paginas/vendas/Vendedores';
 import { EntregasCadastros } from './paginas/entregas/Cadastros';
+import { EntregasNotasAEntregar } from './paginas/entregas/NotasAEntregar';
 
 type Area = Solucao | 'admin';
 
@@ -100,7 +101,8 @@ const ROTAS_VENDAS: [string, React.ReactNode][] = [
 ];
 
 const ROTAS_ENTREGAS: [string, React.ReactNode][] = [
-  ['/entregas', <EntregasCadastros />],
+  ['/entregas', <EntregasNotasAEntregar />],
+  ['/entregas/cadastros', <EntregasCadastros />],
 ];
 
 export default function App() {

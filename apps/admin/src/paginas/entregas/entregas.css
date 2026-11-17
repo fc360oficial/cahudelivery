@@ -12,3 +12,11 @@
 /* Nada quebra de linha dentro da tabela: em tela estreita ela rola de lado, como as outras da retaguarda. */
 .area-vendas .ent-tabela th, .area-vendas .ent-tabela td { white-space: nowrap; }
 .area-vendas .ent-acoes-linha { display: flex; gap: 6px; justify-content: flex-end; }
+/* Notas a entregar */
+.area-vendas .ent-alerta { color: #a61d1d; font-weight: 600; }
+.area-vendas .ent-grupo th, .area-vendas .ent-grupo td { background: #f3f6fb; font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--av-marinho); font-weight: 700; border-bottom: 1px solid var(--av-borda); }
+.area-vendas .ent-grupo th small { font-size: 13px; font-weight: 500; color: var(--av-texto-2); margin-left: 6px; }
+.area-vendas .cad-filtros .cad-chips { display: flex; }
+/* Nome de cliente e bairro podem quebrar em duas linhas: é o que deixa a tabela caber em 1280 sem rolar de lado. */
+.area-vendas .ent-tabela td.ent-quebra { white-space: normal; }
+.area-vendas .ent-tabela td.ent-cliente { min-width: 200px; }

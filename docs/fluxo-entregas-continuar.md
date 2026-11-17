@@ -48,9 +48,13 @@ Cabeçalho `X-Tenant: cahu` em tudo; `Authorization: Bearer <accessToken>` depoi
 
 Toda ação pode ser reenviada pela fila sem sinal sem duplicar. A hora (`em`) é a do celular; hora no futuro vira a do servidor.
 
+## App do motorista (`apps/entregas`)
+
+Feito em 17/11 a partir do app de vendas (ramo `fluxo-vendas-app`, agora no GitHub). Ver `apps/entregas/README.md`: telas, regras (bloqueio sem localização, fila sem sinal), testes e como gerar o APK. Ainda não foi testado num celular de verdade com a API publicada.
+
 ## O que falta na fase 1
 
-1. **App Flutter do motorista** (`apps/entregas`, partindo do código do app de vendas): login, tela de bloqueio da localização, carga do dia, a caminho, no cliente, ocorrência, comprovante (foto), entrega confirmada, não entregue, fila sem sinal, envio de posição em segundo plano com notificação fixa. Telas no mockup.
+1. **Testar o app num celular** com a API publicada (login de um motorista, carga autorizada, entrega com foto).
 2. **Retaguarda "Em rota"**: mapa com a última posição, "sem localização há X min", tempos por parada, fotos, aviso de "Cheguei" longe, ocorrências para resolver.
 3. **Publicar**: rodar as migrações 041, 042, 043 e 044 **antes** de reiniciar a API (sem a 042, salvar um administrador dá erro); juntar o ramo na `main`.
 

@@ -82,30 +82,6 @@
   .area-fluxo .av-conteudo { padding: 18px 16px; }
 }
 
-/* Escolha de solução */
-.solucoes-tela { min-height: 100vh; background: #eef2f8; color: #14213d; }
-.solucoes-topo { background: #0b1b3a; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; }
-.solucoes-topo img { height: 34px; width: auto; }
-.solucoes-topo .quem { display: flex; align-items: center; gap: 14px; font-size: 14px; }
-.solucoes-topo button { background: none; border: 1px solid rgb(255 255 255 / 0.4); color: #fff; border-radius: 8px; padding: 6px 12px; }
-.solucoes-topo button:hover { border-color: #ffc20e; color: #ffc20e; }
-.solucoes-corpo { max-width: 920px; margin: 0 auto; padding: 36px 16px 48px; }
-.solucoes-corpo h1 { margin: 0 0 22px; font-size: 26px; color: #0b1f4b; }
-.solucoes-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
-.solucao-cartao {
-  display: flex; flex-direction: column; gap: 8px; background: #fff; border-radius: 16px; padding: 22px; text-align: left;
-  border: 2px solid transparent; box-shadow: 0 1px 3px rgb(11 31 75 / 0.08); color: inherit;
-}
-a.solucao-cartao:hover { border-color: #ffc20e; }
-.solucao-cartao svg { color: #1d5be0; }
-.solucao-cartao strong { font-size: 18px; color: #0b1f4b; }
-.solucao-cartao span { color: #5b6b85; font-size: 13.5px; }
-.solucao-cartao.desativado { opacity: 0.6; }
-.solucao-cartao em { font-style: normal; align-self: flex-start; background: #e6eaf1; color: #4a5875; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
-.solucoes-admin { margin-top: 30px; }
-.solucoes-admin h2 { font-size: 15px; color: #5b6b85; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px; }
-.solucoes-admin .solucao-cartao strong { font-size: 16px; }
-@media (max-width: 560px) { .solucoes-topo { padding: 10px 14px; } .solucoes-topo .quem span { display: none; } .solucoes-corpo h1 { font-size: 22px; } }
 
 /* Barra de rolagem do menu: fina e discreta, sem as setas do sistema. */
 .area-fluxo .av-menu { scrollbar-width: thin; scrollbar-color: rgb(255 255 255 / 0.22) transparent; }

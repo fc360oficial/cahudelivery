@@ -1,0 +1,66 @@
+/* Tela "Onde você quer entrar?" (/solucoes) */
+.sol-tela { min-height: 100vh; background: #eef2f8; color: #14213d; }
+.sol-largura { max-width: 1120px; margin: 0 auto; padding-left: 24px; padding-right: 24px; box-sizing: border-box; }
+
+.sol-barra { background: #0b1b3a; color: #fff; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; }
+.sol-barra img { height: 34px; width: auto; }
+.sol-quem { display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: 600; }
+.sol-quem button { background: none; border: 1px solid rgb(255 255 255 / 0.4); color: #fff; border-radius: 8px; padding: 7px 14px; font-weight: 600; cursor: pointer; }
+.sol-quem button:hover { border-color: #ffc20e; color: #ffc20e; }
+
+.sol-boas-vindas { position: relative; overflow: hidden; background: #0b1f4b; color: #fff; padding: 44px 0 130px; }
+.sol-arcos { position: absolute; right: 0; top: 0; height: 100%; width: auto; max-width: 55%; pointer-events: none; }
+.sol-boas-vindas .sol-largura { position: relative; }
+.sol-data { margin: 0 0 8px; color: #ffc20e; font-size: 13px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; }
+.sol-boas-vindas h1 { margin: 0 0 6px; font-size: 36px; line-height: 1.15; color: #fff; }
+.sol-pergunta { margin: 0; font-size: 18px; color: #dbe4f5; }
+
+.sol-corpo { margin-top: -100px; padding-bottom: 48px; position: relative; }
+.sol-cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+.sol-cartao { background: #fff; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgb(11 31 75 / 0.12); border: 1px solid #e3e9f3; }
+.sol-cartao-topo { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }
+.sol-icone { width: 60px; height: 60px; border-radius: 14px; display: grid; place-items: center; }
+.sol-icone.azul { background: #e5edff; color: #1d5be0; }
+.sol-icone.amarelo { background: #fff3c4; color: #8a6200; }
+.sol-selo { background: #dcf5e4; color: #146c34; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: 999px; }
+.sol-cartao h2 { margin: 0 0 6px; font-size: 24px; color: #0b1f4b; }
+.sol-texto { margin: 0; color: #5b6b85; font-size: 15px; line-height: 1.4; min-height: 42px; }
+.sol-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border-top: 1px solid #e6ebf3; padding-top: 16px; }
+.sol-numeros strong { display: block; font-size: 28px; line-height: 1.1; color: #0b1f4b; }
+.sol-numeros span { font-size: 13px; color: #5b6b85; }
+.sol-numeros .destaque strong { color: #a86b00; }
+.sol-entrar { margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 10px; background: #1d5be0; color: #fff; text-decoration: none; font-weight: 700; font-size: 16px; border-radius: 10px; padding: 14px; }
+.sol-texto { margin-bottom: 22px; }
+.sol-numeros { margin-top: auto; margin-bottom: 22px; }
+.sol-numeros + .sol-entrar { margin-top: 0; }
+.sol-entrar:hover { background: #164bc0; }
+.sol-entrar:focus-visible { outline: 3px solid #ffc20e; outline-offset: 2px; }
+
+.sol-admin { margin-top: 34px; }
+.sol-admin h3 { margin: 0 0 12px; font-size: 14px; font-weight: 800; color: #5b6b85; text-transform: uppercase; letter-spacing: 0.6px; }
+.sol-admin-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.sol-admin-item { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid #e3e9f3; border-radius: 14px; padding: 16px 20px; text-decoration: none; color: inherit; }
+.sol-admin-item:hover { border-color: #ffc20e; }
+.sol-admin-icone { width: 46px; height: 46px; flex: none; border-radius: 12px; background: #eef2f8; color: #33415c; display: grid; place-items: center; }
+.sol-admin-nome { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.sol-admin-nome strong { font-size: 17px; color: #0b1f4b; }
+.sol-admin-nome small { font-size: 14px; color: #5b6b85; }
+.sol-admin-situacao { font-size: 14px; color: #33415c; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.sol-admin-situacao.ok { color: #146c34; font-weight: 700; }
+.sol-admin-situacao.falha { color: #b42318; font-weight: 700; }
+.sol-admin-situacao i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+
+@media (max-width: 600px) {
+  .sol-largura { padding-left: 16px; padding-right: 16px; }
+  .sol-barra { padding: 10px 16px; }
+  .sol-quem span { display: none; }
+  .sol-boas-vindas { padding: 28px 0 96px; }
+  .sol-corpo { margin-top: -64px; }
+  .sol-texto { min-height: 0; }
+  .sol-boas-vindas h1 { font-size: 28px; }
+  .sol-pergunta { font-size: 16px; }
+  .sol-arcos { opacity: 0.5; }
+  .sol-admin-lista { grid-template-columns: 1fr; }
+  .sol-admin-item { flex-wrap: wrap; }
+  .sol-admin-situacao { width: 100%; padding-left: 60px; }
+}

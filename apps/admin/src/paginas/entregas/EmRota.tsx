@@ -7,6 +7,7 @@ import {
   COR_PARADA, CORES_CARGA, FotoAberta, FotosDaParada, MOTIVOS, ROTULO_PARADA, TIPO_OCORRENCIA,
   duracao, hoje, hora, km, situacaoCarga, type Acompanhamento, type Carga, type Ocorrencia,
 } from './acompanhamento';
+import { DetalheEntrega } from './DetalheEntrega';
 import '../vendas/cadastros.css';
 import '../vendas/inicio-pedidos.css';
 import './entregas.css';
@@ -104,7 +105,7 @@ function Resolver({ o, onFeito }: { o: Ocorrencia; onFeito: () => void }) {
   );
 }
 
-function Detalhe({ c, cor, agora, onVoltar, onAbrir, onAtualizar }: { c: Carga; cor: string; agora: Date; onVoltar: () => void; onAbrir: (url: string, rotulo: string) => void; onAtualizar: () => void }) {
+function Detalhe({ c, cor, agora, onVoltar, onAbrir, onAbrirEntrega, onAtualizar }: { c: Carga; cor: string; agora: Date; onVoltar: () => void; onAbrir: (url: string, rotulo: string) => void; onAbrirEntrega: (id: string) => void; onAtualizar: () => void }) {
   const s = situacaoCarga(c, agora);
   const fim = c.retornoEm ? new Date(c.retornoEm) : agora;
   const naRua = c.saidaEm ? Math.round((fim.getTime() - new Date(c.saidaEm).getTime()) / 60000) : null;
@@ -130,7 +131,7 @@ function Detalhe({ c, cor, agora, onVoltar, onAbrir, onAtualizar }: { c: Carga; 
             <li key={p.id} className="er-parada">
               <span className="er-ordem" style={{ background: COR_PARADA[p.status] }}>{p.ordem}</span>
               <div className="er-parada-corpo">
-                <div className="er-parada-nome"><strong>{p.cliente}</strong><Selo variante={variante}>{rotulo}</Selo></div>
+                <div className="er-parada-nome"><button type="button" className="ent-abrir" onClick={() => onAbrirEntrega(p.entregaId)}>{p.cliente}</button><Selo variante={variante}>{rotulo}</Selo></div>
                 <span className="er-suave">{[p.endereco, p.bairro].filter(Boolean).join(' · ')}{p.nota ? ` · NF ${p.nota}` : ''} · {p.volumes.toLocaleString('pt-BR')} vol.</span>
                 <div className="er-tempos">
                   {p.status === 'pendente' ? <span>Ainda não chegou</span> : (
@@ -193,6 +194,8 @@ export function EntregasEmRota() {
   const [erro, setErro] = useState<string | null>(null);
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [foto, setFoto] = useState<{ url: string; rotulo: string } | null>(null);
+  const [entregaAberta, setEntregaAberta] = useState<string | null>(null);
+  const fecharEntrega = useCallback(() => setEntregaAberta(null), []);
   const pedido = useRef(0);
 
   const carregar = useCallback(() => {
@@ -267,7 +270,7 @@ export function EntregasEmRota() {
               </Cartao>
               <div className="er-lado">
                 {sel ? (
-                  <Detalhe c={sel} cor={cores.get(sel.id)!} agora={agora} onVoltar={() => setSelecionada(null)} onAbrir={abrir} onAtualizar={carregar} />
+                  <Detalhe c={sel} cor={cores.get(sel.id)!} agora={agora} onVoltar={() => setSelecionada(null)} onAbrir={abrir} onAbrirEntrega={setEntregaAberta} onAtualizar={carregar} />
                 ) : (
                   dados.cargas.map((c) => <CartaoCarga key={c.id} c={c} cor={cores.get(c.id)!} agora={agora} ativa={false} onClick={() => setSelecionada(c.id)} />)
                 )}
@@ -277,6 +280,7 @@ export function EntregasEmRota() {
         </>
       )}
       <FotoAberta foto={foto} onFechar={() => setFoto(null)} />
+      <DetalheEntrega entregaId={entregaAberta} onFechar={fecharEntrega} />
     </div>
   );
 }

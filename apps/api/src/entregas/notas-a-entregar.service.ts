@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { pesoPorUnidadeDeVenda } from './peso-estimado';
 
@@ -34,6 +34,27 @@ export interface EntregaPendente {
   /** Itens cujo peso não deu para saber (o peso acima fica faltando esses). */
   itensSemPeso: number;
   itens: number;
+}
+
+/** O que aparece ao clicar numa entrega: o pedido (ou a nota) com os produtos e a carga em que está. */
+export interface DetalheEntrega {
+  id: string;
+  origem: string;
+  pedidoNumero: string | null;
+  /** Status do pedido (FATURADO, ENTREGUE...) ou da nota (FATURADO, ENTREGUE, CANCELADO). */
+  situacao: string;
+  cliente: string;
+  documento: string | null;
+  telefone: string | null;
+  endereco: string;
+  nota: { numero: string; serie: string | null; chave: string | null; emitidaEm: string | null } | null;
+  pedidoEm: string | null;
+  pagamento: string | null;
+  total: number | null;
+  itens: Array<{ codigo: string | null; descricao: string; unidade: string | null; quantidade: number; valorUnitario: number | null; valorTotal: number | null; pesoKg: number | null }>;
+  pesoKg: number | null;
+  itensSemPeso: number;
+  carga: { numero: number; status: string; data: string; caminhao: string | null; motorista: string | null; entregaStatus: string; naCarga: boolean } | null;
 }
 
 export interface NotasAEntregar {
@@ -205,6 +226,106 @@ export class NotasAEntregarService {
         semLocalizacao: entregas.filter((e) => e.latitude === null || e.longitude === null).length,
       },
       entregas,
+    };
+  }
+
+  /**
+   * Detalhe de uma entrega ("pedido:<uuid>" ou "nota:<uuid>"): produtos com quantidade, valor e peso estimado,
+   * e a carga em que ela está. Serve à tela que abre ao clicar na entrega.
+   */
+  async detalhe(entregaId: string): Promise<DetalheEntrega> {
+    const { pool } = tenantCtx();
+    const [tipo, id] = entregaId.split(':');
+    let cab: Omit<DetalheEntrega, 'itens' | 'pesoKg' | 'itensSemPeso' | 'carga'>;
+    let brutos: Array<ItemBruto & { unidade: string | null; valorUnitario: number | null }>;
+    if (tipo === 'pedido') {
+      const { rows } = await pool.query(
+        `select p.id, p.numero, p.origem, p.status, p.total, p.criado_em, p.endereco_snapshot_json as endereco, p.forma_pagamento,
+                coalesce(nullif(c.nome_fantasia, ''), c.razao_social) as cliente, c.documento, c.telefone,
+                n.numero_nf, n.serie, n.emitida_em, n.chave_acesso, f.total as total_faturado, f.itens_json as itens_faturados,
+                (select json_agg(json_build_object('produtoId', i.produto_id, 'descricao', i.descricao_snapshot, 'quantidade', i.quantidade, 'preco', i.preco_unit) order by i.descricao_snapshot)
+                   from pedido_itens i where i.pedido_id = p.id) as itens_pedido
+           from pedidos p join clientes c on c.id = p.cliente_id
+           left join pedido_notas n on n.pedido_id = p.id
+           left join pedido_faturamentos f on f.pedido_id = p.id
+          where p.id = $1`,
+        [id],
+      );
+      const p = rows[0];
+      if (!p) throw new NotFoundException('Entrega não encontrada');
+      const end = (p.endereco ?? {}) as Record<string, unknown>;
+      cab = {
+        id: entregaId, origem: ORIGEM[String(p.origem)] ?? String(p.origem), pedidoNumero: p.numero === null ? null : String(p.numero),
+        situacao: String(p.status), cliente: p.cliente ?? 'Cliente sem nome', documento: ouNulo(p.documento), telefone: ouNulo(p.telefone),
+        endereco: [end.logradouro, end.numero, end.complemento, end.bairro, end.cidade].map(ouNulo).filter(Boolean).join(', '),
+        nota: p.numero_nf ? { numero: String(p.numero_nf), serie: ouNulo(p.serie), chave: ouNulo(p.chave_acesso), emitidaEm: p.emitida_em ? new Date(p.emitida_em).toISOString() : null } : null,
+        pedidoEm: p.criado_em ? new Date(p.criado_em).toISOString() : null,
+        pagamento: ouNulo(p.forma_pagamento),
+        total: p.total_faturado !== null && p.total_faturado !== undefined ? Number(p.total_faturado) : p.total === null ? null : Number(p.total),
+      };
+      const faturados = Array.isArray(p.itens_faturados) ? (p.itens_faturados as Array<Record<string, unknown>>) : [];
+      const doPedido = Array.isArray(p.itens_pedido) ? (p.itens_pedido as Array<Record<string, unknown>>) : [];
+      brutos = faturados.length
+        ? faturados.map((i) => ({ codigo: ouNulo(i.produto_codigo), quantidade: numero(i.quantidade), unidade: null, valorUnitario: i.valor_unitario === undefined ? null : numero(i.valor_unitario) }))
+        : doPedido.map((i) => ({ produtoId: ouNulo(i.produtoId), descricao: ouNulo(i.descricao), quantidade: numero(i.quantidade), unidade: null, valorUnitario: i.preco === undefined ? null : numero(i.preco) }));
+    } else if (tipo === 'nota') {
+      const { rows } = await pool.query(
+        `select ne.*, coalesce(nullif(c.nome_fantasia, ''), c.razao_social) as cliente, c.documento, c.telefone
+           from notas_entrega ne left join clientes c on c.id = ne.cliente_id where ne.id = $1`,
+        [id],
+      );
+      const n = rows[0];
+      if (!n) throw new NotFoundException('Entrega não encontrada');
+      const dest = (n.destinatario_json ?? {}) as { nome?: string; documento?: string; fone?: string | null; endereco?: Record<string, unknown> };
+      const end = dest.endereco ?? {};
+      cab = {
+        id: entregaId, origem: ouNulo(n.origem) ?? 'televendas', pedidoNumero: ouNulo(n.pedido_numero), situacao: String(n.status),
+        cliente: n.cliente ?? ouNulo(dest.nome) ?? 'Cliente sem nome', documento: ouNulo(n.documento) ?? ouNulo(dest.documento),
+        telefone: ouNulo(n.telefone) ?? ouNulo(dest.fone),
+        endereco: [end.logradouro, end.numero, end.complemento, end.bairro, end.municipio].map(ouNulo).filter(Boolean).join(', '),
+        nota: { numero: String(n.numero_nf), serie: ouNulo(n.serie), chave: ouNulo(n.chave_acesso), emitidaEm: n.emitida_em ? new Date(n.emitida_em).toISOString() : null },
+        pedidoEm: null, pagamento: null,
+        total: n.total === null || n.total === undefined ? null : Number(n.total),
+      };
+      const itens = Array.isArray(n.itens_json) ? (n.itens_json as Array<Record<string, unknown>>) : [];
+      brutos = itens.map((i) => ({
+        codigo: ouNulo(i.codigo), descricao: ouNulo(i.descricao), quantidade: numero(i.quantidade), unidade: ouNulo(i.unidade),
+        valorUnitario: i.valor_unitario === undefined || i.valor_unitario === null ? null : numero(i.valor_unitario),
+      }));
+    } else {
+      throw new NotFoundException('Entrega não encontrada');
+    }
+
+    const produtos = await this.produtosDosItens(brutos);
+    let pesoTotal = 0, semPeso = 0;
+    const itens = brutos.map((item) => {
+      const produto = (item.produtoId && produtos.porId.get(item.produtoId)) || (item.codigo && produtos.porCodigo.get(item.codigo)) || null;
+      const nome = produto?.nome ?? item.descricao ?? `Produto ${item.codigo ?? ''}`.trim();
+      const unidade = pesoPorUnidadeDeVenda({
+        nome, pesoKg: produto?.peso_kg === null || produto?.peso_kg === undefined ? null : Number(produto.peso_kg),
+        qtdPorEmbalagem: produto ? Number(produto.qtd_por_embalagem) : null, unidadeVenda: produto?.unidade_venda ?? null,
+      });
+      const peso = unidade.kg === null ? null : arredondar(unidade.kg * item.quantidade, 1);
+      if (peso === null) semPeso++; else pesoTotal += peso;
+      return {
+        codigo: item.codigo ?? produto?.erp_produto_id ?? produto?.sku ?? null, descricao: nome, unidade: item.unidade ?? produto?.unidade_venda ?? null,
+        quantidade: item.quantidade, valorUnitario: item.valorUnitario,
+        valorTotal: item.valorUnitario === null ? null : arredondar(item.valorUnitario * item.quantidade, 2), pesoKg: peso,
+      };
+    });
+
+    const coluna = tipo === 'pedido' ? 'pedido_id' : 'nota_entrega_id';
+    const carga = await pool.query(
+      `select c.numero, c.status, to_char(c.data_entrega, 'YYYY-MM-DD') as data, k.nome as caminhao, m.nome as motorista, e.status as entrega_status, e.viva
+         from carga_entregas e join cargas c on c.id = e.carga_id
+         left join caminhoes k on k.id = c.caminhao_id left join motoristas m on m.id = c.motorista_id
+        where e.${coluna} = $1 order by e.viva desc, e.criada_em desc limit 1`,
+      [id],
+    );
+    const k = carga.rows[0];
+    return {
+      ...cab, itens, pesoKg: itens.length - semPeso ? arredondar(pesoTotal, 1) : null, itensSemPeso: semPeso,
+      carga: k ? { numero: Number(k.numero), status: k.status, data: k.data, caminhao: k.caminhao, motorista: k.motorista, entregaStatus: k.entrega_status, naCarga: k.viva } : null,
     };
   }
 

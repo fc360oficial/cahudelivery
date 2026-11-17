@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../../api';
 import { CabecalhoPagina, Cartao, Selo, Vazio } from '../../vendas-ui';
 import { FotoAberta, FotosDaParada, MOTIVOS, ROTULO_PARADA, TIPO_OCORRENCIA, duracao, hoje, hora, type Acompanhamento, type Parada } from './acompanhamento';
+import { DetalheEntrega } from './DetalheEntrega';
 import '../vendas/cadastros.css';
 import '../vendas/inicio-pedidos.css';
 import './entregas.css';
@@ -23,6 +24,8 @@ export function EntregasEntregues() {
   const [filtro, setFiltro] = useState<Filtro>('todas');
   const [busca, setBusca] = useState('');
   const [foto, setFoto] = useState<{ url: string; rotulo: string } | null>(null);
+  const [entregaAberta, setEntregaAberta] = useState<string | null>(null);
+  const fecharEntrega = useCallback(() => setEntregaAberta(null), []);
 
   useEffect(() => {
     let vivo = true;
@@ -85,7 +88,7 @@ export function EntregasEntregues() {
                   return (
                     <li key={p.id} className="er-entregue">
                       <div className="er-entregue-info">
-                        <div className="er-parada-nome"><strong>{p.ordem}. {p.cliente}</strong><Selo variante={variante}>{rotulo}</Selo></div>
+                        <div className="er-parada-nome"><strong>{p.ordem}.</strong><button type="button" className="ent-abrir" onClick={() => setEntregaAberta(p.entregaId)}>{p.cliente}</button><Selo variante={variante}>{rotulo}</Selo></div>
                         <span className="er-suave">{[p.endereco, p.bairro].filter(Boolean).join(' · ')}{p.nota ? ` · NF ${p.nota}` : ''} · {p.volumes.toLocaleString('pt-BR')} vol.</span>
                         <div className="er-tempos">
                           <span>Chegou <b>{hora(p.chegadaEm)}</b></span><span>Saiu <b>{hora(p.concluidaEm)}</b></span><span>No cliente <b>{duracao(p.noClienteMin)}</b></span>
@@ -107,6 +110,7 @@ export function EntregasEntregues() {
         </>
       )}
       <FotoAberta foto={foto} onFechar={() => setFoto(null)} />
+      <DetalheEntrega entregaId={entregaAberta} onFechar={fecharEntrega} />
     </div>
   );
 }

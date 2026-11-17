@@ -21,6 +21,8 @@ export interface OcorrenciaAcomp {
 
 export interface ParadaAcomp {
   id: string;
+  /** pedido:<uuid> ou nota:<uuid>, para abrir o detalhe da entrega. */
+  entregaId: string;
   ordem: number;
   status: 'pendente' | 'no_cliente' | 'entregue' | 'nao_entregue';
   cliente: string;
@@ -174,6 +176,7 @@ export class AcompanhamentoService {
         const e = d.endereco ?? ({} as EntregaPendente['endereco']);
         const parada: ParadaAcomp = {
           id: l.id,
+          entregaId: d.id,
           ordem: l.ordem,
           status,
           cliente: d.cliente,

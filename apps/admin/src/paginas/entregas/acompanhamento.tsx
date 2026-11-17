@@ -7,7 +7,7 @@ export interface Ocorrencia {
   quantidade: number | null; observacao: string | null; foto: string | null; registradaEm: string; resolvidaEm: string | null; resolucao: string | null;
 }
 export interface Parada {
-  id: string; ordem: number; status: 'pendente' | 'no_cliente' | 'entregue' | 'nao_entregue'; cliente: string; bairro: string | null; cidade: string | null;
+  id: string; entregaId: string; ordem: number; status: 'pendente' | 'no_cliente' | 'entregue' | 'nao_entregue'; cliente: string; bairro: string | null; cidade: string | null;
   endereco: string; latitude: number | null; longitude: number | null; nota: string | null; origem: string; volumes: number;
   chegadaEm: string | null; chegadaDistanciaM: number | null; concluidaEm: string | null; trajetoMin: number | null; noClienteMin: number | null;
   recebedorNome: string | null; recebedorDocumento: string | null; motivoNaoEntrega: string | null; observacao: string | null;

@@ -4,6 +4,7 @@ import { CabecalhoPagina, Cartao, Selo, Vazio, formatarDataHora, type VarianteSe
 import '../vendas/cadastros.css';
 import '../vendas/inicio-pedidos.css';
 import './entregas.css';
+import { DetalheEntrega } from './DetalheEntrega';
 
 interface Endereco { logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; cidade: string | null; uf: string | null; cep: string | null }
 interface Entrega {
@@ -54,6 +55,8 @@ export function EntregasNotasAEntregar() {
   const [erro, setErro] = useState<string | null>(null);
   const [origem, setOrigem] = useState('');
   const [busca, setBusca] = useState('');
+  const [aberta, setAberta] = useState<string | null>(null);
+  const fecharDetalhe = useCallback(() => setAberta(null), []);
 
   const carregar = useCallback(() => {
     api<Resposta>('/admin/entregas/notas-a-entregar').then((d) => { setDados(d); setErro(null); }).catch((e: Error) => setErro(e.message));
@@ -160,7 +163,7 @@ export function EntregasNotasAEntregar() {
                       return (
                         <tr key={e.id}>
                           <td className="ent-quebra ent-cliente">
-                            <strong>{e.cliente}</strong>
+                            <button type="button" className="ent-abrir" onClick={() => setAberta(e.id)}>{e.cliente}</button>
                             <span className="cad-sub">{[e.endereco.logradouro, e.endereco.numero].filter(Boolean).join(', ') || 'endereço não informado'}</span>
                           </td>
                           <td className="ent-quebra">{e.endereco.bairro ?? <span className="cad-fraco">-</span>}</td>
@@ -180,6 +183,7 @@ export function EntregasNotasAEntregar() {
             </table>
           </div>
         )}
+      <DetalheEntrega entregaId={aberta} onFechar={fecharDetalhe} />
     </>
   );
 }

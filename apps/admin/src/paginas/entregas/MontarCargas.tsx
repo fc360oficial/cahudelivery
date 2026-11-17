@@ -4,6 +4,7 @@ import { CabecalhoPagina, Cartao, Selo, Vazio, type VarianteSelo } from '../../v
 import '../vendas/cadastros.css';
 import '../vendas/inicio-pedidos.css';
 import './entregas.css';
+import { DetalheEntrega } from './DetalheEntrega';
 
 interface Endereco { logradouro: string | null; numero: string | null; bairro: string | null; cidade: string | null }
 interface Entrega {
@@ -81,6 +82,8 @@ export function EntregasMontarCargas() {
   // Carga escolhida para cada entrega que está fora.
   const [destino, setDestino] = useState<Record<string, string>>({});
   const pedido = useRef(0);
+  const [aberta, setAberta] = useState<string | null>(null);
+  const fecharDetalhe = useCallback(() => setAberta(null), []);
 
   const carregar = useCallback((dia: string) => {
     const n = ++pedido.current;
@@ -178,7 +181,7 @@ export function EntregasMontarCargas() {
                     {painel.fora.map((e) => (
                       <tr key={e.id}>
                         <td className="ent-quebra ent-cliente">
-                          <strong>{e.cliente}</strong>
+                          <button type="button" className="ent-abrir" onClick={() => setAberta(e.id)}>{e.cliente}</button>
                           <span className="cad-sub">{[e.endereco.bairro, e.endereco.cidade].filter(Boolean).join(' · ') || 'endereço não informado'}</span>
                         </td>
                         <td>{e.nota?.numero ?? <span className="ent-alerta">nota não recebida</span>}<span className="cad-sub">{ORIGEM[e.origem] ?? e.origem}</span></td>
@@ -247,7 +250,7 @@ export function EntregasMontarCargas() {
                           <tr key={l.id}>
                             <td><strong>{l.ordem}</strong></td>
                             <td className="ent-quebra ent-cliente">
-                              <strong>{l.dados.cliente}</strong>
+                              <button type="button" className="ent-abrir" onClick={() => setAberta(l.dados.id)}>{l.dados.cliente}</button>
                               <span className="cad-sub">{[[l.dados.endereco.logradouro, l.dados.endereco.numero].filter(Boolean).join(', '), l.dados.endereco.bairro].filter(Boolean).join(' · ') || 'endereço não informado'}</span>
                             </td>
                             <td>{l.dados.nota?.numero ?? <span className="ent-alerta">sem nota</span>}<span className="cad-sub">{ORIGEM[l.dados.origem] ?? l.dados.origem}</span></td>
@@ -293,6 +296,7 @@ export function EntregasMontarCargas() {
           </section>
         </>
       )}
+      <DetalheEntrega entregaId={aberta} onFechar={fecharDetalhe} />
     </>
   );
 }

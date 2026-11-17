@@ -348,7 +348,7 @@ export class CargasService {
     const linhas = await db.query(
       `select id, carga_id, ordem, pedido_id, nota_entrega_id, dados_json, volumes, peso_kg, itens_sem_peso, status
          from carga_entregas
-        where carga_id = any($1::uuid[]) and viva
+        where carga_id = any($1::uuid[])
         order by ordem, criada_em`,
       [cargas.rows.map((c) => c.id)],
     );

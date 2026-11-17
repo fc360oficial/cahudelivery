@@ -85,3 +85,13 @@
 .area-vendas .ent-rota .cad-btn { padding: 5px 12px; font-size: 13px; }
 .area-vendas .ent-aviso-cd { background: #fff3c4; border: 1px solid #f1d98a; color: #6b4a00; border-radius: 10px; padding: 9px 12px; margin-bottom: 14px; font-size: 13.5px; }
 .area-vendas .ent-aviso-cd a { color: inherit; font-weight: 700; }
+
+/* Arrastar para mudar a ordem da carga */
+.area-vendas tr.ent-arrastavel { cursor: grab; }
+.area-vendas tr.ent-arrastavel:active { cursor: grabbing; }
+.area-vendas tr.ent-arrastavel:hover td { background: #f7f9fd; }
+.area-vendas tr.ent-arrastando td { opacity: 0.45; }
+.area-vendas tr.ent-alvo-antes td { box-shadow: inset 0 3px 0 var(--av-azul); }
+.area-vendas tr.ent-alvo-depois td { box-shadow: inset 0 -3px 0 var(--av-azul); }
+.area-vendas .ent-pegador { display: inline-block; width: 18px; margin-right: 6px; color: #9aa6ba; font-size: 16px; line-height: 1; vertical-align: -1px; }
+.area-vendas tr.ent-arrastavel:hover .ent-pegador { color: var(--av-azul); }

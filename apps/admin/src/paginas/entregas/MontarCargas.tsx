@@ -135,6 +135,21 @@ export function EntregasMontarCargas() {
     [ids[i], ids[i + passo]] = [ids[i + passo], ids[i]];
     void agir(() => api(url(c, '/ordem'), { method: 'PUT', body: JSON.stringify({ ids }) }));
   };
+  /** Arrastar e soltar: "para" é a posição (0..n) onde a linha vai entrar. */
+  const [arrasto, setArrasto] = useState<{ cargaId: string; de: number; para: number } | null>(null);
+  const soltar = (c: Carga) => {
+    if (!arrasto || arrasto.cargaId !== c.id) return;
+    const { de, para } = arrasto;
+    setArrasto(null);
+    const destino = para > de ? para - 1 : para;
+    if (destino === de) return;
+    const linhas = [...c.entregas];
+    const [linha] = linhas.splice(de, 1);
+    linhas.splice(destino, 0, linha);
+    // Já mostra na ordem nova enquanto salva.
+    setPainel((p) => p && { ...p, cargas: p.cargas.map((x) => (x.id === c.id ? { ...x, entregas: linhas.map((l, k) => ({ ...l, ordem: k + 1 })) } : x)) });
+    void agir(() => api(url(c, '/ordem'), { method: 'PUT', body: JSON.stringify({ ids: linhas.map((l) => l.id) }) }));
+  };
   const definir = (c: Carga, caminhaoId: string | null, motoristaId: string | null) =>
     void agir(() => api(url(c), { method: 'PUT', body: JSON.stringify({ caminhaoId, motoristaId }) }));
 
@@ -234,7 +249,7 @@ export function EntregasMontarCargas() {
                       ? <span>Rota <b>≈ {numero(c.rota.km, 1)} km</b> · <b>≈ {duracaoRota(c.rota.minutos)}</b> {c.rota.comCd ? 'saindo do CD e voltando' : 'entre os clientes (CD não cadastrado)'}{c.rota.semPonto > 0 ? ` · ${c.rota.semPonto} sem ponto no mapa (vão no fim)` : ''}</span>
                       : <span>Nenhuma entrega desta carga tem ponto no mapa: a ordem fica por bairro.</span>}
                     {aberta && c.entregas.length > 1 && c.rota.km !== null && (
-                      <button type="button" className="cad-btn cad-btn-claro" disabled={ocupado} onClick={() => void agir(() => api(`/admin/entregas/cargas/${c.id}/otimizar`, { method: 'POST' }), 'Ordem otimizada: a rota mais curta saindo do CD e voltando.')}>Otimizar ordem</button>
+                      <button type="button" className="cad-btn cad-btn-claro" disabled={ocupado} onClick={() => { if (confirm('Otimizar refaz a ordem pela menor distância e desfaz as trocas feitas à mão (ex.: cliente com horário combinado). Continuar?')) void agir(() => api(`/admin/entregas/cargas/${c.id}/otimizar`, { method: 'POST' }), 'Ordem otimizada: a rota mais curta saindo do CD e voltando.'); }}>Otimizar ordem</button>
                     )}
                   </div>
                 )}
@@ -263,9 +278,31 @@ export function EntregasMontarCargas() {
                     <table className="tabela-vendas ent-tabela">
                       <thead><tr><th>Ordem</th><th>Cliente</th><th>Nota</th><th className="num">Volumes</th><th className="num">Peso</th>{aberta && <th></th>}</tr></thead>
                       <tbody>
-                        {c.entregas.map((l, i) => (
-                          <tr key={l.id}>
-                            <td><strong>{l.ordem}</strong></td>
+                        {c.entregas.map((l, i) => {
+                          const meu = arrasto?.cargaId === c.id ? arrasto : null;
+                          const classes = [
+                            aberta ? 'ent-arrastavel' : '',
+                            meu?.de === i ? 'ent-arrastando' : '',
+                            meu && meu.para === i && meu.para !== meu.de && meu.para !== meu.de + 1 ? 'ent-alvo-antes' : '',
+                            meu && i === c.entregas.length - 1 && meu.para === c.entregas.length && meu.de !== i ? 'ent-alvo-depois' : '',
+                          ].filter(Boolean).join(' ');
+                          return (
+                          <tr
+                            key={l.id}
+                            className={classes || undefined}
+                            draggable={aberta && !ocupado}
+                            onDragStart={aberta ? (e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); setArrasto({ cargaId: c.id, de: i, para: i }); } : undefined}
+                            onDragOver={aberta ? (e) => {
+                              if (!meu) return;
+                              e.preventDefault();
+                              const r = e.currentTarget.getBoundingClientRect();
+                              const para = e.clientY > r.top + r.height / 2 ? i + 1 : i;
+                              if (para !== meu.para) setArrasto({ ...meu, para });
+                            } : undefined}
+                            onDrop={aberta ? (e) => { e.preventDefault(); soltar(c); } : undefined}
+                            onDragEnd={aberta ? () => setArrasto(null) : undefined}
+                          >
+                            <td>{aberta && <span className="ent-pegador" aria-hidden="true" title="Arraste para mudar a ordem">⠿</span>}<strong>{l.ordem}</strong></td>
                             <td className="ent-quebra ent-cliente">
                               <button type="button" className="ent-abrir" onClick={() => setAberta(l.dados.id)}>{l.dados.cliente}</button>
                               <span className="cad-sub">{[[l.dados.endereco.logradouro, l.dados.endereco.numero].filter(Boolean).join(', '), l.dados.endereco.bairro].filter(Boolean).join(' · ') || 'endereço não informado'}</span>
@@ -283,7 +320,8 @@ export function EntregasMontarCargas() {
                               </td>
                             )}
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

@@ -15,6 +15,7 @@ import './em-rota.css';
 
 const ATUALIZA_MS = 30_000;
 const CENTRO = L.latLng(-8.13, -34.95);
+const ICONE_CD = L.divIcon({ className: '', iconSize: [46, 30], iconAnchor: [23, 15], html: '<div class="cd-pino">CD</div>' });
 
 function iconeParada(cor: string, ordem: number) {
   return L.divIcon({ className: '', iconSize: [26, 26], iconAnchor: [13, 13], html: `<div class="er-pino" style="background:${cor}">${ordem}</div>` });
@@ -26,7 +27,7 @@ function iconeCaminhao(cor: string, rotulo: string, semSinal: boolean) {
   });
 }
 
-function Mapa({ cargas, cores, selecionada, onSelecionar }: { cargas: Carga[]; cores: Map<string, string>; selecionada: string | null; onSelecionar: (id: string) => void }) {
+function Mapa({ cargas, cd, cores, selecionada, onSelecionar }: { cargas: Carga[]; cd: [number, number] | null; cores: Map<string, string>; selecionada: string | null; onSelecionar: (id: string) => void }) {
   const div = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
   const camada = useRef<L.LayerGroup | null>(null);
@@ -46,13 +47,18 @@ function Mapa({ cargas, cores, selecionada, onSelecionar }: { cargas: Carga[]; c
     if (!m || !g) return;
     g.clearLayers();
     const pontos: L.LatLngExpression[] = [];
+    if (cd) {
+      L.marker(cd, { icon: ICONE_CD, zIndexOffset: 500 }).bindTooltip('CD: saída e volta dos caminhões').addTo(g);
+      pontos.push(cd);
+    }
     for (const c of cargas) {
       const cor = cores.get(c.id) ?? '#1d5be0';
       const apagada = selecionada !== null && selecionada !== c.id;
       const opacidade = apagada ? 0.2 : 1;
       const paradas = c.paradas.filter((p) => p.latitude !== null && p.longitude !== null);
       if (paradas.length) {
-        L.polyline(paradas.map((p) => [p.latitude!, p.longitude!]), { color: cor, weight: 2, dashArray: '6 8', opacity: 0.5 * opacidade }).addTo(g);
+        const plano: L.LatLngExpression[] = paradas.map((p) => [p.latitude!, p.longitude!]);
+        L.polyline(cd ? [cd, ...plano, cd] : plano, { color: cor, weight: 2, dashArray: '6 8', opacity: 0.5 * opacidade }).addTo(g);
       }
       if (c.trajeto.length > 1) L.polyline(c.trajeto, { color: cor, weight: 5, opacity: 0.85 * opacidade }).addTo(g);
       for (const p of paradas) {
@@ -80,7 +86,7 @@ function Mapa({ cargas, cores, selecionada, onSelecionar }: { cargas: Carga[]; c
       m.fitBounds(L.latLngBounds(pontos), { padding: [40, 40], maxZoom: 15 });
       enquadrou.current = chave;
     }
-  }, [cargas, cores, selecionada, onSelecionar]);
+  }, [cargas, cd, cores, selecionada, onSelecionar]);
 
   return <div ref={div} className="er-mapa" />;
 }
@@ -259,13 +265,13 @@ export function EntregasEmRota() {
           ) : (
             <div className="er-painel">
               <Cartao className="er-mapa-caixa">
-                <Mapa cargas={dados.cargas} cores={cores} selecionada={selecionada} onSelecionar={setSelecionada} />
+                <Mapa cargas={dados.cargas} cd={dados.cd ? [dados.cd.latitude, dados.cd.longitude] : null} cores={cores} selecionada={selecionada} onSelecionar={setSelecionada} />
                 <div className="er-legenda">
                   <span><i style={{ background: COR_PARADA.entregue }} />Entregue</span>
                   <span><i style={{ background: COR_PARADA.no_cliente }} />No cliente</span>
                   <span><i style={{ background: COR_PARADA.pendente }} />Falta entregar</span>
                   <span><i style={{ background: COR_PARADA.nao_entregue }} />Não entregue</span>
-                  <span>Linha cheia: caminho feito · tracejada: ordem das entregas</span>
+                  <span>Linha cheia: caminho feito · tracejada: rota planejada, saindo do CD e voltando</span>
                 </div>
               </Cartao>
               <div className="er-lado">

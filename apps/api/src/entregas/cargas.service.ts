@@ -3,6 +3,8 @@ import type { Pool, PoolClient } from 'pg';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { NotasAEntregarService, type EntregaPendente } from './notas-a-entregar.service';
 import { sugerirCargas, type MotivoFora } from './sugestao-carga';
+import { lerCd, pontoDoCd } from './cd-entregas';
+import { medirRota, otimizarOrdem, type LatLng, type MedidaRota } from './rota-otimizada';
 
 export interface CargaEntrega {
   /** Linha da carga (para tirar e reordenar). */
@@ -30,6 +32,8 @@ export interface Carga {
   volumes: number;
   pesoKg: number;
   entregasComPesoIncompleto: number;
+  /** Km e tempo estimados na ordem atual, saindo do CD e voltando (só no painel). */
+  rota?: MedidaRota;
 }
 
 export interface CaminhaoDoDia {
@@ -47,6 +51,8 @@ export interface PainelCargas {
   caminhoes: CaminhaoDoDia[];
   motoristas: Array<{ id: string; nome: string }>;
   resumo: { entregas: number; emCargas: number; fora: number; pesoKg: number };
+  /** Endereço do CD (ponto de saída e volta). null = ainda não cadastrado. */
+  cd: { latitude: number; longitude: number; endereco: string } | null;
   /** Só depois de "sugerir": por que cada entrega ficou fora. */
   motivos?: Record<string, MotivoFora>;
 }
@@ -56,6 +62,9 @@ type Executor = Pick<Pool | PoolClient, 'query'>;
 const VIVAS = `('rascunho','autorizada','em_rota')`;
 const RE_ENTREGA = /^(pedido|nota):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const arredondar = (v: number, casas: number) => Math.round(v * 10 ** casas) / 10 ** casas;
+const pontoDe = (e: Pick<EntregaPendente, 'latitude' | 'longitude'>): LatLng | null =>
+  e.latitude !== null && e.latitude !== undefined && e.longitude !== null && e.longitude !== undefined ? [Number(e.latitude), Number(e.longitude)] : null;
+const paradaDaLinha = (l: CargaEntrega) => ({ id: l.id, ponto: pontoDe(l.dados) });
 const numeroOuNulo = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 /** Data de hoje no calendário de Recife (o servidor pode estar em outro fuso). */
@@ -87,10 +96,13 @@ export class CargasService {
       ),
       pool.query(`select id, nome from motoristas where ativo order by nome`),
     ]);
+    const cd = await lerCd(pool);
+    for (const c of cargas) c.rota = medirRota(pontoDoCd(cd), c.entregas.map(paradaDaLinha));
     const fora = pendentes.entregas.filter((e) => !vivas.has(e.id));
     const emCargas = cargas.reduce((s, c) => s + c.entregas.length, 0);
     return {
       data,
+      cd: cd ? { latitude: cd.latitude, longitude: cd.longitude, endereco: [`${cd.logradouro}, ${cd.numero}`, cd.bairro, cd.cidade].join(' · ') } : null,
       cargas,
       fora,
       caminhoes: caminhoes.rows.map((c) => ({
@@ -134,6 +146,7 @@ export class CargasService {
         caminhoes.rows.map((c) => ({ id: c.id, capacidadeKg: numeroOuNulo(c.capacidade_kg), regiao: c.regiao })),
       );
       const porId = new Map(livres.map((e) => [e.id, e]));
+      const cd = pontoDoCd(await lerCd(client));
       for (const sug of sugestao.cargas) {
         const caminhao = caminhoes.rows.find((c) => c.id === sug.caminhaoId);
         const { rows } = await client.query(
@@ -141,7 +154,9 @@ export class CargasService {
           [data, sug.caminhaoId, caminhao?.motorista_id ?? null, usuarioId],
         );
         let ordem = 0;
-        for (const entregaId of sug.entregaIds) await this.inserirEntrega(client, rows[0].id, porId.get(entregaId)!, ++ordem);
+        // A ordem das paradas é a rota mais curta saindo do CD e voltando (rota-otimizada.ts).
+        const naRota = otimizarOrdem(cd, sug.entregaIds.map((id) => ({ id, ponto: pontoDe(porId.get(id)!) })));
+        for (const entregaId of naRota) await this.inserirEntrega(client, rows[0].id, porId.get(entregaId)!, ++ordem);
       }
       for (const f of sugestao.fora) motivos[f.id] = f.motivo;
       await client.query('commit');
@@ -208,6 +223,25 @@ export class CargasService {
       [cargaId],
     );
     return { ok: true };
+  }
+
+  /** Põe as paradas na ordem da rota mais curta (saindo do CD e voltando). Só em carga ainda não autorizada. */
+  async otimizar(cargaId: string): Promise<{ ok: true; kmAntes: number | null; kmDepois: number | null }> {
+    const { pool } = tenantCtx();
+    await this.rascunho(cargaId);
+    const [carga] = await this.cargasPor(pool, `c.id = $1`, [cargaId]);
+    if (!carga) throw new NotFoundException('Carga não encontrada');
+    const cd = pontoDoCd(await lerCd(pool));
+    const paradas = carga.entregas.map(paradaDaLinha);
+    const ordem = otimizarOrdem(cd, paradas);
+    const porId = new Map(paradas.map((p) => [p.id, p]));
+    await pool.query(
+      `update carga_entregas ce set ordem = x.n
+         from unnest($2::uuid[]) with ordinality as x(id, n)
+        where ce.id = x.id and ce.carga_id = $1`,
+      [cargaId, ordem],
+    );
+    return { ok: true, kmAntes: medirRota(cd, paradas).km, kmDepois: medirRota(cd, ordem.map((id) => porId.get(id)!)).km };
   }
 
   /** `linhaIds` é a carga inteira na nova ordem: tem de ser exatamente as mesmas entregas. */

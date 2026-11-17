@@ -22,7 +22,7 @@ export interface Carga {
 }
 export interface Alerta { tipo: 'sem_sinal' | 'chegada_longe' | 'nao_entregue' | 'ocorrencia'; cargaId: string; paradaId: string | null; ocorrenciaId: string | null; em: string; texto: string }
 export interface Acompanhamento {
-  data: string; agora: string;
+  data: string; agora: string; cd: { latitude: number; longitude: number } | null;
   resumo: { emRota: number; encerradas: number; aguardandoSaida: number; paradas: number; entregues: number; naoEntregues: number; noCliente: number; tempoMedioNoClienteMin: number | null };
   alertas: Alerta[]; cargas: Carga[];
 }

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -6,6 +6,7 @@ import type { PoolClient } from 'pg';
 import { PASTA_PRIVADA } from '../admin/admin-entregas.controller';
 import { tenantCtx } from '../tenancy/tenant-context';
 import type { EntregaPendente } from './notas-a-entregar.service';
+import { kmEntre } from './rota-otimizada';
 
 /** Acima disso o toque em "Cheguei" foi longe do endereço. Folga larga: o ponto do cliente hoje vem do CEP. */
 export const DISTANCIA_ALERTA_M = 1500;
@@ -99,6 +100,8 @@ export function agruparParadas(linhas: Array<Pick<Linha, 'id' | 'dados_json'>>):
  */
 @Injectable()
 export class MotoristaService {
+  private readonly log = new Logger('MotoristaService');
+
   /** A carga em rota do motorista ou, sem ela, a próxima autorizada. */
   async cargaAtual(motoristaId: string): Promise<{ carga: CargaMotorista | null }> {
     const { pool } = tenantCtx();
@@ -230,7 +233,42 @@ export class MotoristaService {
         }
       }
     });
+    if (dados.lat !== undefined && dados.lng !== undefined && dados.lat !== null && dados.lng !== null) {
+      // Melhora o mapa sem nunca atrapalhar a entrega: se falhar, só registra.
+      await this.aprenderPonto(linhaIds, Number(dados.lat), Number(dados.lng)).catch((e) => this.log.warn(`aprenderPonto: ${(e as Error).message}`));
+    }
     return { ok: true };
+  }
+
+  /**
+   * O GPS do celular na entrega vira o ponto do cliente quando o cadastro só tinha o ponto aproximado do CEP
+   * (ou nenhum). Assim a rota da próxima carga sai certa. Não mexe em ponto achado pela rua, e ignora GPS a mais
+   * de 3 km do ponto atual (entrega feita em outro lugar).
+   */
+  private async aprenderPonto(linhaIds: string[], lat: number, lng: number): Promise<void> {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const { pool } = tenantCtx();
+    const { rows } = await pool.query(
+      `select e.id, e.latitude, e.longitude, e.geo_precisao
+         from carga_entregas ce
+         left join pedidos p on p.id = ce.pedido_id
+         left join notas_entrega ne on ne.id = ce.nota_entrega_id
+         join cliente_enderecos e on
+              (p.id is not null and e.id = case when p.endereco_snapshot_json->>'id' ~ '^[0-9a-fA-F-]{36}$' then (p.endereco_snapshot_json->>'id')::uuid end)
+           or (ne.id is not null and e.cliente_id = ne.cliente_id and e.padrao
+               and regexp_replace(coalesce(e.cep, ''), '\\D', '', 'g') <> ''
+               and regexp_replace(coalesce(e.cep, ''), '\\D', '', 'g') = regexp_replace(coalesce(ne.destinatario_json->'endereco'->>'cep', ''), '\\D', '', 'g'))
+        where ce.id = any($1::uuid[])`,
+      [linhaIds],
+    );
+    for (const e of rows) {
+      if (e.geo_precisao === 'endereco' && e.latitude !== null) continue;
+      if (e.latitude !== null && e.longitude !== null && kmEntre([Number(e.latitude), Number(e.longitude)], [lat, lng]) > 3) continue;
+      await pool.query(
+        `update cliente_enderecos set latitude = $2, longitude = $3, geo_precisao = 'endereco' where id = $1`,
+        [e.id, lat.toFixed(6), lng.toFixed(6)],
+      );
+    }
   }
 
   /** Não entregue: a mercadoria volta com o motorista e a nota fica livre para outra carga. */

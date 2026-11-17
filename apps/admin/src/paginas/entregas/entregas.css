@@ -71,3 +71,17 @@
 .de-tabela .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .de-tabela .cad-sub { display: block; font-size: 12px; color: #5b6b85; font-weight: 400; }
 @media (max-width: 600px) { .de-unit { display: none; } .de-dados { grid-template-columns: 1fr; } .de-topo, .de-corpo { padding-left: 16px; padding-right: 16px; } }
+
+/* Endereço do CD */
+.area-vendas .cd-cartao { display: grid; gap: 12px; }
+.area-vendas .cd-endereco { margin: 0; font-size: 15px; }
+.area-vendas .cd-endereco .cad-sub { display: block; margin-top: 2px; }
+.area-vendas .cd-mapa { height: 260px; border-radius: 10px; border: 1px solid var(--av-borda); z-index: 0; }
+.cd-pino { width: 46px; height: 30px; border-radius: 8px; background: #0b1f4b; color: #ffc20e; font: 800 13px/30px system-ui, sans-serif; text-align: center; box-shadow: 0 2px 6px rgb(0 0 0 / 0.4); border: 2px solid #fff; box-sizing: border-box; }
+
+/* Rota da carga */
+.area-vendas .ent-rota { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: -4px 0 12px; font-size: 13.5px; color: var(--av-texto-2); }
+.area-vendas .ent-rota b { color: var(--av-marinho); font-variant-numeric: tabular-nums; }
+.area-vendas .ent-rota .cad-btn { padding: 5px 12px; font-size: 13px; }
+.area-vendas .ent-aviso-cd { background: #fff3c4; border: 1px solid #f1d98a; color: #6b4a00; border-radius: 10px; padding: 9px 12px; margin-bottom: 14px; font-size: 13.5px; }
+.area-vendas .ent-aviso-cd a { color: inherit; font-weight: 700; }

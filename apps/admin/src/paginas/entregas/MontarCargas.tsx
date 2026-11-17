@@ -17,11 +17,13 @@ interface Carga {
   caminhao: { id: string; nome: string; placa: string | null; capacidadeKg: number | null } | null;
   motorista: { id: string; nome: string } | null;
   entregas: Linha[]; volumes: number; pesoKg: number; entregasComPesoIncompleto: number;
+  rota?: { km: number | null; minutos: number | null; semPonto: number; comCd: boolean };
 }
 interface Caminhao { id: string; nome: string; placa: string | null; capacidadeKg: number | null; situacao: string; motoristaNome: string | null; emUso: boolean }
 interface Painel {
   data: string; cargas: Carga[]; fora: Entrega[]; caminhoes: Caminhao[]; motoristas: { id: string; nome: string }[];
   resumo: { entregas: number; emCargas: number; fora: number; pesoKg: number };
+  cd: { latitude: number; longitude: number; endereco: string } | null;
   motivos?: Record<string, string>;
 }
 
@@ -38,6 +40,7 @@ const MOTIVO: Record<string, string> = {
 };
 
 const numero = (n: number, casas = 0) => n.toLocaleString('pt-BR', { maximumFractionDigits: casas });
+const duracaoRota = (min: number | null) => (min === null ? '–' : min >= 60 ? `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}` : `${min} min`);
 const peso = (kg: number | null) => (kg === null ? 'sem peso' : `≈ ${numero(kg, 1)} kg`);
 
 /** Hoje no calendário do computador, em AAAA-MM-DD (o campo de data usa esse formato). */
@@ -157,6 +160,9 @@ export function EntregasMontarCargas() {
       {erro && <div className="cad-erro">{erro}</div>}
 
       {painel === null && !erro && <Cartao><Vazio mensagem="Carregando…" /></Cartao>}
+      {painel && !painel.cd && (
+        <div className="ent-aviso-cd">O endereço do CD ainda não está cadastrado: a rota é calculada só entre os clientes. Cadastre em <a href="/entregas/cadastros">Caminhões e motoristas</a>.</div>
+      )}
 
       {painel && r && (
         <>
@@ -221,6 +227,17 @@ export function EntregasMontarCargas() {
                   </div>
                   <Lotacao c={c} />
                 </div>
+
+                {c.entregas.length > 0 && c.rota && (
+                  <div className="ent-rota">
+                    {c.rota.km !== null
+                      ? <span>Rota <b>≈ {numero(c.rota.km, 1)} km</b> · <b>≈ {duracaoRota(c.rota.minutos)}</b> {c.rota.comCd ? 'saindo do CD e voltando' : 'entre os clientes (CD não cadastrado)'}{c.rota.semPonto > 0 ? ` · ${c.rota.semPonto} sem ponto no mapa (vão no fim)` : ''}</span>
+                      : <span>Nenhuma entrega desta carga tem ponto no mapa: a ordem fica por bairro.</span>}
+                    {aberta && c.entregas.length > 1 && c.rota.km !== null && (
+                      <button type="button" className="cad-btn cad-btn-claro" disabled={ocupado} onClick={() => void agir(() => api(`/admin/entregas/cargas/${c.id}/otimizar`, { method: 'POST' }), 'Ordem otimizada: a rota mais curta saindo do CD e voltando.')}>Otimizar ordem</button>
+                    )}
+                  </div>
+                )}
 
                 {aberta && (
                   <div className="cad-filtros ent-carga-escolhas">

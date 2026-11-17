@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { DISTANCIA_ALERTA_M } from './motorista.service';
 import type { EntregaPendente } from './notas-a-entregar.service';
+import { lerCd } from './cd-entregas';
 
 /** Sem posição nova há mais que isso, com a carga em rota, vira alerta. */
 export const SEM_SINAL_MIN = 10;
@@ -76,6 +77,8 @@ export interface AlertaAcomp {
 export interface Acompanhamento {
   data: string;
   agora: string;
+  /** Ponto do CD (saída e volta das rotas); null = não cadastrado. */
+  cd: { latitude: number; longitude: number } | null;
   resumo: { emRota: number; encerradas: number; aguardandoSaida: number; paradas: number; entregues: number; naoEntregues: number; noCliente: number; tempoMedioNoClienteMin: number | null };
   alertas: AlertaAcomp[];
   cargas: CargaAcomp[];
@@ -232,9 +235,11 @@ export class AcompanhamentoService {
     const todas = saida.flatMap((c) => c.paradas);
     const feitas = todas.filter((p) => p.status === 'entregue' && p.noClienteMin !== null);
     alertas.sort((a, b) => b.em.localeCompare(a.em));
+    const cd = await lerCd(pool);
     return {
       data,
       agora: agora.toISOString(),
+      cd: cd ? { latitude: cd.latitude, longitude: cd.longitude } : null,
       resumo: {
         emRota: saida.filter((c) => c.status === 'em_rota').length,
         encerradas: saida.filter((c) => c.status === 'encerrada').length,

@@ -3,6 +3,7 @@ import { api, sessao } from '../../api';
 import { CabecalhoPagina, Cartao, Selo, Vazio, formatarDataHora, type VarianteSelo } from '../../vendas-ui';
 import '../vendas/cadastros.css';
 import './entregas.css';
+import { EnderecoCd } from './EnderecoCd';
 
 type Situacao = 'ativo' | 'manutencao' | 'inativo';
 
@@ -156,9 +157,11 @@ export function EntregasCadastros() {
   const comRegiao = !!caminhoes?.some((c) => c.regiao);
   return (
     <>
-      <CabecalhoPagina titulo="Caminhões e motoristas" subtitulo="O cadastro que a montagem de carga usa: quanto cada caminhão leva e quem dirige." />
+      <CabecalhoPagina titulo="Caminhões e motoristas" subtitulo="O cadastro que a montagem de carga usa: onde fica o CD, quanto cada caminhão leva e quem dirige." />
       {aviso && <div className="cad-ok" role="status">{aviso}</div>}
       {erro && <div className="cad-erro">{erro}</div>}
+
+      <EnderecoCd podeEditar={admin} />
 
       <section className="ent-secao" aria-label="Caminhões">
         <div className="ent-secao-topo">

@@ -85,6 +85,13 @@ export class EntregasCargasController {
     return this.cargas.reordenar(id, dto.ids);
   }
 
+  /** Ordem da rota mais curta saindo do CD e voltando. */
+  @Post(':id/otimizar')
+  @HttpCode(200)
+  otimizar(@Param('id', ParseUUIDPipe) id: string) {
+    return this.cargas.otimizar(id);
+  }
+
   @Post(':id/autorizar')
   @HttpCode(200)
   autorizar(@Req() req: ReqAdmin, @Param('id', ParseUUIDPipe) id: string) {

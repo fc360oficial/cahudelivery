@@ -152,9 +152,11 @@ export function EntregasCadastros() {
 
   const motoristasAtivos = motoristas?.filter((m) => m.ativo || m.id === formCaminhao.motoristaId) ?? [];
 
+  // Coluna de região só aparece se algum caminhão usa (o CD hoje não trabalha por região).
+  const comRegiao = !!caminhoes?.some((c) => c.regiao);
   return (
     <>
-      <CabecalhoPagina titulo="Caminhões e motoristas" subtitulo="O cadastro que a montagem de carga usa: quanto cada caminhão leva, quem dirige e que região costuma atender." />
+      <CabecalhoPagina titulo="Caminhões e motoristas" subtitulo="O cadastro que a montagem de carga usa: quanto cada caminhão leva e quem dirige." />
       {aviso && <div className="cad-ok" role="status">{aviso}</div>}
       {erro && <div className="cad-erro">{erro}</div>}
 
@@ -184,8 +186,8 @@ export function EntregasCadastros() {
                   {motoristasAtivos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
                 </select>
               </label>
-              <label htmlFor="cam-regiao">Região de costume
-                <input id="cam-regiao" type="text" value={formCaminhao.regiao} onChange={(e) => setFormCaminhao({ ...formCaminhao, regiao: e.target.value })} maxLength={80} placeholder="Jaboatão sul" />
+              <label htmlFor="cam-regiao">Região de costume (opcional)
+                <input id="cam-regiao" type="text" value={formCaminhao.regiao} onChange={(e) => setFormCaminhao({ ...formCaminhao, regiao: e.target.value })} maxLength={80} placeholder="Deixe em branco se não usa" />
               </label>
               <label htmlFor="cam-situacao">Situação
                 <select id="cam-situacao" value={formCaminhao.situacao} onChange={(e) => setFormCaminhao({ ...formCaminhao, situacao: e.target.value as Situacao })}>
@@ -194,7 +196,7 @@ export function EntregasCadastros() {
                   <option value="inativo">Fora de uso</option>
                 </select>
               </label>
-              <p className="cad-ajuda">Caminhão em manutenção ou fora de uso não entra na sugestão de carga. A sugestão dá preferência ao caminhão nas entregas da região de costume.</p>
+              <p className="cad-ajuda">Caminhão em manutenção ou fora de uso não entra na sugestão de carga. A região de costume é opcional: se preencher, a sugestão dá preferência ao caminhão nas entregas daquela região; em branco, ele pega qualquer região.</p>
               <div className="cad-acoes">
                 <button className="cad-btn" disabled={salvando}>{salvando ? 'Salvando…' : 'Salvar caminhão'}</button>
                 <button type="button" className="cad-btn cad-btn-claro" onClick={() => setCaminhaoId(null)} disabled={salvando}>Cancelar</button>
@@ -208,7 +210,7 @@ export function EntregasCadastros() {
           : caminhoes && (
             <div className="tabela-vendas-wrap">
               <table className="tabela-vendas ent-tabela">
-                <thead><tr><th>Caminhão</th><th>Placa</th><th>Leva até</th><th>Motorista</th><th>Região de costume</th><th>Situação</th><th></th></tr></thead>
+                <thead><tr><th>Caminhão</th><th>Placa</th><th>Leva até</th><th>Motorista</th>{comRegiao && <th>Região de costume</th>}<th>Situação</th><th></th></tr></thead>
                 <tbody>
                   {caminhoes.map((c) => (
                     <tr key={c.id}>
@@ -216,7 +218,7 @@ export function EntregasCadastros() {
                       <td>{c.placa ?? <span className="cad-fraco">sem placa</span>}</td>
                       <td>{formatarPeso(c.capacidadeKg) ?? <span className="cad-fraco">não informado</span>}</td>
                       <td>{c.motoristaNome ?? <span className="cad-fraco">sem motorista fixo</span>}</td>
-                      <td>{c.regiao ?? <span className="cad-fraco">-</span>}</td>
+                      {comRegiao && <td>{c.regiao ?? <span className="cad-fraco">-</span>}</td>}
                       <td><Selo variante={SITUACAO[c.situacao][1]}>{SITUACAO[c.situacao][0]}</Selo></td>
                       <td><button type="button" className="cad-btn cad-btn-claro cad-btn-mini" onClick={() => abrirCaminhao(c)}>Editar</button></td>
                     </tr>

@@ -6,7 +6,7 @@ import { api, destinoInicial, salvarSessao, type Sessao } from '../api';
 const SOLUCOES = [
   { nome: 'Fluxo Vendas', descricao: 'Força de vendas para a equipe externa', emBreve: false, icone: <path d="M4 20V10M10 20V4M16 20v-8M3 20h18" /> },
   { nome: 'Fluxo Delivery', descricao: 'Pedidos do cliente pelo aplicativo', emBreve: false, icone: <><path d="M3 4h2l2.4 11h10.2L20 7H6.2" /><circle cx="9" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /></> },
-  { nome: 'Fluxo Entregas', descricao: 'Rotas e acompanhamento das entregas', emBreve: true, icone: <><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.5" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" /></> },
+  { nome: 'Fluxo Entregas', descricao: 'Rotas e acompanhamento das entregas', emBreve: false, icone: <><path d="M2 7h11v9H2z" /><path d="M13 10h4l4 3v3h-8" /><circle cx="6.5" cy="18" r="1.7" /><circle cx="17" cy="18" r="1.7" /></> },
 ];
 
 // Datas comemorativas: ligam e desligam sozinhas pelo calendário. [mês, dia]; o período pode virar o ano.

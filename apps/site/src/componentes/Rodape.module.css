@@ -32,6 +32,9 @@
 .rodape h2.segundo { margin-top: 28px; }
 .rodape ul.formas { flex-direction: row; flex-wrap: wrap; gap: 8px; }
 .formas li { padding: 6px 12px; border-radius: 8px; background: #ffffff; color: var(--tinta); font-size: 13px; font-weight: 700; }
+.credito { margin: 14px auto 0; font-size: 12px; color: #7d7d77; text-align: center; letter-spacing: 0.2px; }
+.credito strong { color: #c9c9c3; font-weight: 800; font-style: italic; }
+.credito strong span { color: #ffc20e; }
 .baseLinha { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 24px; }
 /* Espaço para o botão flutuante de WhatsApp não cobrir a última linha. */
 .base { padding-bottom: 84px; }

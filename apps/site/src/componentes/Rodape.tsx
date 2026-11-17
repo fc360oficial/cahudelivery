@@ -68,6 +68,9 @@ export function Rodape({ config, categorias }: { config: ConfigLoja; categorias:
           <span>{[config.identificacaoLegal ?? config.distribuidora, enderecoEmpresa()].filter(Boolean).join(' · ')}</span>
           <span>Venda exclusiva para pessoa jurídica</span>
         </div>
+        <p className={`conteudo ${estilos.credito}`}>
+          Desenvolvido por <strong>Fluxo<span>Commerce</span></strong>
+        </p>
       </div>
       {whatsapp && (
         <a href={whatsapp} target="_blank" rel="noopener noreferrer" className={estilos.flutuante}>

@@ -14,7 +14,7 @@ Header: apikey: <a mesma chave das outras rotas>
 Content-Type: application/json
 ```
 
-Aceita um item ou uma lista, como as demais rotas.
+Aceita um item ou uma lista. (Atenção: `/pedidos-faturados` é diferente e recebe um pedido por chamada.) Referência completa de todas as rotas: `docs/integracao-dlinks-api.md`.
 
 ## Quando enviar
 

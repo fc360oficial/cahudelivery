@@ -5,6 +5,7 @@ import { selosDoProduto } from '@/lib/catalogo/selos';
 import { caminhoProduto } from '@/lib/formato/caminhos';
 import { formatarPreco, precoPorUnidade } from '@/lib/formato/preco';
 import { BotaoAdicionar } from './BotaoAdicionar';
+import { BotaoFavorito } from './BotaoFavorito';
 import estilos from './CartaoProduto.module.css';
 
 /** Etiqueta curta da embalagem sobre a foto: "CX 30un", "FD 12un" ou só "UN". */
@@ -36,6 +37,7 @@ export function CartaoProduto({ produto, limiteEstoqueBaixo }: { produto: Produt
             {avisos.map((s) => <span key={s.tipo} className={`${estilos.aviso} ${estilos[s.tipo]}`}>{s.texto}</span>)}
           </span>
         )}
+        <BotaoFavorito produtoId={produto.id} nome={produto.nome} />
         <span className={estilos.embalagem}>{etiquetaEmbalagem(produto.unidadeVenda, produto.qtdPorEmbalagem)}</span>
         {comprar && (
           <span className={estilos.acao}>

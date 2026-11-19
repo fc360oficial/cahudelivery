@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { CarrinhoProvider } from '@/componentes/CarrinhoProvider';
 import { BarraInferior } from '@/componentes/BarraInferior';
 import { Cabecalho } from '@/componentes/Cabecalho';
+import { FavoritosProvider } from '@/componentes/FavoritosProvider';
 import { Rodape } from '@/componentes/Rodape';
 import { SessaoProvider } from '@/componentes/SessaoProvider';
 import { buscarCategorias, buscarConfig } from '@/lib/api/catalogo';
@@ -38,10 +39,12 @@ export default async function Layout({ children }: { children: ReactNode }) {
       <body style={tema}>
         <CarrinhoProvider>
           <SessaoProvider>
-            <Cabecalho config={config} categorias={categorias} />
-            <main>{children}</main>
-            <Rodape config={config} categorias={categorias} />
-            <BarraInferior />
+            <FavoritosProvider>
+              <Cabecalho config={config} categorias={categorias} />
+              <main>{children}</main>
+              <Rodape config={config} categorias={categorias} />
+              <BarraInferior />
+            </FavoritosProvider>
           </SessaoProvider>
         </CarrinhoProvider>
       </body>

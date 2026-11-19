@@ -1,0 +1,26 @@
+.cartao, .pagina {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: inherit; color: var(--tinta-suave); cursor: pointer; transition: transform 0.2s, color 0.2s, border-color 0.2s;
+}
+.cartao:disabled, .pagina:disabled { opacity: 0.6; cursor: default; }
+.ativo { color: var(--perigo); }
+
+/* Círculo no canto de cima da foto do cartão (os selos ficam do outro lado). */
+.cartao {
+  position: absolute; top: 6px; right: 6px; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 0 1px var(--linha);
+}
+.cartao:hover:not(:disabled) { transform: scale(1.08); color: var(--perigo); }
+
+/* Botão com texto, na página do produto. */
+.pagina {
+  align-self: flex-start; min-height: 44px; padding: 0 18px;
+  border: 1px solid var(--linha-forte); border-radius: var(--raio-pilula); background: #ffffff; font-size: 14px; font-weight: 600;
+}
+.pagina:hover:not(:disabled) { border-color: var(--tinta); }
+.pagina.ativo { border-color: var(--perigo); }
+
+@media (max-width: 640px) {
+  .cartao { width: 36px; height: 36px; top: 4px; right: 4px; }
+  .cartao svg { width: 18px; height: 18px; }
+}

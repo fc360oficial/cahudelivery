@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { AvisoDesatualizado } from '@/componentes/AvisoDesatualizado';
+import { BotaoFavorito } from '@/componentes/BotaoFavorito';
 import { CompraProduto } from '@/componentes/CompraProduto';
 import { Galeria } from '@/componentes/Galeria';
 import { Vitrine } from '@/componentes/Vitrine';
@@ -117,6 +118,7 @@ export default async function PaginaProduto({ params }: Props) {
               preco={produto.preco} precoTabela={produto.precoTabela}
               descontoQtdMinima={produto.descontoQtdMinima} descontoQtdPreco={produto.descontoQtdPreco} />
           )}
+          <BotaoFavorito produtoId={produto.id} nome={produto.nome} variante="pagina" />
 
           <dl className={estilos.ficha}>
             <div><dt>Vendido por</dt><dd>{nomeEmbalagem(produto.unidadeVenda)}</dd></div>

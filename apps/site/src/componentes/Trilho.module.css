@@ -1,4 +1,5 @@
-.moldura { position: relative; min-width: 0; --n: var(--por-linha, 6); }
+/* Cartões por linha: 7 na largura cheia; abaixo disso cai um por vez para o cartão não ficar miúdo. */
+.moldura { position: relative; min-width: 0; --n: var(--por-linha, 7); }
 .trilho {
   display: grid; grid-auto-flow: column; gap: 16px;
   grid-auto-columns: calc((100% - (var(--n) - 1) * 16px) / var(--n));
@@ -15,8 +16,9 @@
 .seta:hover { background: var(--destaque); }
 .anterior { left: -18px; }
 .proximo { right: -18px; }
-@media (max-width: 1180px) { .moldura { --n: min(var(--por-linha, 6), 5); } }
-@media (max-width: 980px) { .moldura { --n: min(var(--por-linha, 6), 4); } }
+@media (max-width: 1340px) { .moldura { --n: min(var(--por-linha, 7), 6); } }
+@media (max-width: 1180px) { .moldura { --n: min(var(--por-linha, 7), 5); } }
+@media (max-width: 980px) { .moldura { --n: min(var(--por-linha, 7), 4); } }
 @media (max-width: 760px) {
   .trilho { grid-auto-columns: 44%; gap: 10px; }
   .seta { display: none; }

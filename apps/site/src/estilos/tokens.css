@@ -14,7 +14,7 @@
   --raio-m: 20px;
   --raio-g: 28px;
   --raio-pilula: 999px;
-  --largura: 1232px;
+  --largura: 1392px; /* conteúdo de 1328px + as duas margens (era 1232 até 19/11/2026) */
   --margem: 32px;
 }
 

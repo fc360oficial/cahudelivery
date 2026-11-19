@@ -4,6 +4,7 @@ import { caminhoCategoria } from '@/lib/formato/caminhos';
 import { formatarPreco } from '@/lib/formato/preco';
 import { linkWhatsapp } from '@/lib/site';
 import { BotaoConta } from './BotaoConta';
+import { BuscaSugestoes } from './BuscaSugestoes';
 import { ContadorCarrinho } from './ContadorCarrinho';
 import { MenuRecolhivel } from './MenuRecolhivel';
 import estilos from './Cabecalho.module.css';
@@ -49,15 +50,8 @@ export function Cabecalho({ config, categorias, faixa = null }: { config: Config
           <Link href="/" className={estilos.marca} aria-label={`${config.distribuidora}, página inicial`}>
             <img src={config.logoUrl ?? LOGO_PADRAO} alt="" className={estilos.logo} width={148} height={38} />
           </Link>
-          <form action="/busca" role="search" className={estilos.busca}>
-            <label htmlFor="campo-busca" className="so-leitor">Buscar produto</label>
-            <input id="campo-busca" name="q" type="search" placeholder="O que sua loja precisa hoje?" required minLength={2} />
-            <button type="submit" aria-label="Buscar">
-              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-                <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
-              </svg>
-            </button>
-          </form>
+          {/* campo de busca com sugestões enquanto digita; Enter continua abrindo /busca */}
+          <BuscaSugestoes />
           <div className={estilos.acoes}>
             <BotaoConta />
             <Link href="/carrinho" className={estilos.carrinho}>

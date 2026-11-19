@@ -3,7 +3,7 @@
 import { Children, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import estilos from './Carrossel.module.css';
 
-const INTERVALO_MS = 7000;
+const INTERVALO_MS = 5000;   // Tiago, 19/11/2026: 5 segundos (era 7)
 
 /** Carrossel de banners: setas, bolinhas e troca lenta que pausa com o mouse em cima e para de vez
  *  depois que a pessoa mexe. Sem JavaScript continua rolável com o dedo (scroll-snap). */

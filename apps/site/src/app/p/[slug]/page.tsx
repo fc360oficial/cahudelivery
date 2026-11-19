@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { AvisoDesatualizado } from '@/componentes/AvisoDesatualizado';
+import { AtualizarPaginaAntiga } from '@/componentes/AtualizarPaginaAntiga';
 import { BotaoFavorito } from '@/componentes/BotaoFavorito';
 import { CompraProduto } from '@/componentes/CompraProduto';
 import { Galeria } from '@/componentes/Galeria';
@@ -66,7 +66,7 @@ export default async function PaginaProduto({ params }: Props) {
 
   return (
     <div className={`conteudo ${estilos.pagina}`}>
-      <AvisoDesatualizado geradoEm={Date.now()} />
+      <AtualizarPaginaAntiga geradoEm={Date.now()} />
       <nav aria-label="Você está em" className={estilos.trilha}>
         <Link href="/">Início</Link>
         {produto.categoria && produto.categoriaId && (

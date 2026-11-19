@@ -1,5 +1,5 @@
 import { AtalhosCategoria } from '@/componentes/AtalhosCategoria';
-import { AvisoDesatualizado } from '@/componentes/AvisoDesatualizado';
+import { AtualizarPaginaAntiga } from '@/componentes/AtualizarPaginaAntiga';
 import { Abertura } from '@/componentes/Abertura';
 import { Vantagens } from '@/componentes/Vantagens';
 import { Vitrine, VitrinePatrocinada } from '@/componentes/Vitrine';
@@ -16,7 +16,7 @@ export default async function PaginaInicial() {
   const secoes = montarSecoesHome(home);
   return (
     <>
-      <AvisoDesatualizado geradoEm={Date.now()} />
+      <AtualizarPaginaAntiga geradoEm={Date.now()} />
       <Abertura banners={home.banners} />
       <AtalhosCategoria categorias={categorias} />
       <div style={{ marginTop: 28 }}><Vantagens config={config} /></div>

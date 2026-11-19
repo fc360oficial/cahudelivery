@@ -1,6 +1,8 @@
-/* `ul.selos.selos`: o rodapé manda as listas dele em coluna (`.rodape ul`); os selos ficam lado a lado, quebrando linha se faltar espaço */
-ul.selos.selos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px; }
+/* `ul.selos.selos`: o rodapé manda as listas dele em coluna (`.rodape ul`). Os selos ficam em grade de 3 por linha
+   (Tiago, 19/11/2026: "3 em cima, 3 embaixo"), cada um com a largura da coluna dele para as linhas ficarem alinhadas. */
+ul.selos.selos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, max-content); gap: 8px; }
 .selos li { display: flex; }
+.selos li > * { width: 100%; }
 .selo {
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   height: 34px; min-width: 54px; padding: 0 9px; border-radius: 8px; background: #ffffff;

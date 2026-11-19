@@ -255,6 +255,7 @@ Ignorados: `nao_encontrado`, `status_invalido`, `erro_interno`.
 Regras:
 - `ABERTO` e `EM_FATURAMENTO` podem reabrir um pedido já faturado (nova carga no ERP). Nada muda pedido entregue ou cancelado.
 - `CANCELADO` faz o mesmo que `/pedidos/cancelado`.
+- Pedido sem NF-e emitida (cancelado antes de faturar, por exemplo): não mande `nota_fiscal`, ou mande o bloco vazio (`"nota_fiscal": {}`). Os dois valem como "sem nota". Bloco preenchido pela metade devolve `400`.
 - Reenviar `FATURADO` não muda o status, mas grava a nota e os valores (serve para mandar a NF-e depois).
 - Nota com XML ilegível ou com chave diferente da que está no XML é recusada com `400` antes de o status mudar.
 

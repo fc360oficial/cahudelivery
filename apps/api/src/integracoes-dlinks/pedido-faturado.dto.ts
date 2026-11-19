@@ -1,9 +1,23 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray, IsDateString, IsIn, IsNumber, IsOptional, IsString, Matches, MaxLength, ValidateNested,
 } from 'class-validator';
 
 const STATUS = ['ABERTO', 'EM_FATURAMENTO', 'FATURADO', 'CANCELADO'] as const;
+
+/**
+ * O Dlinks monta o mesmo corpo para todo status e, enquanto a NF-e não foi
+ * emitida (pedido cancelado antes de faturar, por exemplo), manda o bloco
+ * vazio: `"nota_fiscal": {}`. Bloco sem nenhum campo preenchido vale como
+ * "sem nota". Bloco preenchido pela metade continua sendo recusado.
+ */
+export function notaVazia(nota: unknown): boolean {
+  if (nota === null || nota === undefined) return true;
+  if (typeof nota !== 'object' || Array.isArray(nota)) return false;
+  return Object.values(nota as Record<string, unknown>).every(
+    (v) => v === null || v === undefined || (typeof v === 'string' && v.trim() === ''),
+  );
+}
 
 export class ItemFaturadoDto {
   @IsString()
@@ -76,5 +90,6 @@ export class PedidoFaturadoDto {
   @IsOptional()
   @ValidateNested()
   @Type(() => NotaFiscalDto)
+  @Transform(({ value }) => (notaVazia(value) ? undefined : value))
   nota_fiscal?: NotaFiscalDto;
 }

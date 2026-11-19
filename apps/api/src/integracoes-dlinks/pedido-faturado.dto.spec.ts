@@ -40,6 +40,32 @@ describe('PedidoFaturadoDto e o bloco nota_fiscal', () => {
     expect(await validate(dto)).toHaveLength(0);
   });
 
+  // Caso real do Dlinks em 19/11/2026: pedido cancelado antes de emitir a NF-e.
+  it('aceita CANCELADO com nota_fiscal vazia ({})', async () => {
+    const dto = converter({
+      pedido_codigo: '32d4ca47-9ca8-4e48-91d8-dbfc63d61e30',
+      status: 'CANCELADO',
+      valores: { subtotal: 1, desconto: 0, total: 1 },
+      itens: [{ produto_codigo: '464', quantidade: 1, valor_unitario: 0.01 }],
+      nota_fiscal: {},
+    });
+    expect(dto.nota_fiscal).toBeUndefined();
+    expect(await validate(dto, { whitelist: true })).toHaveLength(0);
+  });
+
+  it('trata nota_fiscal nula ou so com campos em branco como sem nota', async () => {
+    for (const nota of [null, { chave: '', numero: null, serie: ' ', xml_base64: '' }]) {
+      const dto = converter({ ...payload(), nota_fiscal: nota });
+      expect(dto.nota_fiscal).toBeUndefined();
+      expect(await validate(dto, { whitelist: true })).toHaveLength(0);
+    }
+  });
+
+  it('continua recusando nota_fiscal preenchida pela metade', async () => {
+    const erros = await validate(converter(payload({ numero: '5060', serie: '3' })));
+    expect(erros).not.toHaveLength(0);
+  });
+
   it('recusa chave com menos de 44 digitos', async () => {
     const erros = await validate(converter(payload({ ...notaValida, chave: '2626096192064300014855003000005060100007336' })));
     expect(erros).not.toHaveLength(0);

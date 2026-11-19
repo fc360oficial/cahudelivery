@@ -7,7 +7,7 @@ import { Cabecalho } from '@/componentes/Cabecalho';
 import { FavoritosProvider } from '@/componentes/FavoritosProvider';
 import { Rodape } from '@/componentes/Rodape';
 import { SessaoProvider } from '@/componentes/SessaoProvider';
-import { buscarCategorias, buscarConfig } from '@/lib/api/catalogo';
+import { buscarCategorias, buscarConfig, buscarHome } from '@/lib/api/catalogo';
 import type { Categoria } from '@/lib/api/tipos';
 import { indexavel, siteUrl } from '@/lib/site';
 import '@/estilos/tokens.css';
@@ -31,7 +31,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function Layout({ children }: { children: ReactNode }) {
   // Sem a config a página não existe (falha alto, cai no global-error); sem as categorias só some o menu.
-  const [config, categorias] = await Promise.all([buscarConfig(), buscarCategorias().catch((): Categoria[] => [])]);
+  // A faixa de campanha vem da mesma chamada /home da página inicial (em cache); se falhar, vale a barra normal.
+  const [config, categorias, faixa] = await Promise.all([
+    buscarConfig(),
+    buscarCategorias().catch((): Categoria[] => []),
+    buscarHome().then((h) => h.faixaCampanha).catch(() => null),
+  ]);
   // Cor de destaque do tenant (white label). Sem cor cadastrada, vale a do tokens.css.
   const tema = (config.corPrimaria ? { '--destaque': config.corPrimaria } : {}) as CSSProperties;
   return (
@@ -40,7 +45,7 @@ export default async function Layout({ children }: { children: ReactNode }) {
         <CarrinhoProvider>
           <SessaoProvider>
             <FavoritosProvider>
-              <Cabecalho config={config} categorias={categorias} />
+              <Cabecalho config={config} categorias={categorias} faixa={faixa} />
               <main>{children}</main>
               <Rodape config={config} categorias={categorias} />
               <BarraInferior />

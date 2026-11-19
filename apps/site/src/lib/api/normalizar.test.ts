@@ -49,8 +49,20 @@ describe('normalizarHome', () => {
     expect(h.prateleiras[1].tipo).toBe('patrocinador');
   });
 
+  it('faixa de campanha: só vale com a arte do computador', () => {
+    const com = (faixaCampanha: unknown) => normalizarHome({ faixaCampanha }).faixaCampanha;
+    expect(com({ nome: 'Ofertas da Semana', imagemUrl: 'http://x/f.webp', imagemCelularUrl: 'http://x/fc.webp' }))
+      .toEqual({ nome: 'Ofertas da Semana', imagemUrl: 'http://x/f.webp', imagemCelularUrl: 'http://x/fc.webp' });
+    expect(com({ nome: '', imagemUrl: 'http://x/f.webp' })).toEqual({ nome: 'Ofertas da semana', imagemUrl: 'http://x/f.webp', imagemCelularUrl: null });
+    expect(com({ nome: 'Sem arte', imagemUrl: '', imagemCelularUrl: 'http://x/fc.webp' })).toBeNull();
+    expect(com(null)).toBeNull();
+    expect(com('http://x/f.webp')).toBeNull();
+    expect(com([{ imagemUrl: 'http://x/f.webp' }])).toBeNull();
+  });
+
   it('campos ausentes viram listas vazias', () => {
     const h = normalizarHome({});
+    expect(h.faixaCampanha).toBeNull();
     expect(h.banners).toEqual([]);
     expect(h.prateleiras).toEqual([]);
     expect(h.patrocinadoresTopo).toEqual([]);

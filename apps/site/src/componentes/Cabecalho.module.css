@@ -3,6 +3,15 @@
 .faixaLinha { display: flex; flex-wrap: wrap; gap: 4px 24px; justify-content: space-between; align-items: center; }
 .faixa a { display: inline-flex; align-items: center; gap: 8px; color: var(--destaque); font-weight: 600; text-decoration: none; }
 .faixa a:hover { text-decoration: underline; }
+/* Faixa de campanha (imagem da promoção vigente) no lugar da barra preta. A arte encolhe inteira com a tela. */
+.campanha { display: block; background: var(--tinta); line-height: 0; }
+.campanha img { display: block; width: 100%; max-width: 1920px; height: auto; margin-inline: auto; }
+.campanha:focus-visible { outline-offset: -3px; outline-color: #ffffff; }
+.faixa.soCelular { display: none; }
+@media (max-width: 720px) {
+  .campanha.soComputador { display: none; }
+  .faixa.soCelular { display: block; }
+}
 
 .barra { background: var(--destaque); color: var(--sobre-destaque); }
 .principal { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 40px; padding-block: 9px; }

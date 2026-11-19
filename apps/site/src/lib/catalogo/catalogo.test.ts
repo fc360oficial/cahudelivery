@@ -38,7 +38,7 @@ describe('selosDoProduto', () => {
 describe('montarSecoesHome', () => {
   const pat = (id: string): Patrocinador => ({ tipo: 'patrocinador', id, nome: `Pat ${id}`, logoUrl: null, bannerUrl: null, produtos: [produto()] });
   const base: Home = {
-    banners: [], promocoes: [produto()], maisVendidos: [produto()], vencimentoProximo: [produto()],
+    banners: [], faixaCampanha: null, promocoes: [produto()], maisVendidos: [produto()], vencimentoProximo: [produto()],
     prateleiras: [{ tipo: 'categoria', categoriaId: 'c1', nome: 'Limpeza', produtos: [produto()] }, pat('meio')],
     patrocinadoresTopo: [pat('topo')], patrocinadoresOfertas: [pat('ofertas')],
   };

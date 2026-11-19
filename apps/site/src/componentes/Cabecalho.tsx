@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { Categoria, ConfigLoja } from '@/lib/api/tipos';
+import type { Categoria, ConfigLoja, FaixaCampanha } from '@/lib/api/tipos';
 import { caminhoCategoria } from '@/lib/formato/caminhos';
 import { formatarPreco } from '@/lib/formato/preco';
 import { linkWhatsapp } from '@/lib/site';
@@ -11,12 +11,24 @@ import estilos from './Cabecalho.module.css';
 /** Logo do tenant; sem logo cadastrado, usa o arquivo da instalação em public/marca/logo.png. */
 const LOGO_PADRAO = '/marca/logo.png';
 
-export function Cabecalho({ config, categorias }: { config: ConfigLoja; categorias: Categoria[] }) {
+export function Cabecalho({ config, categorias, faixa = null }: { config: ConfigLoja; categorias: Categoria[]; faixa?: FaixaCampanha | null }) {
   const raizes = categorias.filter((c) => !c.paiId);
   const whatsapp = linkWhatsapp(config.contatoWhatsapp);
+  // Campanha vigente com arte: a imagem ocupa o lugar da barra preta e leva para as ofertas.
+  // Sem arte de celular, o celular segue com a barra normal (a arte larga ficaria ilegível).
+  const barraNormal = !faixa ? estilos.faixa : faixa.imagemCelularUrl ? null : `${estilos.faixa} ${estilos.soCelular}`;
   return (
     <header className={estilos.cabecalho}>
-      <div className={estilos.faixa}>
+      {faixa && (
+        <Link href="/ofertas" data-testid="faixa-campanha" aria-label={`${faixa.nome}: ver as ofertas`}
+          className={`${estilos.campanha} ${faixa.imagemCelularUrl ? '' : estilos.soComputador}`}>
+          <picture>
+            {faixa.imagemCelularUrl && <source media="(max-width: 720px)" srcSet={faixa.imagemCelularUrl} />}
+            <img src={faixa.imagemUrl} alt="" />
+          </picture>
+        </Link>
+      )}
+      {barraNormal && <div className={barraNormal}>
         <div className={`conteudo ${estilos.faixaLinha}`}>
           <span>
             Venda exclusiva para CNPJ
@@ -31,7 +43,7 @@ export function Cabecalho({ config, categorias }: { config: ConfigLoja; categori
             </a>
           )}
         </div>
-      </div>
+      </div>}
       <div className={estilos.barra}>
         <div className={`conteudo ${estilos.principal}`}>
           <Link href="/" className={estilos.marca} aria-label={`${config.distribuidora}, página inicial`}>

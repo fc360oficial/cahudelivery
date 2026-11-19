@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, fmtMoeda } from '../api';
+import { api, fmtMoeda, upload } from '../api';
 
 interface ProdutoPromo { produtoId: string; nome: string; sku?: string; precoPromocional: number; imagem?: string | null }
 interface Promo {
   id: string; nome: string; inicio_em: string; fim_em: string; ativo: boolean; vigente: boolean;
   produtos: ProdutoPromo[] | null;
+  faixa_url?: string | null; faixa_celular_url?: string | null;
 }
 /** Item elegível pra oferta: ativo + estoque no CD + foto (GET /admin/promocoes-produtos). */
 interface ProdutoElegivel {
@@ -26,6 +27,26 @@ export function Promocoes() {
   const [busca, setBusca] = useState('');
   const [categoria, setCategoria] = useState('');
   const [elegiveis, setElegiveis] = useState<ProdutoElegivel[] | null>(null);
+  // Faixa de campanha do topo do site: arte do computador e (opcional) do celular.
+  const [faixa, setFaixa] = useState('');
+  const [faixaCelular, setFaixaCelular] = useState('');
+  const [subindo, setSubindo] = useState<'computador' | 'celular' | null>(null);
+
+  async function enviarFaixa(e: React.ChangeEvent<HTMLInputElement>, qual: 'computador' | 'celular') {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+    setSubindo(qual);
+    try {
+      const url = await upload(arquivo);
+      if (qual === 'computador') setFaixa(url); else setFaixaCelular(url);
+      setErro(null);
+    } catch (err) {
+      setErro((err as Error).message);
+    } finally {
+      setSubindo(null);
+      e.target.value = '';
+    }
+  }
 
   const carregar = useCallback(() => {
     api<Promo[]>('/admin/promocoes').then(setDados).catch((e) => setErro(e.message));
@@ -51,12 +72,13 @@ export function Promocoes() {
   }
 
   function abrirNova() {
-    setEditando(null); setNome('Ofertas da Semana'); setInicio(''); setFim(''); setItens([]); setBusca(''); setCategoria(''); setAberto(true);
+    setEditando(null); setNome('Ofertas da Semana'); setInicio(''); setFim(''); setItens([]); setBusca(''); setCategoria(''); setFaixa(''); setFaixaCelular(''); setAberto(true);
   }
 
   function abrirEdicao(p: Promo) {
     setEditando(p.id); setNome(p.nome); setInicio(dataLocal(p.inicio_em)); setFim(dataLocal(p.fim_em));
-    setItens(p.produtos ?? []); setBusca(''); setCategoria(''); setAberto(true);
+    setItens(p.produtos ?? []); setBusca(''); setCategoria('');
+    setFaixa(p.faixa_url ?? ''); setFaixaCelular(p.faixa_celular_url ?? ''); setAberto(true);
   }
 
   async function salvar(e: React.FormEvent) {
@@ -65,6 +87,7 @@ export function Promocoes() {
     try {
       const body = JSON.stringify({
         nome, inicioEm: `${inicio}T00:00:00-03:00`, fimEm: `${fim}T23:59:59-03:00`,
+        faixaUrl: faixa || null, faixaCelularUrl: faixaCelular || null,
         produtos: itens.map((i) => ({ produtoId: i.produtoId, precoPromocional: Number(i.precoPromocional) })),
       });
       await (editando ? api(`/admin/promocoes/${editando}`, { method: 'PUT', body }) : api('/admin/promocoes', { method: 'POST', body }));
@@ -100,6 +123,30 @@ export function Promocoes() {
             <input placeholder="Nome (ex.: Ofertas da Semana)" value={nome} onChange={(e) => setNome(e.target.value)} required style={{ flex: 1, minWidth: 220 }} />
             <input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} required />
             <input type="date" value={fim} onChange={(e) => setFim(e.target.value)} required />
+          </div>
+
+          <div className="promo-faixa">
+            <div className="rotulo">Faixa de campanha no topo do site (opcional)</div>
+            <p className="promo-faixa-ajuda">
+              Durante o período da promoção, a imagem aparece no lugar da barra preta do topo e leva o cliente para a página de Ofertas.
+              Fora do período, a barra normal volta sozinha.
+            </p>
+            {([
+              ['computador', 'Computador · 1920 × 60 px', faixa, setFaixa],
+              ['celular', 'Celular · 780 × 120 px', faixaCelular, setFaixaCelular],
+            ] as const).map(([qual, rotulo, url, definir]) => (
+              <div key={qual} className="promo-faixa-linha">
+                <span className="promo-faixa-rotulo">{rotulo}</span>
+                <label className="btn btn-claro">
+                  {subindo === qual ? 'Enviando…' : url ? 'Trocar imagem' : 'Enviar imagem'}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => enviarFaixa(e, qual)} style={{ display: 'none' }} />
+                </label>
+                {url && <img src={url} alt="" className={`promo-faixa-previa ${qual}`} />}
+                {url && <button type="button" className="btn-mini btn-perigo" onClick={() => definir('')}>Tirar</button>}
+              </div>
+            ))}
+            {!faixa && faixaCelular && <p className="promo-faixa-ajuda">Sem a imagem do computador a faixa não aparece em nenhuma tela.</p>}
+            {faixa && !faixaCelular && <p className="promo-faixa-ajuda">Sem a imagem do celular, no celular continua a barra normal.</p>}
           </div>
 
           {itens.length > 0 && (
@@ -153,7 +200,7 @@ export function Promocoes() {
           <tbody>
             {dados?.map((p) => (
               <tr key={p.id}>
-                <td><strong>{p.nome}</strong></td>
+                <td><strong>{p.nome}</strong>{p.faixa_url && <span className="badge aprovado" style={{ marginLeft: 8 }}>com faixa no topo</span>}</td>
                 <td>{dataLocal(p.inicio_em)} → {dataLocal(p.fim_em)}</td>
                 <td>{p.produtos?.length ?? 0}</td>
                 <td><span className={`badge ${p.vigente && p.ativo ? 'aprovado' : 'CANCELADO'}`}>{p.ativo ? (p.vigente ? 'vigente' : 'fora do período') : 'inativa'}</span></td>

@@ -88,6 +88,30 @@ export class CatalogService {
     };
   }
 
+  /**
+   * Faixa de campanha do topo do site: a promoção vigente mais recente que tem arte de faixa e
+   * pelo menos um produto (sem produto a página de ofertas estaria vazia). Nulo = sem faixa.
+   * Uma API publicada antes da migração 045 (coluna ainda não existe) não derruba a home: fica sem faixa.
+   */
+  private async faixaCampanha(): Promise<{ nome: string; imagemUrl: string; imagemCelularUrl: string | null } | null> {
+    try {
+      const { rows } = await tenantCtx().pool.query(
+        `select pm.nome, pm.faixa_url, pm.faixa_celular_url
+           from promocoes pm
+          where pm.ativo and now() between pm.inicio_em and pm.fim_em
+            and pm.faixa_url is not null
+            and exists (select 1 from promocao_produtos pp where pp.promocao_id = pm.id)
+          order by pm.inicio_em desc limit 1`,
+      );
+      const f = rows[0];
+      if (!f?.faixa_url) return null;
+      return { nome: f.nome, imagemUrl: f.faixa_url, imagemCelularUrl: f.faixa_celular_url ?? null };
+    } catch (e) {
+      console.warn(`[catalog.home] faixa de campanha indisponível: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   async home(clienteId?: string) {
     const { pool } = tenantCtx();
     const tabela = await this.tabelaPrecoDe(clienteId);
@@ -239,6 +263,7 @@ export class CatalogService {
 
     return {
       banners: banners.rows,
+      faixaCampanha: await this.faixaCampanha(),
       promocoes: promocoes.rows,
       maisVendidos: maisVendidos.rows,
       vencimentoProximo: vencimentoProximo.rows,

@@ -1,5 +1,5 @@
 import type {
-  Banner, Carrinho, Categoria, ConfigLoja, Home, Patrocinador, Prateleira, Produto,
+  Banner, Carrinho, Categoria, ConfigLoja, FaixaCampanha, Home, Patrocinador, Prateleira, Produto,
 } from './tipos';
 
 type Bruto = Record<string, unknown>;
@@ -73,9 +73,19 @@ function normalizarPrateleira(b: Bruto): Prateleira {
   };
 }
 
+/** Só vale com a arte do computador; qualquer outra coisa (campo ausente, vazio, formato estranho) é "sem faixa". */
+export function normalizarFaixaCampanha(v: unknown): FaixaCampanha | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const b = v as Bruto;
+  const imagemUrl = txt(b.imagemUrl);
+  if (!imagemUrl) return null;
+  return { nome: txt(b.nome) ?? 'Ofertas da semana', imagemUrl, imagemCelularUrl: txt(b.imagemCelularUrl) };
+}
+
 export function normalizarHome(b: Bruto): Home {
   return {
     banners: lista(b.banners).map(normalizarBanner).filter((x) => x.imagemUrl),
+    faixaCampanha: normalizarFaixaCampanha(b.faixaCampanha),
     promocoes: produtos(b.promocoes),
     maisVendidos: produtos(b.maisVendidos),
     vencimentoProximo: produtos(b.vencimentoProximo),

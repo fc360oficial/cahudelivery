@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { tenantCtx } from '../tenancy/tenant-context';
 import { AdminGuard } from './admin.guard';
@@ -33,8 +33,15 @@ class PromocaoDto {
   @IsNotEmpty() inicioEm!: string;
   @IsNotEmpty() fimEm!: string;
   @IsOptional() @IsBoolean() ativo?: boolean;
+  /** Faixa de campanha no topo do site (arte do computador); vazio/nulo = sem faixa. */
+  @IsOptional() @IsString() @MaxLength(500) faixaUrl?: string | null;
+  /** Arte da faixa para o celular; sem ela o celular segue com a barra normal. */
+  @IsOptional() @IsString() @MaxLength(500) faixaCelularUrl?: string | null;
   @IsArray() @ValidateNested({ each: true }) @Type(() => PromocaoProdutoDto) produtos!: PromocaoProdutoDto[];
 }
+
+/** URL de imagem da faixa: texto vazio vira nulo (sem faixa). */
+const urlFaixa = (v: string | null | undefined): string | null => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
 class BannerDto {
   @IsOptional() @IsString() titulo?: string;
@@ -121,8 +128,9 @@ export class AdminCatalogoController {
     try {
       await client.query('begin');
       const { rows } = await client.query(
-        `insert into promocoes (nome, inicio_em, fim_em, ativo) values ($1,$2,$3,coalesce($4,true)) returning id`,
-        [dto.nome, dto.inicioEm, dto.fimEm, dto.ativo],
+        `insert into promocoes (nome, inicio_em, fim_em, ativo, faixa_url, faixa_celular_url)
+         values ($1,$2,$3,coalesce($4,true),$5,$6) returning id`,
+        [dto.nome, dto.inicioEm, dto.fimEm, dto.ativo, urlFaixa(dto.faixaUrl), urlFaixa(dto.faixaCelularUrl)],
       );
       for (const p of dto.produtos) {
         await client.query(
@@ -147,8 +155,9 @@ export class AdminCatalogoController {
     try {
       await client.query('begin');
       const r = await client.query(
-        `update promocoes set nome=$2, inicio_em=$3, fim_em=$4, ativo=coalesce($5,ativo) where id=$1 returning id`,
-        [id, dto.nome, dto.inicioEm, dto.fimEm, dto.ativo],
+        `update promocoes set nome=$2, inicio_em=$3, fim_em=$4, ativo=coalesce($5,ativo),
+                faixa_url=$6, faixa_celular_url=$7 where id=$1 returning id`,
+        [id, dto.nome, dto.inicioEm, dto.fimEm, dto.ativo, urlFaixa(dto.faixaUrl), urlFaixa(dto.faixaCelularUrl)],
       );
       if (!r.rowCount) throw new NotFoundException();
       await client.query(`delete from promocao_produtos where promocao_id = $1`, [id]);

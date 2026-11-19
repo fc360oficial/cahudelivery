@@ -50,8 +50,17 @@ export interface PrateleiraCategoria {
 
 export type Prateleira = PrateleiraCategoria | Patrocinador;
 
+/** Faixa de campanha do topo: arte da promoção vigente. Sem arte de celular, o celular segue com a barra normal. */
+export interface FaixaCampanha {
+  nome: string;
+  imagemUrl: string;
+  imagemCelularUrl: string | null;
+}
+
 export interface Home {
   banners: Banner[];
+  /** Nulo quando não há promoção vigente com faixa (ou a API ainda não manda o campo). */
+  faixaCampanha: FaixaCampanha | null;
   promocoes: Produto[];
   maisVendidos: Produto[];
   vencimentoProximo: Produto[];

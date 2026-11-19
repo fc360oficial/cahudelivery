@@ -18,6 +18,16 @@ export function enderecoEmpresa(): string | null {
   return v || null;
 }
 
+/** Bandeiras de cartão que aparecem em selo no rodapé. Padrão: as que o Tiago confirmou em 19/11/2026 (Mastercard,
+ *  Visa, Elo, American Express e Hipercard); `BANDEIRAS_CARTAO=visa,mastercard` (separadas por vírgula) troca a
+ *  lista. Nome desconhecido é ignorado. */
+const BANDEIRAS_CONHECIDAS = ['visa', 'mastercard', 'elo', 'hipercard', 'amex'];
+export function bandeirasCartao(): string[] {
+  const bruto = process.env.BANDEIRAS_CARTAO;
+  const lista = (bruto == null ? 'mastercard,visa,elo,amex,hipercard' : bruto).split(',').map((b) => b.trim().toLowerCase());
+  return [...new Set(lista.filter((b) => BANDEIRAS_CONHECIDAS.includes(b)))];
+}
+
 /** Loja que vende bebida alcoólica mostra a advertência no rodapé (VENDE_BEBIDA_ALCOOLICA=true). */
 export function vendeBebidaAlcoolica(): boolean {
   return process.env.VENDE_BEBIDA_ALCOOLICA === 'true';

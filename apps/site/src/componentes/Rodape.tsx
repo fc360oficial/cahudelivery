@@ -1,18 +1,19 @@
 import Link from 'next/link';
 import type { Categoria, ConfigLoja } from '@/lib/api/tipos';
 import { caminhoCategoria } from '@/lib/formato/caminhos';
-import { enderecoEmpresa, linkWhatsapp, vendeBebidaAlcoolica } from '@/lib/site';
+import { bandeirasCartao, enderecoEmpresa, linkWhatsapp, vendeBebidaAlcoolica } from '@/lib/site';
+import { SelosPagamento } from './SelosPagamento';
 import estilos from './Rodape.module.css';
 
 const LOGO_PADRAO = '/marca/logo.png';
 
-/** Só entra no rodapé a forma que a retaguarda diz que a loja aceita. */
-const FORMAS: Record<string, string> = { pix: 'PIX', cartao: 'Cartão de crédito', boleto: 'Boleto', dinheiro: 'Dinheiro', carteira: 'Saldo da carteira' };
+/** Só entra no rodapé a forma que a retaguarda diz que a loja aceita (PIX e cartão em selo; as outras pelo nome). */
+const FORMAS = ['pix', 'cartao', 'boleto', 'dinheiro', 'carteira'];
 
 export function Rodape({ config, categorias }: { config: ConfigLoja; categorias: Categoria[] }) {
   const whatsapp = linkWhatsapp(config.contatoWhatsapp);
   const raizes = categorias.filter((c) => !c.paiId);
-  const formas = config.formasPagamento.map((f) => FORMAS[f]).filter(Boolean);
+  const formas = FORMAS.filter((f) => config.formasPagamento.includes(f));
   return (
     <footer className={estilos.rodape}>
       <div className={`conteudo ${estilos.colunas}`}>
@@ -44,7 +45,7 @@ export function Rodape({ config, categorias }: { config: ConfigLoja; categorias:
           {formas.length > 0 && (
             <>
               <h2>Formas de pagamento</h2>
-              <ul className={estilos.formas}>{formas.map((f) => <li key={f}>{f}</li>)}</ul>
+              <SelosPagamento formas={formas} bandeiras={bandeirasCartao()} />
             </>
           )}
           {(config.politicaPrivacidade || config.politicaCancelamento) && (

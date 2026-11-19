@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { ListaProdutos } from '@/componentes/ListaProdutos';
-import { buscarCategorias, buscarConfig, buscarMarcas, buscarProdutos } from '@/lib/api/catalogo';
+import { buscarCategorias, buscarConfig, buscarMarcas, buscarTodosProdutos } from '@/lib/api/catalogo';
 import { lerFiltros, type ParametrosUrl } from '@/lib/catalogo/filtros';
 import { caminhoCategoria, idDoSegmento } from '@/lib/formato/caminhos';
 
@@ -29,13 +29,14 @@ export default async function PaginaCategoria({ params, searchParams }: Props) {
   const canonico = caminhoCategoria(categoria);
   if (`/c/${slug}` !== canonico) permanentRedirect(canonico);
 
-  const filtros = lerFiltros(await searchParams);
+  // lista inteira, sem páginas (Tiago, 19/11/2026): link antigo com ?pagina=N cai na mesma lista
+  const filtros = { ...lerFiltros(await searchParams), pagina: 1 };
   const subcategorias = categorias.filter((c) => c.paiId === categoria.id);
   // Subcategoria só vale se for mesmo filha desta categoria.
   const alvo = filtros.sub && subcategorias.some((s) => s.id === filtros.sub) ? filtros.sub : categoria.id;
 
   const [pagina, marcas, config] = await Promise.all([
-    buscarProdutos({ categoria: alvo, marca: filtros.marca ?? undefined, pagina: filtros.pagina, ordem: filtros.ordem }),
+    buscarTodosProdutos({ categoria: alvo, marca: filtros.marca ?? undefined, ordem: filtros.ordem }),
     buscarMarcas(categoria.id),
     buscarConfig(),
   ]);

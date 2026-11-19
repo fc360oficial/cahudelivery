@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { ListaProdutos } from '@/componentes/ListaProdutos';
-import { buscarConfig, buscarProdutos } from '@/lib/api/catalogo';
+import { buscarConfig, buscarTodosProdutos } from '@/lib/api/catalogo';
 import { lerFiltros, type ParametrosUrl } from '@/lib/catalogo/filtros';
 
 export const metadata: Metadata = { title: 'Ofertas da semana' };
 
 export default async function PaginaOfertas({ searchParams }: { searchParams: Promise<ParametrosUrl> }) {
-  const filtros = lerFiltros(await searchParams);
+  // lista inteira, sem páginas (Tiago, 19/11/2026): link antigo com ?pagina=N cai na mesma lista
+  const filtros = { ...lerFiltros(await searchParams), pagina: 1 };
   const [pagina, config] = await Promise.all([
-    buscarProdutos({ promocao: true, pagina: filtros.pagina, ordem: filtros.ordem }),
+    buscarTodosProdutos({ promocao: true, ordem: filtros.ordem }),
     buscarConfig(),
   ]);
   return (

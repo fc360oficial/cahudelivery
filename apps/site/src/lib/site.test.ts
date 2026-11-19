@@ -39,6 +39,17 @@ describe('dados da instalação para o rodapé', () => {
     expect(enderecoEmpresa()).toBe('Rua Exemplo, 100 - Centro, Recife/PE');
     delete process.env.EMPRESA_ENDERECO;
   });
+  it('bandeiras do rodapé: as cinco confirmadas por padrão; a variável troca a lista e ignora nome desconhecido', async () => {
+    const { bandeirasCartao } = await import('./site');
+    delete process.env.BANDEIRAS_CARTAO;
+    expect(bandeirasCartao()).toEqual(['mastercard', 'visa', 'elo', 'amex', 'hipercard']);
+    process.env.BANDEIRAS_CARTAO = ' Visa , mastercard, visa, diners ,amex';
+    expect(bandeirasCartao()).toEqual(['visa', 'mastercard', 'amex']);
+    process.env.BANDEIRAS_CARTAO = '';
+    expect(bandeirasCartao()).toEqual([]);
+    delete process.env.BANDEIRAS_CARTAO;
+  });
+
   it('advertência de bebida só com a variável ligada', async () => {
     const { vendeBebidaAlcoolica } = await import('./site');
     delete process.env.VENDE_BEBIDA_ALCOOLICA;

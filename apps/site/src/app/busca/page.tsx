@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import { ListaProdutos } from '@/componentes/ListaProdutos';
-import { buscarConfig, buscarProdutos } from '@/lib/api/catalogo';
+import { buscarConfig, buscarTodosProdutos } from '@/lib/api/catalogo';
 import { lerFiltros, type ParametrosUrl } from '@/lib/catalogo/filtros';
 import { buscaLiberada } from '@/lib/catalogo/limite-busca';
 import { ipDoVisitante } from '@/lib/sessao/sessao-cliente';
@@ -13,12 +13,13 @@ const SEM_RESULTADO = { dados: [], pagina: 1, temMais: false };
 export default async function PaginaBusca({ searchParams }: { searchParams: Promise<ParametrosUrl> }) {
   const sp = await searchParams;
   const q = (typeof sp.q === 'string' ? sp.q : '').trim().slice(0, 80);
-  const filtros = lerFiltros(sp);
+  // lista inteira, sem páginas (Tiago, 19/11/2026): link antigo com ?pagina=N cai na mesma lista
+  const filtros = { ...lerFiltros(sp), pagina: 1 };
   const config = await buscarConfig();
   // Só conta (e só pode ser recusada) a busca que iria ao banco.
   const liberada = q.length < 2 || buscaLiberada(ipDoVisitante(await headers()), Date.now());
   const pagina = q.length >= 2 && liberada
-    ? await buscarProdutos({ busca: q, pagina: filtros.pagina, ordem: filtros.ordem })
+    ? await buscarTodosProdutos({ busca: q, ordem: filtros.ordem })
     : SEM_RESULTADO;
   const vazio = !liberada
     ? 'Muitas buscas em pouco tempo. Aguarde um minuto e tente de novo.'

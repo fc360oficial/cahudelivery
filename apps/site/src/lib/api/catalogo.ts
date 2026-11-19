@@ -4,7 +4,6 @@ import type { Categoria, ConfigLoja, Home, Marca, PaginaProdutos, Produto, Relac
 
 /** Cache do catálogo: o preço que o Dlinks atualiza aparece em até 1 minuto. */
 const REVALIDAR = 60;
-export const ITENS_POR_PAGINA = 24;
 
 type Bruto = Record<string, unknown>;
 
@@ -35,19 +34,34 @@ export interface FiltroBusca {
   marca?: string;
   busca?: string;
   promocao?: boolean;
-  pagina: number;
   ordem: string;
 }
 
-export async function buscarProdutos(f: FiltroBusca): Promise<PaginaProdutos> {
-  const q = new URLSearchParams({ pagina: String(f.pagina), limite: String(ITENS_POR_PAGINA), ordem: f.ordem });
-  if (f.categoria) q.set('categoria', f.categoria);
-  if (f.marca) q.set('marca', f.marca);
-  if (f.busca) q.set('busca', f.busca);
-  if (f.promocao) q.set('promocao', 'true');
-  // Busca livre sem cache: cada termo × página × ordem criaria uma entrada que nunca sai do disco.
-  const r = await chamarApi<{ dados?: Bruto[]; pagina: number; temMais?: boolean }>(`/produtos?${q}`, f.busca ? {} : { revalidar: REVALIDAR });
-  return { dados: (r.dados ?? []).map(normalizarProduto), pagina: r.pagina, temMais: r.temMais === true };
+/** A API entrega no máximo 50 produtos por chamada. */
+const LOTE_DA_API = 50;
+/** Teto de segurança da lista inteira (20 chamadas): acima disso a categoria precisaria voltar a ter páginas. */
+const MAXIMO_NA_LISTA = 1000;
+
+/**
+ * Lista INTEIRA de uma categoria, busca ou das ofertas, sem páginas (Tiago, 19/11/2026: "aqui tem que vir todos").
+ * Junta os lotes de 50 da API até acabar; as fotos dos cartões só carregam quando chegam perto da tela.
+ */
+export async function buscarTodosProdutos(f: FiltroBusca): Promise<PaginaProdutos> {
+  const dados: Produto[] = []; const vistos = new Set<string>();
+  for (let pagina = 1; dados.length < MAXIMO_NA_LISTA; pagina++) {
+    const q = new URLSearchParams({ pagina: String(pagina), limite: String(LOTE_DA_API), ordem: f.ordem });
+    if (f.categoria) q.set('categoria', f.categoria);
+    if (f.marca) q.set('marca', f.marca);
+    if (f.busca) q.set('busca', f.busca);
+    if (f.promocao) q.set('promocao', 'true');
+    // Busca livre sem cache: cada termo × lote × ordem criaria uma entrada que nunca sai do disco.
+    const r = await chamarApi<{ dados?: Bruto[]; temMais?: boolean }>(`/produtos?${q}`, f.busca ? {} : { revalidar: REVALIDAR });
+    const lote = (r.dados ?? []).map(normalizarProduto);
+    // produto que mudou de posição entre uma chamada e outra (preço ou nome alterado no meio) não aparece duas vezes
+    for (const p of lote) if (!vistos.has(p.id)) { vistos.add(p.id); dados.push(p); }
+    if (r.temMais !== true || lote.length === 0) break;
+  }
+  return { dados: dados.slice(0, MAXIMO_NA_LISTA), pagina: 1, temMais: false };
 }
 
 export async function buscarProduto(id: string): Promise<Produto> {

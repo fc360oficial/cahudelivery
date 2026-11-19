@@ -38,7 +38,8 @@ describe('selosDoProduto', () => {
 describe('montarSecoesHome', () => {
   const pat = (id: string): Patrocinador => ({ tipo: 'patrocinador', id, nome: `Pat ${id}`, logoUrl: null, bannerUrl: null, produtos: [produto()] });
   const base: Home = {
-    banners: [], faixaCampanha: null, promocoes: [produto()], maisVendidos: [produto()], vencimentoProximo: [produto()],
+    banners: [], faixaCampanha: null, promocoes: [produto()], vencimentoProximo: [produto()],
+    maisVendidos: Array.from({ length: 7 }, () => produto()),
     prateleiras: [{ tipo: 'categoria', categoriaId: 'c1', nome: 'Limpeza', produtos: [produto()] }, pat('meio')],
     patrocinadoresTopo: [pat('topo')], patrocinadoresOfertas: [pat('ofertas')],
   };
@@ -58,6 +59,14 @@ describe('montarSecoesHome', () => {
   it('pula seção sem produto', () => {
     const s = montarSecoesHome({ ...base, promocoes: [], vencimentoProximo: [], patrocinadoresTopo: [] });
     expect(s.map((x) => x.chave)).toEqual(['pat-ofertas-ofertas', 'mais-vendidos', 'cat-c1', 'pat-prat-meio']);
+  });
+  it('"Mais pedidos" some com menos de 7 produtos e volta com 7', () => {
+    const chaves = (n: number) => montarSecoesHome({ ...base, maisVendidos: Array.from({ length: n }, () => produto()) }).map((x) => x.chave);
+    expect(chaves(1)).not.toContain('mais-vendidos');
+    expect(chaves(6)).not.toContain('mais-vendidos');
+    expect(chaves(7)).toContain('mais-vendidos');
+    expect(chaves(10)).toContain('mais-vendidos');
+    expect(chaves(6)).toContain('ofertas'); // as outras prateleiras seguem com 1 produto
   });
   it('o mesmo patrocinador em vários espaços gera chaves únicas', () => {
     const s = montarSecoesHome({
